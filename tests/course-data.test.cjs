@@ -51,3 +51,10 @@ test('quiz styles expose focus, correctness, and mobile-friendly feedback states
     assert.ok(css.includes(selector), `missing ${selector} styles`);
   }
 });
+
+test('every linked chapter has a static HTML entry point for GitHub Pages', () => {
+  for (let day = 1; day <= 15; day += 1) {
+    const filename = `day${String(day).padStart(2, '0')}.html`;
+    assert.ok(fs.existsSync(filename), `missing ${filename}`);
+  }
+});
