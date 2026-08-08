@@ -3,11 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>端侧 AI · 15 天工程路线</title>
+  <title>Day 11 · LLM Runtime</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app"></div>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="active" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="11">
+      <div class="eyebrow">DAY 11</div>
+      <h1>LLM Runtime</h1>
+      <p class="hero-sub">把模型、缓存和生成循环组织起来</p>
+      <section><h2>学习目标</h2><div class="callout">理解 runtime 的生命周期、计算图、采样器和内存管理，并能划分 ESP32 与 Linux 主机职责。</div></section>
+      <section><h2>核心概念</h2><ul><li>模型加载与 mmap</li><li>Prefill/Decode 调度</li><li>采样：temperature、top-k、top-p</li><li>线程、batch 与 context 管理</li><li>streaming output 与取消</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>Runtime 像一个实时总线调度器：管理 buffer、算子、超时和事件回调，模型只是挂载在总线上的业务模块。</p></section>
+      <section><h2>本章讲解</h2><h3>Runtime 管的是生命周期与调度</h3><p>加载模型、分配 context、tokenize、prefill、decode、采样、流式输出和取消构成一次请求。它更像 RTOS 调度器而不是“调用一个 predict()”：必须管理 buffer、并发、超时和资源回收。</p><h3>ESP32 与 Host 明确分工</h3><p>ESP32 负责采集、协议 framing、离线兜底和执行器安全策略；Linux Edge Host 可承载模型、KV cache 与 LLM runtime。ESP32 接收到的模型建议只能通过白名单、范围检查和状态机后才能执行。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">Load model → allocate context → prefill → decode loop → sample → stream token
+                                  └── stop/EOS/cancel ──┘</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>llama-cli -m model.gguf -p &quot;Explain UART framing&quot; -n 64
+llama-server -m model.gguf --host 0.0.0.0 --port 8080</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">启动本地 server，用 ESP32 发送 HTTP 请求；测试首 token 延迟、流式输出、取消请求与并发限制。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>把 LLM 输出当成可直接执行的 GPIO/电机指令，会绕过嵌入式系统的安全边界；即使模型在本地运行也不改变这一点。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. TTFT 主要包含哪些阶段？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>仅 Decode 采样</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>请求处理、tokenize、prefill 与首 token 产生前的工作</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>仅网络 DNS</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>仅模型下载</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 生成循环为什么需要取消机制？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>取消会提高模型准确率</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>用户断开或超时后可释放计算与 KV cache 资源</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>因为 tokenizer 不支持长文本</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>为了重新训练权重</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. ESP32 接收 LLM 工具调用后最安全的做法是？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>直接执行模型生成字符串</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>依据本地白名单、参数范围和状态机再次授权</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>把命令写入 bootloader</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>关闭 watchdog</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md" target="_blank" rel="noopener noreferrer">llama.cpp server（官方/原始资料）</a></li><li><a href="https://huggingface.co/docs/transformers/en/chat_templating" target="_blank" rel="noopener noreferrer">Hugging Face Chat Templates（官方/原始资料）</a></li><li><a href="https://arxiv.org/pdf/2311.04934" target="_blank" rel="noopener noreferrer">Prompt Cache 原始论文（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day12.html">Day 12 · LLM 量化</a></p></section>
+      <div class="nav"><a class="button secondary" href="day10.html">← Day 10</a><a class="button" href="day12.html">Day 12 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
   <script src="app.js"></script>
 </body>
 </html>

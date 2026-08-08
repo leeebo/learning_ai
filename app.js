@@ -295,4 +295,11 @@ function bindQuiz(day){
   });
 }
 function renderHome(){document.title='端侧 AI · 15 天工程路线';document.querySelector('#app').innerHTML=`<header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><span>离线静态学习网站</span></header><main class="wrap"><section class="hero"><div class="eyebrow">EMBEDDED AI FIELD GUIDE</div><h1>从神经网络到可交付的端侧 AI 系统</h1><p>为熟悉 ESP32、USB、网络协议栈的嵌入式工程师设计。每天一个主题，沿着“模型 → 表示 → Runtime → Kernel → 内存/带宽 → 硬件 → 产品”逐层收束。</p><a class="button" href="day01.html">从 Day 1 开始 →</a></section><section class="grid">${days.map(d=>`<a class="card" href="day${String(d.n).padStart(2,'0')}.html"><span class="tag">DAY ${String(d.n).padStart(2,'0')}</span><h3>${d.t}</h3><p>${d.s}</p></a>`).join('')}</section></main><footer><div class="wrap">15 天 · 15 个独立页面 · 无外部依赖 · 双击即可打开</div></footer>`}
-const match=location.pathname.match(/day(\d{2})\.html$/i);match?renderDay(Number(match[1])):renderHome();
+const match=location.pathname.match(/day(\d{2})\.html$/i);
+if(match&&document.querySelector('#quiz-form')){
+  bindQuiz(days[Number(match[1])-1]);
+}else if(match){
+  renderDay(Number(match[1]));
+}else{
+  renderHome();
+}

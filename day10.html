@@ -3,11 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>端侧 AI · 15 天工程路线</title>
+  <title>Day 10 · KV Cache</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app"></div>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="active" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="10">
+      <div class="eyebrow">DAY 10</div>
+      <h1>KV Cache</h1>
+      <p class="hero-sub">用内存换取 Decode 阶段的重复计算</p>
+      <section><h2>学习目标</h2><div class="callout">理解 Prefill/Decode、K/V 张量布局、cache 量级与长上下文代价。</div></section>
+      <section><h2>核心概念</h2><ul><li>Attention 的 Q/K/V</li><li>Prefill 与 autoregressive Decode</li><li>cache shape 与 layer/head</li><li>paged KV、滑窗与量化</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>像网络协议缓存已确认的 header：新 token 只带来新的 Q/K/V 增量，不必重新解析整段历史 payload。</p></section>
+      <section><h2>本章讲解</h2><h3>KV cache 把时间换成空间</h3><p>自回归生成中，历史 token 的 K/V 不必每轮重算；Prefill 建立 prompt 的 cache，Decode 每步读取历史并追加一个 token。它像缓存已经解析的协议头，新包只处理增量。</p><h3>用公式先做容量预算</h3><p>近似字节数为 layers × 2(K+V) × tokens × kv_heads × head_dim × bytes_per_value，再乘 batch/并发等因素。GQA 通过减少 kv_heads 降低容量和读带宽，但这是模型架构选择，不是 runtime 随手能开启的开关。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">Prompt tokens ──Prefill──► K,V cache
+New token ──Q + cached K,V──► attention ─► next token ─► append cache</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>kv_bytes ≈ layers * 2 * tokens * kv_heads * head_dim * bytes_per_value
+# 2 = K + V; batch、dtype、GQA 会改变实际值</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">做一个 KV cache 计算器：改变 context、层数、KV heads、head_dim、dtype，观察 PSRAM/显存占用。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>只按权重文件估 RAM 而忽略长 prompt 的 KV cache，会导致模型“加载成功、请求一长就 OOM”。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. KV cache 的核心收益是什么？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>不再需要权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>避免每生成一个 token 都重算整个历史的 K/V</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>自动减少 tokenizer 时间</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>把模型转换为 int8</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. KV cache 容量与 context length 的关系通常是？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>完全无关</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>近似线性增长</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>必然平方增长</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>每次减半</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. GQA 如何降低 KV cache？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>删除所有 query head</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>多个 query head 共享较少的 K/V head</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>让所有 token 使用同一个 embedding</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>压缩 HTTP 响应</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://arxiv.org/pdf/2305.13245" target="_blank" rel="noopener noreferrer">GQA 原始论文（官方/原始资料）</a></li><li><a href="https://arxiv.org/pdf/2311.04934" target="_blank" rel="noopener noreferrer">Prompt Cache 原始论文（官方/原始资料）</a></li><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md" target="_blank" rel="noopener noreferrer">llama.cpp llama-bench（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day11.html">Day 11 · LLM Runtime</a></p></section>
+      <div class="nav"><a class="button secondary" href="day09.html">← Day 9</a><a class="button" href="day11.html">Day 11 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
   <script src="app.js"></script>
 </body>
 </html>

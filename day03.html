@@ -3,11 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>端侧 AI · 15 天工程路线</title>
+  <title>Day 03 · 模型格式</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app"></div>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="active" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="3">
+      <div class="eyebrow">DAY 03</div>
+      <h1>模型格式</h1>
+      <p class="hero-sub">让模型成为可移植的中间表示</p>
+      <section><h2>学习目标</h2><div class="callout">能从计算图、权重张量、元数据三个角度阅读 ONNX、TFLite、GGUF 等格式。</div></section>
+      <section><h2>核心概念</h2><ul><li>计算图与拓扑排序</li><li>权重布局与 dtype</li><li>opset、metadata 与版本兼容</li><li>转换器、runtime 与后端的职责</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>模型格式类似 USB 描述符 + 数据包协议：描述符说明端点与能力，权重是 payload，runtime 负责把它落到具体控制器。</p></section>
+      <section><h2>本章讲解</h2><h3>格式是模型的交接协议</h3><p>ONNX 把图、初始化权重、输入输出和 opset 放进 ModelProto；它像 USB 描述符加 payload，而不是“任何 runtime 都必然能执行”的保证。runtime 必须支持该图声明的每个算子语义。</p><h3>容器、IR 与后端要分层思考</h3><p>ONNX 是交换 IR，TFLite/LiteRT 面向轻量 runtime，GGUF 是供 GGML 系执行器快速加载的模型容器。格式转换会改变 dtype、布局、常量折叠和算子版本，因此每一步都要检查 I/O 与数值误差。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">Framework → Export IR → Converter → Optimizer → Runtime → Backend
+ PyTorch       ONNX/TFLite/GGUF                     CPU/GPU/NPU</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>onnx.checker.check_model(model)
+print(model.graph.input, model.graph.output)
+# tflite / gguf 还要检查量化类型与 tokenizer metadata</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">选一个小模型，分别列出输入输出、算子、权重 dtype、动态维度和 metadata。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>“能用 Netron 打开”只说明文件可解析；不等于目标 runtime 支持该 opset、动态维度或自定义算子。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. ONNX opset 主要声明什么？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>模型训练轮数</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>图中算子应遵循的语义版本</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>芯片时钟频率</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>权重压缩比</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. GGUF 最准确的描述是？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>一种唯一的量化算法</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>用于 GGML 执行器推理的模型容器格式</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>训练框架</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>NPU 驱动</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 转换后最可靠的第一项验证是什么？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>只比较文件大小</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>用固定输入比较源模型与目标 runtime 输出</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>只检查扩展名</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>只看模型卡参数量</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://onnx.ai/onnx/intro/concepts.html" target="_blank" rel="noopener noreferrer">ONNX Concepts（官方/原始资料）</a></li><li><a href="https://onnx.ai/onnx/repo-docs/Versioning.html" target="_blank" rel="noopener noreferrer">ONNX Versioning（官方/原始资料）</a></li><li><a href="https://github.com/ggerganov/ggml/blob/master/docs/gguf.md" target="_blank" rel="noopener noreferrer">GGUF 格式规范（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day04.html">Day 4 · 量化</a></p></section>
+      <div class="nav"><a class="button secondary" href="day02.html">← Day 2</a><a class="button" href="day04.html">Day 4 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
   <script src="app.js"></script>
 </body>
 </html>

@@ -3,11 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>端侧 AI · 15 天工程路线</title>
+  <title>Day 08 · 端侧视觉模型</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app"></div>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="active" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="8">
+      <div class="eyebrow">DAY 08</div>
+      <h1>端侧视觉模型</h1>
+      <p class="hero-sub">从摄像头帧到可用事件</p>
+      <section><h2>学习目标</h2><div class="callout">掌握检测/分类/分割的选择，以及摄像头、颜色格式、缩放和后处理的流水线。</div></section>
+      <section><h2>核心概念</h2><ul><li>分类、检测、分割</li><li>RGB/YUV、stride 与 DMA</li><li>ROI、resize 与 letterbox</li><li>NMS、置信度与时序平滑</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>摄像头流水线像 USB 摄像头驱动到应用层：帧格式、stride、buffer ownership 任一环节错位，模型就会“稳定地错”。</p></section>
+      <section><h2>本章讲解</h2><h3>摄像头到模型是一条带所有权的流水线</h3><p>相机 DMA、frame buffer、颜色转换、crop/letterbox、resize、归一化、推理和 NMS 都要定义输入输出格式与 buffer owner。ESP-IDF 的 camera controller 要求满足对齐约束的 buffer，并在传输完成事件后使用帧数据。</p><h3>检测后处理需要坐标账本</h3><p>letterbox 产生缩放比和 padding；模型输出框必须反变换回原图坐标后再 NMS。若只保留 320×320 输入坐标，画到原始摄像头帧上就会系统性偏移。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">Camera DMA → Frame buffer → Crop/Resize → Normalize → CNN
+                                      └→ decode boxes → NMS → tracker</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>frame = camera.acquire()
+roi = letterbox(frame, 320, 320)
+boxes = detector(roi)
+boxes = nms(boxes, iou=0.45)
+camera.release(frame)</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">用一张测试图逐步可视化原图、resize、模型输入、候选框、NMS 后结果，记录每步耗时。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>未等 DMA 传输完成就把同一个 frame buffer 交给预处理，或提前归还它，会造成撕裂、偶现误检和难以复现的数据竞争。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. letterbox 后为什么必须保存缩放和 padding？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>为了增加模型参数</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>把检测框坐标正确映射回原始帧</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>为了改变 tokenizer</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>为了关闭 DMA</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 相机帧最安全的处理时机是？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>DMA 启动前</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>驱动报告传输完成并取得 buffer 所有权后</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>任意 ISR 中</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>Flash 擦写期间</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 检测模型 10 FPS 是否意味着相机必须为 10 FPS？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>是，二者永远相等</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>否，采集、预处理和推理可独立，并可能丢帧或复用最新帧</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>是，因为 NMS 决定时钟</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>否，因为模型不需要输入</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32p4/api-reference/peripherals/camera_driver.html" target="_blank" rel="noopener noreferrer">ESP-IDF Camera Controller（官方/原始资料）</a></li><li><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/memory-types.html" target="_blank" rel="noopener noreferrer">ESP-IDF 内存类型（官方/原始资料）</a></li><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html" target="_blank" rel="noopener noreferrer">ESP-DL 加载、测试与性能分析（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day09.html">Day 9 · Tokenizer</a></p></section>
+      <div class="nav"><a class="button secondary" href="day07.html">← Day 7</a><a class="button" href="day09.html">Day 9 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
   <script src="app.js"></script>
 </body>
 </html>

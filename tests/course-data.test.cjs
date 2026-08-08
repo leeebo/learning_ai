@@ -58,3 +58,17 @@ test('every linked chapter has a static HTML entry point for GitHub Pages', () =
     assert.ok(fs.existsSync(filename), `missing ${filename}`);
   }
 });
+
+test('every static chapter page contains its learning content and flow diagram', () => {
+  const {days} = loadApp();
+
+  for (const day of days) {
+    const filename = `day${String(day.n).padStart(2, '0')}.html`;
+    const html = fs.readFileSync(filename, 'utf8');
+
+    for (const requiredText of [day.t, '本章讲解', '工程陷阱', '核心测试', '延伸阅读']) {
+      assert.ok(html.includes(requiredText), `${filename} is missing ${requiredText}`);
+    }
+    assert.match(html, /<pre class="diagram">[\s\S]+<\/pre>/, `${filename} is missing a flow diagram`);
+  }
+});
