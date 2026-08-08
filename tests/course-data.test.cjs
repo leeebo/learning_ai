@@ -72,3 +72,21 @@ test('every static chapter page contains its learning content and flow diagram',
     assert.match(html, /<pre class="diagram">[\s\S]+<\/pre>/, `${filename} is missing a flow diagram`);
   }
 });
+
+test('every chapter provides a ten-minute reading structure with a keyword table and learning bridge', () => {
+  const {days} = loadApp();
+
+  for (const day of days) {
+    assert.equal(day.readingMinutes, 10, `Day ${day.n} should target ten minutes`);
+    assert.ok(Array.isArray(day.keywords) && day.keywords.length >= 4, `Day ${day.n} needs keyword definitions`);
+    assert.ok(typeof day.recap === 'string' && day.recap.length > 40, `Day ${day.n} needs a bridge from the previous day`);
+    assert.ok(typeof day.nextPreview === 'string' && day.nextPreview.length > 40, `Day ${day.n} needs a bridge to the next day`);
+    assert.ok(day.lesson.length >= 6, `Day ${day.n} needs detailed reading sections`);
+
+    const html = fs.readFileSync(`day${String(day.n).padStart(2, '0')}.html`, 'utf8');
+    assert.match(html, /<table class="keyword-table">[\s\S]+<\/table>/, `Day ${day.n} needs a keyword table`);
+    assert.ok(html.includes('承上：回顾与定位'), `Day ${day.n} needs a previous-day bridge`);
+    assert.ok(html.includes('启下：下一章如何使用本章能力'), `Day ${day.n} needs a next-day bridge`);
+    assert.ok((html.match(/[\u4e00-\u9fff]/g) || []).length >= 1600, `Day ${day.n} needs ten-minute reading depth`);
+  }
+});
