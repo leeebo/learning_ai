@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 02 · 训练与推理</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="active" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="2">
+      <div class="eyebrow">DAY 02</div>
+      <h1>训练与推理</h1>
+      <p class="hero-sub">理解离线训练与设备端执行的边界</p>
+      <section><h2>学习目标</h2><div class="callout">区分训练图、推理图和部署图，知道哪些状态必须保留、哪些可以折叠。</div></section>
+      <section><h2>核心概念</h2><ul><li>epoch、batch、学习率与优化器</li><li>训练态与推理态</li><li>BatchNorm folding、常量折叠</li><li>端侧只执行 forward 的原因</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>训练像在实验室调试协议栈，推理像把确定好的状态机烧进设备；设备不应携带训练时的梯度、优化器和临时统计。</p></section>
+      <section><h2>本章讲解</h2><h3>训练固件与推理固件不是同一个产物</h3><p>训练需要样本、梯度、优化器状态和随机扰动；推理只需要确定的计算图、权重和必要的运行时 buffer。把它类比为实验室里可改寄存器的调试环境，和烧录到量产板上的确定状态机。</p><h3>导出前先固定推理语义</h3><p>PyTorch 的 model.eval() 会让 Dropout 和 BatchNorm 使用推理行为。导出用的 example input 不是装饰：它帮助捕获图、shape 和算子路径；随后要用相同输入比较源框架与 runtime 输出。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">数据集 → 训练循环 → checkpoint → 导出/优化 → runtime → 输入 → 输出</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>model.eval()
+with no_grad():
+    output = model(input)
+export(model, example_input, format=&quot;onnx&quot;)</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">对比训练态/推理态的 BatchNorm 输出；导出前后固定随机种子，验证误差与算子列表。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>只在 PC 上比较模型文件而没有比较设备端前处理，会把颜色空间、量化和 resize 的错误误判为“模型精度下降”。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. 为什么推理前要调用 model.eval()？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>释放所有权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>使 Dropout、BatchNorm 使用推理行为</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>自动量化为 int8</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>把模型转换为 GGUF</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 哪项通常不应随 MCU 推理产物部署？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>权重张量</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>输入输出元数据</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>优化器动量与梯度</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>算子执行顺序</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 导出模型的 example input 最主要的作用是什么？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>给模型增加训练样本</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>帮助导出器捕获输入 shape 与实际算子路径</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>替代代表性校准集</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>设定设备 CPU 频率</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html" target="_blank" rel="noopener noreferrer">PyTorch ONNX 导出（官方/原始资料）</a></li><li><a href="https://onnx.ai/onnx/intro/concepts.html" target="_blank" rel="noopener noreferrer">ONNX Concepts（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day03.html">Day 3 · 模型格式</a></p></section>
+      <div class="nav"><a class="button secondary" href="day01.html">← Day 1</a><a class="button" href="day03.html">Day 3 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 12 · LLM 量化与 GGUF</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="active" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="12">
+      <div class="eyebrow">DAY 12</div>
+      <h1>LLM 量化与 GGUF</h1>
+      <p class="hero-sub">把权重压到可部署的模型文件</p>
+      <section><h2>学习目标</h2><div class="callout">理解 block quantization、混合精度、权重元数据及 GGUF 容器的关系。</div></section>
+      <section><h2>核心概念</h2><ul><li>Q4 不等于每参数 4 bit</li><li>block scale 与额外开销</li><li>Q4_K_M/Q5_K_M/IQ 的取舍</li><li>W4A16、W8A8 与 weight-only</li><li>GGUF metadata 与 mmap</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>不是把每个字节硬截短，而是把一批数据压缩并附带解释字典；敏感层可保留更高精度。</p></section>
+      <section><h2>本章讲解</h2><h3>GGUF 是自描述容器</h3><p>GGUF 保存张量与 key-value metadata，旨在让 GGML 系执行器快速加载；规范中的 alignment 和 quantization_version 是兼容性信息。它不是 Q4_K_M 等某一种量化方法。</p><h3>权重量化是块级的工程折中</h3><p>许多 GGML 量化格式为一块值保存低 bit 编码及 scale 等辅助数据，所以“Q4”不等于文件中每个参数恰好 4 bit。比较应同时记录文件大小、质量代理、prefill/decode 和峰值内存。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">FP16 tensor → blocks → quantized values + scales/mins → GGUF tensor + metadata → runtime kernel</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>python convert_hf_to_gguf.py ./model --outfile model-f16.gguf
+llama-quantize model-f16.gguf model-q4_k_m.gguf Q4_K_M
+llama-cli -m model-q4_k_m.gguf -p &quot;hello&quot;</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">对同一模型比较 F16/Q8/Q4 的文件大小、困惑度代理指标、首 token 延迟和峰值内存。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>从已经量化的 GGUF 再量化会累积误差；应从 F16/BF16 或更高精度源产物生成各个目标量化版本。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. GGUF metadata 的重要用途是什么？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>替代所有模型权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>描述模型与量化等信息以便执行器正确加载</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>提高 Wi-Fi RSSI</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>记录训练数据原文</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. “Q4”为何不必然等于每参数精确 4 bit？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>量化不会压缩文件</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>块量化还需要 scale、min 等辅助数据</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>GPU 不支持整数</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>tokenizer 会修改位数</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 比较两种 GGUF 量化时最不充分的指标是？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>文件大小</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>固定提示下的延迟与质量代理</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>峰值内存</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>相同参数下的吞吐</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://github.com/ggerganov/ggml/blob/master/docs/gguf.md" target="_blank" rel="noopener noreferrer">GGUF 格式规范（官方/原始资料）</a></li><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md" target="_blank" rel="noopener noreferrer">llama.cpp llama-bench（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day13.html">Day 13 · 推理框架</a></p></section>
+      <div class="nav"><a class="button secondary" href="day11.html">← Day 11</a><a class="button" href="day13.html">Day 13 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="app.js"></script>
+</body>
+</html>

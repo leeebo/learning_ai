@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 04 · 量化</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="active" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="4">
+      <div class="eyebrow">DAY 04</div>
+      <h1>量化</h1>
+      <p class="hero-sub">用更少的 bit 换取更低的存储与带宽</p>
+      <section><h2>学习目标</h2><div class="callout">掌握对称/非对称量化、scale/zero-point，并能判断误差来源。</div></section>
+      <section><h2>核心概念</h2><ul><li>int8 与 float 的映射</li><li>per-tensor、per-channel</li><li>校准集与激活范围</li><li>量化误差、饱和与反量化</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>像把高精度传感器值映射成有限 ADC 码：scale 是量程，zero-point 是零点，校准集决定量程是否覆盖真实信号。</p></section>
+      <section><h2>本章讲解</h2><h3>量化是受控的编码，不是截断</h3><p>int8 通过 scale 与 zero-point 表示有限范围，类似把模拟传感器映射为 ADC 码。量程过小会饱和，量程过大则把有效细节挤进很少的码位。</p><h3>校准决定激活量程</h3><p>权重是常量，激活取决于真实输入。LiteRT 的全整数量化要求 representative dataset 运行若干次以估计激活范围；它应覆盖光照、姿态、噪声和真实边界条件。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">float x ──(x/scale)+zp──► int8 q ──runtime kernel──► int8/float output</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>q = round(x / scale + zero_point)
+q = clip(q, -128, 127)
+x_hat = (q - zero_point) * scale</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">写一个 numpy/Python 量化器，比较 per-tensor 与 per-channel 的 MSE，并找出饱和比例。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>量化为 int8 不保证更快：若目标后端没有 int8 kernel，或频繁插入 dequantize/quantize，转换开销可能抵消收益。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. 全整数量化为何需要 representative dataset？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>用来重新训练所有权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>估计会随输入变化的激活范围</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>生成模型名称</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>提高摄像头帧率</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 量化饱和最接近 ADC 的哪种问题？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>采样率过高</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>输入超过量程而被夹到最大/最小码</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>串口波特率不匹配</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>Flash 擦写</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. ESP-DL 文档中 ESP32 与 ESP32-S3 常使用的策略是？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>所有 Conv 必为 per-channel</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>per-tensor 量化</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>仅支持 float32</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>不支持任何量化</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://ai.google.dev/edge/litert/models/post_training_quantization" target="_blank" rel="noopener noreferrer">LiteRT PTQ（官方/原始资料）</a></li><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_quantize_model.html" target="_blank" rel="noopener noreferrer">ESP-DL 量化（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day05.html">Day 5 · 算子</a></p></section>
+      <div class="nav"><a class="button secondary" href="day03.html">← Day 3</a><a class="button" href="day05.html">Day 5 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="app.js"></script>
+</body>
+</html>

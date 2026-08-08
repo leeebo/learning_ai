@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 14 · 性能分析</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
+  <main class="wrap day-layout">
+    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="active" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
+    <article class="content" data-day="14">
+      <div class="eyebrow">DAY 14</div>
+      <h1>性能分析</h1>
+      <p class="hero-sub">把“感觉慢”变成可定位的预算</p>
+      <section><h2>学习目标</h2><div class="callout">用端到端指标、分阶段计时、硬件计数器和功耗测量定位瓶颈。</div></section>
+      <section><h2>核心概念</h2><ul><li>TTFT、tokens/s、p50/p95</li><li>算子级 profile 与 trace</li><li>CPU 利用率、cache miss、带宽</li><li>功耗、温度、降频</li><li>准确率—延迟—能耗三维权衡</li></ul></section>
+      <section><h2>嵌入式类比</h2><p>像抓 USB/网络协议问题：先看端到端时序，再缩小到阶段、包和 handler；单看平均吞吐会掩盖尾延迟。</p></section>
+      <section><h2>本章讲解</h2><h3>先定义可复现的基准合同</h3><p>固定模型版本、量化、prompt、输出上限、采样、线程、context、温度和供电状态。没有这些，两个 tokens/s 数字不可比较，就像未固定波特率和 payload 的吞吐测试。</p><h3>分阶段测量才能定位</h3><p>TTFT 覆盖首响应体验，inter-token latency 反映流式生成节奏，output token throughput 衡量整体产出。还要拆出预处理、prefill、decode、网络与后处理，并同时记录能耗和热状态。</p></section>
+      <section><h2>流程图</h2><pre class="diagram">Request → preprocess → prefill → decode×N → postprocess
+  | wall time | p50/p95 | bytes moved | joules/token | thermal state</pre></section>
+      <section><h2>代码或命令示例</h2><pre class="code"><code>time_to_first_token = prefill_end - request_start
+tokens_per_second = generated_tokens / decode_seconds
+joules_per_token = energy_j / generated_tokens</code></pre></section>
+      <section><h2>动手实验</h2><div class="callout">建立固定 prompt/温度/线程/电源条件的 benchmark 表；至少重复 5 次，报告中位数与 p95。</div></section>
+      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>只报告平均 tokens/s 会掩盖长 prompt、热降频、首次加载和 p95 尾延迟；产品体验常由这些“非平均”路径决定。</div></section>
+      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. Time to First Token 的定义最接近？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>相邻两个输出 token 间隔</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>请求发出到收到第一个响应 token 的时间</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>整个模型下载时间</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>每秒摄像头帧数</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 为何基准测试要 warm-up 并重复多次？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>让模型自动增加参数</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>减少首次加载/cache 与瞬态频率造成的偏差，并报告尾延迟</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>避免使用固定 prompt</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>跳过正确性检查</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. tokens/s 上升但 joules/token 变差，是否必然是成功优化？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>是，速度是唯一指标</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>否，需按产品的延迟、能耗、温度和质量目标判断</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>是，因为能耗无法测量</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>否，因为 tokenizer 失效</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
+      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/archives/triton-inference-server-2700/user-guide/docs/perf_benchmark/genai-perf-README.html" target="_blank" rel="noopener noreferrer">NVIDIA GenAI-Perf 指标（官方/原始资料）</a></li><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md" target="_blank" rel="noopener noreferrer">llama.cpp llama-bench（官方/原始资料）</a></li><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html" target="_blank" rel="noopener noreferrer">ESP-DL 加载、测试与性能分析（官方/原始资料）</a></li></ul></section>
+      <section><h2>预习</h2><p>下一天：<a href="day15.html">Day 15 · 整合网站</a></p></section>
+      <div class="nav"><a class="button secondary" href="day13.html">← Day 13</a><a class="button" href="day15.html">Day 15 →</a></div>
+    </article>
+  </main>
+  <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="app.js"></script>
+</body>
+</html>
