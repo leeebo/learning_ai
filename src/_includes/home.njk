@@ -19,6 +19,7 @@
     <div class="dashboard-actions">
       <a class="button" data-continue-learning href="{{ '/day01.html' | locale_url(lang) | url }}">{{ copy.continueLearning }}</a>
       <a class="button secondary" href="{{ '/review.html' | locale_url(lang) | url }}"><span>{{ copy.reviewMistakes }}</span> <span data-review-count-badge></span></a>
+      <a class="button secondary" href="{{ '/certificate.html' | locale_url(lang) | url }}">{{ copy.viewCertificate }}</a>
     </div>
     <div class="badge-shelf" aria-label="{{ copy.badgesTitle }}">
       <h3>{{ copy.badgesTitle }}</h3>
@@ -30,6 +31,17 @@
         <div class="learning-badge" data-badge-streak="3"><span aria-hidden="true">🔥</span><strong>{{ copy.badgeStreak }}</strong><small>3 {{ copy.streakDays }}</small></div>
       </div>
     </div>
+    <details class="learning-archive" data-learning-archive>
+      <summary>{{ copy.learningArchiveTitle }}</summary>
+      <p>{{ copy.learningArchiveDescription }}</p>
+      <div class="archive-actions">
+        <button class="button secondary" type="button" data-export-progress>{{ copy.exportProgress }}</button>
+        <label class="button secondary" for="progress-import-{{ lang }}">{{ copy.importProgress }}</label>
+        <input class="sr-only" id="progress-import-{{ lang }}" type="file" accept="application/json,.json" data-import-progress>
+        <button class="button danger" type="button" data-reset-progress>{{ copy.resetProgress }}</button>
+      </div>
+      <p class="archive-status" role="status" aria-live="polite" data-archive-status></p>
+    </details>
   </section>
   <section class="course-search" data-course-search hidden>
     <label for="course-search-input">{{ copy.searchCourse }}</label>

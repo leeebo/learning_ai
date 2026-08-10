@@ -8,12 +8,14 @@ const dayFiles = Array.from({ length: totalDays }, (_, index) => `day${String(in
 const generatedFiles = [
   "index.html",
   "review.html",
+  "certificate.html",
   "app.js",
   "favicon.svg",
   "styles.css",
   ...dayFiles,
   "en/index.html",
   "en/review.html",
+  "en/certificate.html",
   ...dayFiles.map(filename => `en/${filename}`),
 ];
 
