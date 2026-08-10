@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Edge AI, a 17-day engineering path</title>
+  <desc id="desc">A bilingual engineering course connecting models, runtimes, kernels, memory, hardware, edge devices, and large-scale LLM infrastructure.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101a2d"/>
+      <stop offset="0.58" stop-color="#142b52"/>
+      <stop offset="1" stop-color="#0d5e68"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#76a4ff"/>
+      <stop offset="1" stop-color="#45e0c8"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="520" rx="34" fill="url(#bg)"/>
+  <circle cx="1080" cy="90" r="160" fill="#2f66d7" opacity="0.18" filter="url(#glow)"/>
+  <circle cx="110" cy="480" r="180" fill="#18b7a4" opacity="0.14" filter="url(#glow)"/>
+  <path d="M0 410 C210 340 320 500 520 415 S850 345 1200 425" fill="none" stroke="#7ee9db" stroke-opacity="0.1" stroke-width="2"/>
+  <path d="M0 445 C230 375 360 520 590 440 S900 390 1200 458" fill="none" stroke="#82aaff" stroke-opacity="0.11" stroke-width="2"/>
+
+  <g font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+    <text x="72" y="86" fill="#76a4ff" font-size="20" font-weight="750" letter-spacing="4">EMBEDDED → EDGE → LLM INFRA</text>
+    <text x="72" y="159" fill="#ffffff" font-size="56" font-weight="800" letter-spacing="-2">EDGE AI · 17-DAY</text>
+    <text x="72" y="221" fill="#ffffff" font-size="56" font-weight="800" letter-spacing="-2">ENGINEERING PATH</text>
+    <text x="74" y="268" fill="#c8d5e8" font-size="22">From tensor contracts and kernels to shippable edge LLM systems.</text>
+
+    <g transform="translate(74 316)">
+      <g>
+        <rect width="142" height="62" rx="15" fill="#203a66" stroke="#557dbb"/>
+        <text x="71" y="39" text-anchor="middle" fill="#eaf2ff" font-size="17" font-weight="700">MODEL</text>
+      </g>
+      <path d="M151 31h30" stroke="url(#accent)" stroke-width="3"/>
+      <path d="m174 24 9 7-9 7" fill="none" stroke="#45e0c8" stroke-width="3"/>
+      <g transform="translate(190)">
+        <rect width="142" height="62" rx="15" fill="#203a66" stroke="#557dbb"/>
+        <text x="71" y="39" text-anchor="middle" fill="#eaf2ff" font-size="17" font-weight="700">RUNTIME</text>
+      </g>
+      <path d="M341 31h30" stroke="url(#accent)" stroke-width="3"/>
+      <path d="m364 24 9 7-9 7" fill="none" stroke="#45e0c8" stroke-width="3"/>
+      <g transform="translate(380)">
+        <rect width="142" height="62" rx="15" fill="#203a66" stroke="#557dbb"/>
+        <text x="71" y="39" text-anchor="middle" fill="#eaf2ff" font-size="17" font-weight="700">KERNEL</text>
+      </g>
+      <path d="M531 31h30" stroke="url(#accent)" stroke-width="3"/>
+      <path d="m554 24 9 7-9 7" fill="none" stroke="#45e0c8" stroke-width="3"/>
+      <g transform="translate(570)">
+        <rect width="142" height="62" rx="15" fill="#203a66" stroke="#557dbb"/>
+        <text x="71" y="39" text-anchor="middle" fill="#eaf2ff" font-size="17" font-weight="700">MEMORY</text>
+      </g>
+      <path d="M721 31h30" stroke="url(#accent)" stroke-width="3"/>
+      <path d="m744 24 9 7-9 7" fill="none" stroke="#45e0c8" stroke-width="3"/>
+      <g transform="translate(760)">
+        <rect width="142" height="62" rx="15" fill="#203a66" stroke="#557dbb"/>
+        <text x="71" y="39" text-anchor="middle" fill="#eaf2ff" font-size="17" font-weight="700">HARDWARE</text>
+      </g>
+    </g>
+
+    <g transform="translate(74 423)" font-size="15" font-weight="700">
+      <g><rect width="146" height="42" rx="21" fill="#ffffff" opacity="0.1"/><text x="73" y="27" text-anchor="middle" fill="#e6efff">17 CHAPTERS</text></g>
+      <g transform="translate(160)"><rect width="138" height="42" rx="21" fill="#ffffff" opacity="0.1"/><text x="69" y="27" text-anchor="middle" fill="#e6efff">BILINGUAL</text></g>
+      <g transform="translate(312)"><rect width="170" height="42" rx="21" fill="#ffffff" opacity="0.1"/><text x="85" y="27" text-anchor="middle" fill="#e6efff">OFFLINE-READY</text></g>
+      <g transform="translate(496)"><rect width="148" height="42" rx="21" fill="#ffffff" opacity="0.1"/><text x="74" y="27" text-anchor="middle" fill="#e6efff">NO BACKEND</text></g>
+    </g>
+
+    <g transform="translate(1010 376)">
+      <circle cx="58" cy="58" r="58" fill="#ffffff" opacity="0.09"/>
+      <circle cx="58" cy="58" r="43" fill="none" stroke="url(#accent)" stroke-width="5"/>
+      <text x="58" y="54" text-anchor="middle" fill="#ffffff" font-size="28" font-weight="800">17</text>
+      <text x="58" y="77" text-anchor="middle" fill="#9ce9dd" font-size="13" font-weight="800" letter-spacing="2">DAYS</text>
+    </g>
+  </g>
+</svg>
