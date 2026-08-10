@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="active" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,14 +18,57 @@
       <div class="eyebrow">DAY 03</div>
       <h1>模型格式</h1>
       <p class="hero-sub">让模型成为可移植的中间表示</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 18 分钟</p>
       <section><h2>学习目标</h2><div class="callout">能从计算图、权重张量、元数据三个角度阅读 ONNX、TFLite、GGUF 等格式。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">计算图</th><td>以节点和边描述张量如何经过算子得到输出。</td><td>像固件的数据流图或任务依赖图。</td></tr><tr><th scope="row">ONNX opset</th><td>模型声明的算子语义版本。</td><td>像通信协议版本；收发两端必须兼容。</td></tr><tr><th scope="row">Metadata</th><td>随模型保存的名称、词表、量化或配置说明。</td><td>像 USB 描述符，帮助主机正确解释 payload。</td></tr><tr><th scope="row">Runtime</th><td>加载模型并调度算子执行的程序。</td><td>像 RTOS 加驱动抽象层，而非模型文件本身。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">计算图</th><td>以节点和边描述张量如何经过算子得到输出。</td><td>像固件的数据流图或任务依赖图。</td></tr><tr><th scope="row">ONNX opset</th><td>模型声明的算子语义版本。</td><td>像通信协议版本；收发两端必须兼容。</td></tr><tr><th scope="row">Metadata</th><td>随模型保存的名称、词表、量化或配置说明。</td><td>像 USB 描述符，帮助主机正确解释 payload。</td></tr><tr><th scope="row">Runtime</th><td>加载模型并调度算子执行的程序。</td><td>像 RTOS 加驱动抽象层，而非模型文件本身。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章已经把模型固定为推理图和权重。本章关注这份产物如何跨框架、转换器与硬件后端传递，以及传递过程中什么会失真。</p></section>
-      <section><h2>嵌入式类比</h2><p>模型格式类似 USB 描述符 + 数据包协议：描述符说明端点与能力，权重是 payload，runtime 负责把它落到具体控制器。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章已经把模型固定为推理图和权重。本章关注这份产物如何跨框架、转换器与硬件后端传递，以及传递过程中什么会失真。</p><h3>从 ESP32 系统心智模型进入</h3><p>模型格式是交换协议，不是万能驱动。ONNX 的图和 opset、LiteRT 的算子集、GGUF 的 metadata 都必须由目标执行器理解；打开文件或转换成功不等于可以正确推理。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>框架导出计算图和权重，转换器检查算子与 dtype，优化器做常量折叠或布局变换，runtime 为后端分配 kernel。每个阶段都要记录 I/O 名称、shape、dtype、动态维度和数值误差。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>把格式检查纳入 CI：固定样本在源框架、导出 IR 和目标 runtime 上的输出都要比较。发生差异时先查预处理、布局、opset 和 fallback，而不是立即怀疑模型本身。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">Framework → Export IR → Converter → Optimizer → Runtime → Backend
- PyTorch       ONNX/TFLite/GGUF                     CPU/GPU/NPU</pre></section>
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">模型格式的演化，本质上是在回答“如何把一个框架内部对象交给另一套软件和硬件”。早期模型常依赖训练代码才能解释，随后数据流图、统一算子语义和轻量二进制容器逐渐分离。格式没有消灭差异，而是把差异从隐蔽的源代码依赖变成可检查的 schema、opset 和 metadata。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">2014</div>
+    <div class="timeline-content"><h3>Caffe 用声明式网络与权重文件推动模型复用</h3><p>Caffe 将网络结构、训练配置与学习到的参数组织为可交换产物，并以层为扩展单元。它展示了模型可以脱离单个研究脚本被分享和部署，也暴露了框架专属层与格式绑定的问题。</p><a href="https://arxiv.org/abs/1408.5093" target="_blank" rel="noopener noreferrer">Caffe 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2015</div>
+    <div class="timeline-content"><h3>TensorFlow 把训练与推理统一表达为数据流图</h3><p>TensorFlow 白皮书用带状态的 dataflow graph 表达异构系统上的机器学习计算。节点、边、设备放置与张量流成为系统级接口，为后续图优化、序列化和跨设备执行提供了清晰基础。</p><a href="https://research.google/pubs/tensorflow-large-scale-machine-learning-on-heterogeneous-distributed-systems/" target="_blank" rel="noopener noreferrer">TensorFlow 2015 白皮书 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2017</div>
+    <div class="timeline-content"><h3>ONNX v1 将互操作写成公开的图与算子契约</h3><p>ONNX v1 面向多个框架发布生产就绪版本，以开放图格式和算子集推动模型转移。导出器、转换器和 runtime 从此可以围绕共同 IR 协作，但每一方仍必须支持模型声明的域与 opset。</p><a href="https://engineering.fb.com/2017/12/08/ml-applications/onnx-v1-released/" target="_blank" rel="noopener noreferrer">ONNX v1 官方发布说明 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2017</div>
+    <div class="timeline-content"><h3>TensorFlow Lite 为移动与嵌入式运行收紧格式边界</h3><p>TensorFlow Lite 面向小二进制、快速启动和设备加速，模型转换不再只为交换，也为受限 runtime 准备可直接读取的结构。支持算子、静态内存规划和硬件委托开始反向影响模型设计。</p><a href="https://developers.googleblog.com/en/announcing-tensorflow-lite/" target="_blank" rel="noopener noreferrer">TensorFlow Lite 官方发布说明 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2023</div>
+    <div class="timeline-content"><h3>GGUF 强化单文件、可扩展与快速加载</h3><p>GGUF 作为 GGML 系执行器的模型格式，把张量与键值 metadata 放入可扩展的二进制容器，并取代早期 GGML、GGMF、GGJT 格式。它说明 LLM 部署不仅要保存权重，还要可靠携带架构和 tokenizer 等解释信息。</p><a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md" target="_blank" rel="noopener noreferrer">GGUF 官方规范 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>现代格式形成了两类互补路线：ONNX 一类 IR 强调通用计算图与算子语义，LiteRT、GGUF 等部署容器更贴近特定 runtime 的加载和资源约束。工程选择不应从扩展名开始，而应从目标后端支持矩阵、输入契约、可变 shape 与随模型必须携带的资产开始。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>跨国运输中的集装箱、舱单与港口规则</h3><p>模型像一批要跨国转运的精密设备。权重是箱内货物，计算图是装卸顺序和连接说明，metadata 是舱单，opset 是这一版作业规则。文件顺利抵港只代表箱子能被识别；目标港口还必须有对应吊具和工人，才能按规则真正完成装配。</p></div><div class="analogy-illustration" aria-label="跨国运输中的集装箱、舱单与港口规则"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">📦</span>
+    <strong>集装箱</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>二进制模型文件封装张量与结构</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🗺️</span>
+    <strong>装卸路线图</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>计算图规定节点依赖与张量流向</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">📑</span>
+    <strong>舱单与版本册</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>metadata、IR version、opset 和自定义域</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🏗️</span>
+    <strong>港口吊具</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>runtime 与 backend 必须实现所需算子和 dtype</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>真实模型转换并非密封箱原样转运：转换器可能改布局、拆算子、折叠常量甚至量化张量。运输类比也无法表达浮点非结合性和动态控制流，因此“货物齐全”仍不能替代固定输入的数值比对。</p></div></section>
+      <section><h2>本章讲解</h2><h3>把格式拆成语法、语义与随附资产三层</h3><p>schema 只回答字段如何编码，算子规范才回答节点应算什么，tokenizer、标签表或归一化参数则可能存在 metadata 或外部文件中。解析成功只证明语法有效；缺少算子语义会导致 runtime 拒绝，缺少资产则可能运行却解释错输出。交付清单应逐层列出校验方式，而不是只记录一个模型文件哈希。</p><h3>读图时追踪值的来源、生命周期与可变性</h3><p>Graph 的输入来自调用者，initializer 通常保存常量权重，中间 value 由节点产生；动态维度则用符号或未知值表达。拓扑顺序说明依赖，却不等于最终执行顺序，runtime 还会做内存复用和并行调度。检查模型时应标出每个输出由哪条路径产生、哪些维度可变，以及 shape 推断失败的位置。</p><h3>IR、opset 与 runtime 版本是三把不同的锁</h3><p>IR version 约束模型容器与图结构，opset 约束特定域中算子的签名和语义，runtime 版本决定实现覆盖。降 opset 不是改一个整数：若旧集合没有等价表达，转换器必须分解节点或直接失败。自定义 domain 还要求随部署提供实现。兼容表应记录三者组合及目标芯片，而非笼统写“支持 ONNX”。</p><h3>转换器会重写表达，必须审计差异清单</h3><p>转换可能把一个高层算子展开为子图、把常量计算提前、把 NCHW 换成 NHWC，或将权重存为不同 dtype。数学上等价的重写仍可能改变舍入、workspace 和 backend 分区。应在转换日志中保存新增、删除、替换的节点统计，并对关键中间张量建立名称映射，避免最终输出异常时只能盲猜。</p><h3>建立模型 ABI 测试包，而不只保存模型本体</h3><p>为每个模型版本附上输入名称、shape 范围、dtype、量纲、前后处理版本和数个 golden 样本；样本应包含正常值、边界 shape 与非法输入。CI 先做 schema/checker 校验，再由目标 runtime 加载并比较输出容差。若模型使用外部权重或 tokenizer 文件，还要校验相对路径与哈希，防止“主文件没变、配套资产已漂移”。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="模型穿越五道格式闸门">
+    <div class="process-heading"><div><h3>模型穿越五道格式闸门</h3><p>同一组测试数据伴随模型从训练框架走到目标 backend；每道闸门检查一种契约，任何红灯都会停在最接近根因的位置。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22%E6%A1%86%E6%9E%B6%E5%AF%B9%E8%B1%A1%22%2C%22data%22%3A%22modules%20%2B%20parameters%20%2B%20control%20flow%22%2C%22action%22%3A%22%E5%B1%95%E5%BC%80%E5%AE%9E%E9%99%85%E6%89%A7%E8%A1%8C%E8%BF%87%E7%9A%84%E6%A8%A1%E5%9D%97%E4%B8%8E%E5%8F%82%E6%95%B0%E5%BC%95%E7%94%A8%22%2C%22insight%22%3A%22%E6%BA%90%E7%A8%8B%E5%BA%8F%E5%8F%AF%E4%BB%A5%E5%8C%85%E5%90%AB%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E5%BA%8F%E5%88%97%E5%8C%96%E7%9A%84%E5%8A%A8%E6%80%81%E8%A1%8C%E4%B8%BA%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🧩</span><strong>框架对象</strong><span>modules + parameters + control flow</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%95%B8%EF%B8%8F%22%2C%22label%22%3A%22%E5%AF%BC%E5%87%BA%E8%AE%A1%E7%AE%97%E5%9B%BE%22%2C%22data%22%3A%22nodes%20%2B%20edges%20%2B%20initializers%22%2C%22action%22%3A%22%E6%8E%A7%E5%88%B6%E8%B7%AF%E5%BE%84%E8%A2%AB%E6%8D%95%E8%8E%B7%EF%BC%8C%E5%BC%A0%E9%87%8F%E4%BE%9D%E8%B5%96%E8%BF%9E%E6%88%90%E6%9C%89%E5%90%91%E5%9B%BE%22%2C%22insight%22%3A%22example%20input%20%E5%8F%AF%E8%83%BD%E5%86%B3%E5%AE%9A%E6%8D%95%E8%8E%B7%E5%88%B0%E7%9A%84%E5%88%86%E6%94%AF%E4%B8%8E%20shape%22%7D"><span class="process-icon" aria-hidden="true">🕸️</span><strong>导出计算图</strong><span>nodes + edges + initializers</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9C%22%2C%22label%22%3A%22%E6%A0%B8%E5%AF%B9%E8%A7%84%E8%8C%83%22%2C%22data%22%3A%22IR%20vN%20%2B%20domain%2Fopset%22%2C%22action%22%3A%22%E6%AF%8F%E4%B8%AA%E8%8A%82%E7%82%B9%E5%9C%A8%E7%89%88%E6%9C%AC%E5%86%8C%E4%B8%AD%E5%AF%BB%E6%89%BE%E7%AD%BE%E5%90%8D%E4%B8%8E%E8%AF%AD%E4%B9%89%22%2C%22insight%22%3A%22%E8%83%BD%E8%A7%A3%E6%9E%90%E6%96%87%E4%BB%B6%E4%B8%8D%E7%AD%89%E4%BA%8E%20runtime%20%E6%94%AF%E6%8C%81%E6%89%80%E6%9C%89%E7%AE%97%E5%AD%90%22%7D"><span class="process-icon" aria-hidden="true">📜</span><strong>核对规范</strong><span>IR vN + domain/opset</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22%E8%BD%AC%E6%8D%A2%E9%83%A8%E7%BD%B2%E6%A0%BC%E5%BC%8F%22%2C%22data%22%3A%22layout%2Fdtype%2Fmetadata%20changes%22%2C%22action%22%3A%22%E8%8A%82%E7%82%B9%E8%A2%AB%E6%8A%98%E5%8F%A0%E3%80%81%E6%8B%86%E5%88%86%E6%88%96%E6%8D%A2%E5%B8%83%E5%B1%80%EF%BC%8C%E5%B7%AE%E5%BC%82%E8%A1%A8%E5%90%8C%E6%AD%A5%E6%9B%B4%E6%96%B0%22%2C%22insight%22%3A%22%E8%BD%AC%E6%8D%A2%E6%98%AF%E8%AF%AD%E4%B9%89%E4%BF%9D%E6%8C%81%E7%9A%84%E9%87%8D%E5%86%99%EF%BC%8C%E4%B8%8D%E6%98%AF%E5%AD%97%E8%8A%82%E7%BA%A7%E5%A4%8D%E5%88%B6%22%7D"><span class="process-icon" aria-hidden="true">🔁</span><strong>转换部署格式</strong><span>layout/dtype/metadata changes</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B1%22%2C%22label%22%3A%22runtime%20%E5%88%86%E5%8C%BA%22%2C%22data%22%3A%22supported%20subgraphs%20%E2%86%92%20backend%22%2C%22action%22%3A%22%E6%94%AF%E6%8C%81%E8%8A%82%E7%82%B9%E6%B5%81%E5%90%91%E5%8A%A0%E9%80%9F%E5%99%A8%EF%BC%8C%E5%85%B6%E4%BD%99%E8%8A%82%E7%82%B9%E6%A0%87%E5%87%BA%E5%9B%9E%E9%80%80%E8%B7%AF%E5%BE%84%22%2C%22insight%22%3A%22%E6%A0%BC%E5%BC%8F%E5%85%BC%E5%AE%B9%E4%B9%8B%E5%90%8E%E4%BB%8D%E6%9C%89%20kernel%E3%80%81copy%20%E4%B8%8E%E5%86%85%E5%AD%98%E7%BA%A6%E6%9D%9F%22%7D"><span class="process-icon" aria-hidden="true">🧱</span><strong>runtime 分区</strong><span>supported subgraphs → backend</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9C%85%22%2C%22label%22%3A%22%E5%9B%BA%E5%AE%9A%E8%BE%93%E5%85%A5%E9%AA%8C%E6%94%B6%22%2C%22data%22%3A%22golden%20input%20%E2%86%92%20%CE%94output%22%2C%22action%22%3A%22%E6%BA%90%E7%AB%AF%E4%B8%8E%E7%9B%AE%E6%A0%87%E7%AB%AF%E8%BE%93%E5%87%BA%E5%8F%A0%E5%8A%A0%EF%BC%8C%E6%98%BE%E7%A4%BA%E8%AF%AF%E5%B7%AE%E5%92%8C%E9%A6%96%E4%B8%AA%E5%88%86%E6%AD%A7%E8%8A%82%E7%82%B9%22%2C%22insight%22%3A%22%E6%95%B0%E5%80%BC%E8%AF%81%E6%8D%AE%E6%89%8D%E9%97%AD%E5%90%88%E2%80%9C%E5%90%8C%E4%B8%80%E4%B8%AA%E6%A8%A1%E5%9E%8B%E2%80%9D%E7%9A%84%E4%BA%A4%E6%8E%A5%E5%A3%B0%E6%98%8E%22%7D"><span class="process-icon" aria-hidden="true">✅</span><strong>固定输入验收</strong><span>golden input → Δoutput</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>框架对象 · modules + parameters + control flow</h3><p data-process-action>展开实际执行过的模块与参数引用</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>源程序可以包含无法直接序列化的动态行为</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>当 runtime、opset、转换器或配套资产升级时，从受影响的闸门重新播放；golden 输入始终随模型同行，形成可回归的格式护照。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Framework → Export IR → Converter → Optimizer → Runtime → Backend
+ PyTorch       ONNX/TFLite/GGUF                     CPU/GPU/NPU</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>onnx.checker.check_model(model)
 print(model.graph.input, model.graph.output)
 # tflite / gguf 还要检查量化类型与 tokenizer metadata</code></pre></section>
@@ -34,6 +81,9 @@ print(model.graph.input, model.graph.output)
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

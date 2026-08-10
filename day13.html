@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="active" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,16 +18,59 @@
       <div class="eyebrow">DAY 13</div>
       <h1>端侧 LLM 推理框架</h1>
       <p class="hero-sub">比较 Runtime、Backend 与编译型框架</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 19 分钟</p>
       <section><h2>学习目标</h2><div class="callout">建立 GGUF/计算图/runtime/backend/kernel 的分层模型，知道如何选择 llama.cpp、MLC、ONNX Runtime GenAI 或 ExecuTorch。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Backend</th><td>把 runtime 请求映射到特定硬件的实现层。</td><td>像统一驱动接口下的具体外设驱动。</td></tr><tr><th scope="row">Offload</th><td>把部分层或子图交给加速器执行。</td><td>像将计算任务卸载给协处理器。</td></tr><tr><th scope="row">Partition</th><td>按支持能力切分图的过程。</td><td>像把任务按外设能力分配到不同总线。</td></tr><tr><th scope="row">Fallback</th><td>加速器不支持时转由默认实现执行。</td><td>像驱动缺失时回退到软件路径。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Backend</th><td>把 runtime 请求映射到特定硬件的实现层。</td><td>像统一驱动接口下的具体外设驱动。</td></tr><tr><th scope="row">Offload</th><td>把部分层或子图交给加速器执行。</td><td>像将计算任务卸载给协处理器。</td></tr><tr><th scope="row">Partition</th><td>按支持能力切分图的过程。</td><td>像把任务按外设能力分配到不同总线。</td></tr><tr><th scope="row">Fallback</th><td>加速器不支持时转由默认实现执行。</td><td>像驱动缺失时回退到软件路径。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章完成模型容器与权重量化选择。本章选择真正运行它的软件栈：runtime 如何把图交给 CPU、GPU 或 NPU，何时应该预编译，何时必须接受 fallback。</p></section>
-      <section><h2>嵌入式类比</h2><p>框架像 RTOS + 驱动抽象：上层调度统一，下层按目标芯片替换 backend；不支持的指令需要明确回退。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章完成模型容器与权重量化选择。本章选择真正运行它的软件栈：runtime 如何把图交给 CPU、GPU 或 NPU，何时应该预编译，何时必须接受 fallback。</p><h3>从 ESP32 系统心智模型进入</h3><p>“端侧框架”由模型格式、runtime、backend 和 kernel 共同组成。llama.cpp、ONNX Runtime GenAI、MLC、ExecuTorch 的差异不只在 API，而在支持算子、编译时机、硬件分区、可观测性和包体积。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>加载模型后 runtime 查询 backend 能力，按节点或层划分子图，可能预编译为设备二进制，再在运行时分配 buffer、执行 kernel 和处理不支持节点的 fallback。每个分区边界都可能产生 copy。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>先在 CPU 路径建立正确性与基准，再逐步启用 offload。若 NPU 只接管少量节点或产生频繁跨设备 copy，应优先简化图或选择更匹配的 runtime，而非只增加加速器层数。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">Model format → Runtime graph → Backend partition
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">端侧推理框架的演进，本质上是在回答同一难题：怎样把训练框架中的图，可靠地映射到不断变化的 CPU、GPU、NPU 与操作系统。开放中间表示解决交换，张量编译器解决自动优化，轻量 runtime 解决包体与依赖，delegate 则让厂商后端接入统一上层。今天的框架选择，是这些路线在具体产品约束下的组合。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">2017</div>
+    <div class="timeline-content"><h3>ONNX 推动模型交换与算子版本契约</h3><p>ONNX 用图、节点、initializer、类型与 opset 描述模型，使训练框架和执行器可以围绕共同 IR 协作。它解决的是“表达什么”，而非自动保证目标芯片上有高效实现；这种分层后来成为比较各种 runtime 的第一把尺子。</p><a href="https://onnx.ai/onnx/intro/" target="_blank" rel="noopener noreferrer">ONNX 官方概念文档 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2018</div>
+    <div class="timeline-content"><h3>TVM 展示端到端张量编译与多后端优化</h3><p>TVM 将高层图优化、算子融合、硬件映射和低层 schedule 纳入自动编译流程，并覆盖低功耗 CPU、移动 GPU 等后端。它把“换硬件重写全套 kernel”的问题，改写为 IR lowering、搜索与目标代码生成问题。</p><a href="https://www.usenix.org/conference/osdi18/presentation/chen" target="_blank" rel="noopener noreferrer">TVM OSDI 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2023</div>
+    <div class="timeline-content"><h3>llama.cpp 证明专用轻量 Runtime 的端侧价值</h3><p>面向自回归 LLM 的 llama.cpp 把 GGUF、量化 kernel、KV cache 和多种 CPU/GPU backend 紧密结合，以较少依赖覆盖桌面与边缘设备。它代表另一条路线：针对主工作负载做深度垂直整合，而不是追求任意训练图通吃。</p><a href="https://github.com/ggml-org/llama.cpp" target="_blank" rel="noopener noreferrer">llama.cpp 官方仓库 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2023—2024</div>
+    <div class="timeline-content"><h3>ExecuTorch 将 AOT 准备和 Backend Delegate 明确分层</h3><p>ExecuTorch 把程序导出、Edge dialect、内存规划和后端 lowering 尽量前移到 AOT 阶段，设备上只保留精简 C++ runtime。被支持的子图交给 delegate，不支持部分留在可移植 kernel，端侧部署由此拥有清晰的分区与 fallback 模型。</p><a href="https://docs.pytorch.org/executorch/stable/getting-started-architecture" target="_blank" rel="noopener noreferrer">ExecuTorch 官方架构文档 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">至今</div>
+    <div class="timeline-content"><h3>框架竞争转向编译产物、异构分区与可观测性</h3><p>MLC LLM 等系统将权重转换与目标模型库编译分开，按 WebGPU、移动 GPU 或本地平台生成推理逻辑。工程比较也从 API 风格转向：支持哪些图、何时编译、跨分区复制多少、能否回溯 fallback，以及升级后能否复现实测。</p><a href="https://github.com/mlc-ai/mlc-llm/blob/main/docs/compilation/compile_models.rst" target="_blank" rel="noopener noreferrer">MLC LLM 官方编译文档 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>历史说明不存在脱离模型与硬件的“最快框架”。通用 IR、编译型系统与垂直 runtime 各自把复杂度放在不同阶段。选择时应从目标模型的算子集合、部署平台、包体、动态性和调试要求反推，而不是先按品牌站队；随后用同一输入与相同精度建立 CPU 基线，再逐段验证 offload。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>把推理框架想成一座多式联运货运站</h3><p>模型图是一列写着货物依赖的车厢，runtime 是总站调度室，CPU、GPU、NPU 是公路、铁路和水运三种承运商。partitioner 检查每段货物尺寸与规则，把连续可承运的车厢编成子图；delegate 像专线合同，把整段交给某后端。若一件货物不合规，就回到 CPU 普通线路。每次换线都要卸货、改包装和同步，因此“多数车厢走高速线”仍可能输给全程普通线。</p></div><div class="analogy-illustration" aria-label="把推理框架想成一座多式联运货运站"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚆</span>
+    <strong>模型列车</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>带 shape、dtype 和依赖关系的计算图</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🧭</span>
+    <strong>调度分区</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>按后端能力找出连续可 offload 子图</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚄</span>
+    <strong>专用快线</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>GPU/NPU delegate 与预编译二进制</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🔄</span>
+    <strong>换装站</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>跨 backend 的 copy、layout transform 与同步</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>货运类比暗示每段成本可以简单相加，但真实 runtime 会异步执行、复用 buffer、融合算子并与 CPU 并发；后端也可能只接受特定动态 shape 或量化参数。类比适合发现边界成本，不足以预测时延，最终仍要看 trace 和设备计数器。</p></div></section>
+      <section><h2>本章讲解</h2><h3>用四层模型拆解框架宣传语</h3><p>先分别写出模型格式、runtime、backend 与 kernel：GGUF 或导出图负责表达；runtime 管生命周期与调度；backend 接入 CPU/GPU/NPU；kernel 执行具体布局和 dtype。框架声称“支持某芯片”时，要追问哪些模型架构、哪些算子和量化类型真的走专用 kernel。只要其中一层版本不匹配，就可能加载失败、静默 fallback 或产生额外转换。</p><h3>Partition 的价值取决于边界而非节点占比</h3><p>delegate 通常选择连续且受支持的子图，边界处可能发生 device copy、layout transform、量化与反量化以及同步等待。即使 90% 节点被标记到 NPU，若剩余节点夹在每层中间，来回搬运仍会主导时延。评估时记录分区数量、每区输入输出字节和执行时间，并人工关闭 delegate 做对照；节点覆盖率只能作为线索，不能作为性能结论。</p><h3>AOT 与 JIT 是部署责任的重新分配</h3><p>AOT 在发布前完成 lowering、融合和目标代码生成，能缩小设备 runtime、减少启动抖动，却要求按芯片与形状管理产物；JIT 在现场适配更多动态情况，但带来编译时延、缓存与工具链依赖。固件或离线产品通常偏向 AOT，桌面应用可接受 JIT。无论哪种，都要把编译器版本、目标特性和生成配置纳入产物清单。</p><h3>先建立可解释的 CPU 正确性基线</h3><p>不要第一次运行就开启所有 offload。先在可移植 CPU 路径固定输入、预处理和采样，保存输出或数值容差；再一次只启用一个 backend，比较分区图、中间边界与端到端结果。若结果偏离，先检查 dtype、layout、动态 shape 和量化参数，再定位 kernel。这样能把“模型转换错”和“加速器实现错”分开，避免在黑盒性能数据里猜原因。</p><h3>框架选择应落到可维护的验收矩阵</h3><p>为候选框架列出目标 OS/芯片、模型架构、最大 context、量化格式、包体、冷启动、峰值内存、PP/TG、功耗、许可证和调试能力。再准备正常、边界与失败模型：含一个不支持算子、动态 shape 和低内存场景，观察报错与 fallback 是否可见。版本升级后重跑同一矩阵；能持续解释回归的第二名，常比一次基准领先却不可诊断的方案更适合产品。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="模型图如何被切分到 CPU、GPU 与 NPU">
+    <div class="process-heading"><div><h3>模型图如何被切分到 CPU、GPU 与 NPU</h3><p>逐步播放器把抽象的“硬件加速”展开为能力查询、分区、lowering、跨边界搬运和回退证据。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BE%22%2C%22label%22%3A%22%E8%AF%BB%E5%8F%96%E5%9B%BE%E5%A5%91%E7%BA%A6%22%2C%22data%22%3A%22ops%20%2B%20shape%20%2B%20dtype%20%2B%20layout%20%2B%20quant%20params%22%2C%22action%22%3A%22%E9%AA%8C%E8%AF%81%E6%A8%A1%E5%9E%8B%E7%89%88%E6%9C%AC%E4%B8%8E%20I%2FO%EF%BC%8C%E5%B9%B6%E5%BB%BA%E7%AB%8B%20CPU%20%E5%8F%AF%E8%BF%90%E8%A1%8C%E5%9F%BA%E7%BA%BF%22%2C%22insight%22%3A%22%E6%A0%BC%E5%BC%8F%E5%8F%AF%E8%AF%BB%E4%B8%8D%E7%AD%89%E4%BA%8E%E6%AF%8F%E4%B8%AA%E8%8A%82%E7%82%B9%E9%83%BD%E6%9C%89%E7%9B%AE%E6%A0%87%E5%90%8E%E7%AB%AF%E5%AE%9E%E7%8E%B0%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🧾</span><strong>读取图契约</strong><span>ops + shape + dtype + layout + quant params</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22%E6%9F%A5%E8%AF%A2%E8%83%BD%E5%8A%9B%22%2C%22data%22%3A%22backend%20capability%20table%22%2C%22action%22%3A%22%E9%80%90%E8%8A%82%E7%82%B9%E5%8C%B9%E9%85%8D%E7%AE%97%E5%AD%90%E3%80%81%E5%B1%9E%E6%80%A7%E3%80%81shape%20%E4%B8%8E%E7%B2%BE%E5%BA%A6%E9%99%90%E5%88%B6%22%2C%22insight%22%3A%22%E5%8F%AA%E7%9C%8B%E7%AE%97%E5%AD%90%E5%90%8D%E7%A7%B0%E4%BC%9A%E6%BC%8F%E6%8E%89%E5%B1%9E%E6%80%A7%E5%92%8C%E5%8A%A8%E6%80%81%E7%BB%B4%E5%BA%A6%E7%BA%A6%E6%9D%9F%22%7D"><span class="process-icon" aria-hidden="true">🧩</span><strong>查询能力</strong><span>backend capability table</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9C%82%EF%B8%8F%22%2C%22label%22%3A%22%E5%BD%A2%E6%88%90%E5%88%86%E5%8C%BA%22%2C%22data%22%3A%22CPU%20graph%20%2B%20delegated%20subgraphs%22%2C%22action%22%3A%22%E5%90%88%E5%B9%B6%E8%BF%9E%E7%BB%AD%E6%94%AF%E6%8C%81%E8%8A%82%E7%82%B9%E5%B9%B6%E6%A0%87%E8%AE%B0%20fallback%20%E5%B2%9B%22%2C%22insight%22%3A%22%E5%88%86%E5%8C%BA%E8%B6%8A%E7%A2%8E%EF%BC%8C%E8%B7%A8%E8%AE%BE%E5%A4%87%E8%BE%B9%E7%95%8C%E9%80%9A%E5%B8%B8%E8%B6%8A%E6%98%82%E8%B4%B5%22%7D"><span class="process-icon" aria-hidden="true">✂️</span><strong>形成分区</strong><span>CPU graph + delegated subgraphs</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8F%AD%22%2C%22label%22%3A%22Lower%20%E4%B8%8E%E7%BC%96%E8%AF%91%22%2C%22data%22%3A%22subgraph%20%E2%86%92%20backend%20blob%2Fkernel%20plan%22%2C%22action%22%3A%22%E5%81%9A%E8%9E%8D%E5%90%88%E3%80%81%E5%B8%83%E5%B1%80%E9%80%89%E6%8B%A9%E3%80%81%E5%86%85%E5%AD%98%E8%A7%84%E5%88%92%E4%B8%8E%E7%9B%AE%E6%A0%87%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90%22%2C%22insight%22%3A%22AOT%20%E6%8A%8A%E5%A4%8D%E6%9D%82%E5%BA%A6%E7%A7%BB%E5%88%B0%E6%9E%84%E5%BB%BA%E6%9C%9F%EF%BC%8C%E4%B9%9F%E5%A2%9E%E5%8A%A0%E4%BA%A7%E7%89%A9%E7%89%88%E6%9C%AC%E8%B4%A3%E4%BB%BB%22%7D"><span class="process-icon" aria-hidden="true">🏭</span><strong>Lower 与编译</strong><span>subgraph → backend blob/kernel plan</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22%E6%89%A7%E8%A1%8C%E8%BE%B9%E7%95%8C%22%2C%22data%22%3A%22host%20buffer%20%E2%87%84%20device%20buffer%22%2C%22action%22%3A%22%E5%A4%8D%E5%88%B6%E6%88%96%E6%98%A0%E5%B0%84%E6%95%B0%E6%8D%AE%E3%80%81%E5%90%8C%E6%AD%A5%E5%B9%B6%E6%89%A7%E8%A1%8C%20delegate%22%2C%22insight%22%3A%22copy%20%E4%B8%8E%20layout%20transform%20%E5%BF%85%E9%A1%BB%E8%BF%9B%E5%85%A5%E7%AB%AF%E5%88%B0%E7%AB%AF%20trace%22%7D"><span class="process-icon" aria-hidden="true">🔁</span><strong>执行边界</strong><span>host buffer ⇄ device buffer</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%AC%22%2C%22label%22%3A%22%E6%AF%94%E8%BE%83%E8%AF%81%E6%8D%AE%22%2C%22data%22%3A%22output%20diff%20%2B%20partition%20log%20%2B%20latency%20%2B%20memory%22%2C%22action%22%3A%22%E4%B8%8E%20CPU%20%E5%9F%BA%E7%BA%BF%E6%A0%B8%E5%AF%B9%E6%AD%A3%E7%A1%AE%E6%80%A7%EF%BC%8C%E5%86%8D%E5%88%A4%E6%96%AD%E6%94%B6%E7%9B%8A%22%2C%22insight%22%3A%22%E5%8F%AA%E6%9C%89%E6%AD%A3%E7%A1%AE%E4%B8%94%E8%BE%B9%E7%95%8C%E6%88%90%E6%9C%AC%E5%8F%AF%E8%A7%A3%E9%87%8A%E7%9A%84%20offload%20%E6%89%8D%E7%AE%97%E6%88%90%E5%8A%9F%22%7D"><span class="process-icon" aria-hidden="true">🔬</span><strong>比较证据</strong><span>output diff + partition log + latency + memory</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>读取图契约 · ops + shape + dtype + layout + quant params</h3><p data-process-action>验证模型版本与 I/O，并建立 CPU 可运行基线</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>格式可读不等于每个节点都有目标后端实现</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>若某分区收益为负，回到“形成分区”尝试扩大连续子图、消除布局转换或干脆让该段留在 CPU；若结果不一致，回到“读取图契约”逐边界比对。每次只改变一个 backend 或编译选项。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Model format → Runtime graph → Backend partition
                          ├─ CPU kernels
                          ├─ GPU kernels
-                         └─ NPU compiled subgraph</pre></section>
+                         └─ NPU compiled subgraph</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>llama-bench -m model-q4_k_m.gguf
 # 关注 pp (prompt processing) 与 tg (token generation)
 # 逐步增加 GPU layers，记录 VRAM、pp/tg 与 fallback</code></pre></section>
@@ -36,6 +83,9 @@
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

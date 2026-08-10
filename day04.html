@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="active" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,13 +18,56 @@
       <div class="eyebrow">DAY 04</div>
       <h1>量化</h1>
       <p class="hero-sub">用更少的 bit 换取更低的存储与带宽</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 19 分钟</p>
       <section><h2>学习目标</h2><div class="callout">掌握对称/非对称量化、scale/zero-point，并能判断误差来源。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Scale</th><td>整数码与真实数值之间的比例系数。</td><td>像 ADC 的量程和每个码的物理含义。</td></tr><tr><th scope="row">Zero-point</th><td>映射中代表真实零值的整数偏移。</td><td>像传感器零偏校正后的基准码。</td></tr><tr><th scope="row">校准集</th><td>用于估计激活范围的代表性输入样本。</td><td>像用真实工况标定 ADC，而非只输入中间值。</td></tr><tr><th scope="row">Per-channel</th><td>为不同权重通道分别使用量化参数。</td><td>像为不同传感器通道分别做增益标定。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Scale</th><td>整数码与真实数值之间的比例系数。</td><td>像 ADC 的量程和每个码的物理含义。</td></tr><tr><th scope="row">Zero-point</th><td>映射中代表真实零值的整数偏移。</td><td>像传感器零偏校正后的基准码。</td></tr><tr><th scope="row">校准集</th><td>用于估计激活范围的代表性输入样本。</td><td>像用真实工况标定 ADC，而非只输入中间值。</td></tr><tr><th scope="row">Per-channel</th><td>为不同权重通道分别使用量化参数。</td><td>像为不同传感器通道分别做增益标定。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章确认了模型格式、算子语义和 I/O 契约。本章在这些契约不变的前提下，将 float 数值映射到更少 bit，并量化误差的来源。</p></section>
-      <section><h2>嵌入式类比</h2><p>像把高精度传感器值映射成有限 ADC 码：scale 是量程，zero-point 是零点，校准集决定量程是否覆盖真实信号。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章确认了模型格式、算子语义和 I/O 契约。本章在这些契约不变的前提下，将 float 数值映射到更少 bit，并量化误差的来源。</p><h3>从 ESP32 系统心智模型进入</h3><p>量化本质是给连续数值选择有限码本。scale 定义一个码位代表多少真实值，zero-point 定义整数零点；选择不当会出现饱和、分辨率不足或额外转换开销。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>先取得 float 基线，再用代表性输入跑校准，统计激活范围，导出目标芯片支持的量化模型，最后分别比较 PC、runtime 和设备端结果。校准集必须覆盖真实光照、姿态、噪声和边界输入。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>不要问“int8 会不会更快”，而要问“目标 backend 是否有整数量化 kernel、I/O 是否也能保持整数、是否出现 dequantize 边界”。速度、精度和峰值内存必须一起验收。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">float x ──(x/scale)+zp──► int8 q ──runtime kernel──► int8/float output</pre></section>
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">神经网络量化并非简单追随移动芯片而出现。早期数字与模拟神经硬件就必须面对有限字长；深度学习扩大模型后，研究从“有限精度能否工作”转向压缩、低比特训练与整数算子协同设计。今天的 PTQ、QAT、per-channel 和代表性校准，是数十年精度—存储—硬件权衡的工程化结果。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">1990</div>
+    <div class="timeline-content"><h3>有限字长被作为神经计算的系统设计问题</h3><p>Neural Network Number Systems 比较了数字神经网络中的定点、浮点和指数数值表示。早期工作已经意识到，位宽选择同时影响电路成本、动态范围和计算误差，而不是单纯更换文件 dtype。</p><a href="https://stars.library.ucf.edu/scopus1990/1465/" target="_blank" rel="noopener noreferrer">Neural Network Number Systems 原始论文记录 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2015</div>
+    <div class="timeline-content"><h3>Deep Compression 把量化放进完整模型压缩流水线</h3><p>Deep Compression 将剪枝、训练后权值共享式量化和 Huffman 编码组合，展示模型存储与内存访问可大幅削减。它强化了一个工程事实：压缩方案必须连同编码开销、解码路径和目标硬件一起评估。</p><a href="https://arxiv.org/abs/1510.00149" target="_blank" rel="noopener noreferrer">Deep Compression 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2016–2017</div>
+    <div class="timeline-content"><h3>低比特权重与激活进入训练过程</h3><p>Quantized Neural Networks 在前向和反向计算中引入低精度权重与激活，并研究极低 bit 表示。量化不再只是模型训练完成后的包装，而可以在训练时显式暴露误差，让参数适应离散码本。</p><a href="https://www.jmlr.org/papers/v18/16-456.html" target="_blank" rel="noopener noreferrer">Quantized Neural Networks 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2018</div>
+    <div class="timeline-content"><h3>整数算术从输入贯穿到输出</h3><p>Jacob 等人给出面向整数算术推理的量化方案与训练流程，同时量化权重和激活，并处理比例因子、zero-point 与累加。算法设计开始明确对接 ARM CPU 和整数加速器，而非只报告文件缩小。</p><a href="https://openaccess.thecvf.com/content_cvpr_2018/html/Jacob_Quantization_and_Training_CVPR_2018_paper.html" target="_blank" rel="noopener noreferrer">CVPR 整数推理原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2020s</div>
+    <div class="timeline-content"><h3>PTQ 校准成为端侧工具链的标准阶段</h3><p>LiteRT 的全整数量化流程使用代表性数据估计输入与中间激活范围，并允许把模型 I/O 也设为整数。当前实践因而强调校准数据、算子覆盖和目标硬件实测，而不把 int8 标签当作性能保证。</p><a href="https://ai.google.dev/edge/litert/models/post_training_integer_quant" target="_blank" rel="noopener noreferrer">LiteRT 全整数量化官方教程 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>发展脉络从“有限精度是否可用”走到“训练、格式、kernel 与芯片共同设计”。在 ESP32 一类平台上，正确问题不是浮点能压成几 bit，而是目标 ISA 支持什么量化轴、累加位宽与算子组合，以及校准样本是否覆盖真实传感器的长尾范围。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>把连续山景印成一张只有有限色阶的版画</h3><p>摄影师拥有层次丰富的原片，但印刷机每种颜色只有有限档位。制版师先观察整组照片的最暗与最亮区域，再决定每一格色阶覆盖多大范围；落在两格之间的颜色要舍入，超出纸张量程的高光和阴影只能压成同一个极值。分色制版则像为每个通道单独选量程。</p></div><div class="analogy-illustration" aria-label="把连续山景印成一张只有有限色阶的版画"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🏔️</span>
+    <strong>原始山景</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>连续或高精度的 float 权重与激活</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🎨</span>
+    <strong>有限调色板</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>整数码本及由 scale 决定的格距</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🖼️</span>
+    <strong>分色版</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>per-channel 为不同输出通道选择量化参数</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">☀️</span>
+    <strong>高光溢出</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>超出校准范围的数值被 clip 后不可恢复</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>图像色阶主要诉诸视觉感受，模型误差却会在多层算子中累积，并以任务指标而非“看起来相似”衡量。真实整数 kernel 还涉及偏置尺度、int32 累加、requantize 和硬件指令，版画类比无法说明这些算术约束。</p></div></section>
+      <section><h2>本章讲解</h2><h3>先从可逆近似公式看清三个误差入口</h3><p>仿射量化用 q=round(x/scale)+zero_point，再把 q 限制到整数范围；反量化只得到格点上的近似值。误差分别来自格距造成的舍入、范围不足造成的饱和，以及统计范围被异常值拉宽后的分辨率浪费。实现时应分别统计量化 MSE、上下界命中率与零点映射，三者混成一个准确率数字很难定位。</p><h3>对称、非对称与 per-channel 是后端契约选择</h3><p>对称量化通常令 zero-point 为零，乘法路径更简单；非对称量化能更充分利用偏斜分布的整数范围。per-channel 可为每个输出通道设置 scale，常能缓解权重通道间幅度差异，却要求 kernel 知道量化轴并加载多组参数。选择前应查询目标 runtime 的 dtype、轴和算子限制，不能只凭 PC 精度。</p><h3>校准不是抽几张“典型图”，而是覆盖激活状态空间</h3><p>权重范围可以直接扫描，中间激活却由输入和前置层共同决定。代表性数据应覆盖光照、静默、饱和传感器、类别边界和设备噪声，并沿真实前处理进入模型。可按层查看直方图与裁剪比例，发现少量离群值是否支配 scale；若生产分布改变，原校准表也应视为需要重新验证的版本化资产。</p><h3>整数卷积仍需要高位累加与正确的尺度接力</h3><p>int8 输入与 int8 权重的乘积通常进入更宽的累加器，偏置尺度应与输入 scale×权重 scale 对齐，输出再经 multiplier、shift 或等价操作 requantize。任何一处零点补偿、舍入规则或饱和次序不同，都可能造成系统偏差。用极小矩阵手算累加与边界值，是验证自定义 kernel 最有效的单元测试之一。</p><h3>把精度回归与性能验收放在同一张层级报告里</h3><p>先比较 float 与量化模型的最终任务指标，再对输出漂移最大的样本逐层定位 SQNR、余弦相似度或最大绝对误差；同时从 profile 检查是否出现 Quantize/Dequantize 岛和 float fallback。若文件缩小却执行更慢，问题可能是缺少整数 kernel、布局转换或频繁重标度，而不是量化算法本身失败。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="浮点波形如何落入 256 个整数格">
+    <div class="process-heading"><div><h3>浮点波形如何落入 256 个整数格</h3><p>动画先伸缩一把覆盖实测数据的标尺，再让每个浮点点吸附到最近格位；超界点会撞上红色挡板，随后整数流进入累加器。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%8A%22%2C%22label%22%3A%22%E6%89%AB%E6%8F%8F%E5%88%86%E5%B8%83%22%2C%22data%22%3A%22activation%20samples%20%E2%86%92%20min%2Fmax%2Fhistogram%22%2C%22action%22%3A%22%E6%A0%B7%E6%9C%AC%E7%82%B9%E9%93%BA%E5%BC%80%E6%88%90%E7%9B%B4%E6%96%B9%E5%9B%BE%EF%BC%8C%E9%95%BF%E5%B0%BE%E4%BB%A5%E5%8F%A6%E4%B8%80%E9%A2%9C%E8%89%B2%E6%A0%87%E5%87%BA%22%2C%22insight%22%3A%22%E6%BF%80%E6%B4%BB%E8%8C%83%E5%9B%B4%E5%BF%85%E9%A1%BB%E7%94%B1%E4%BB%A3%E8%A1%A8%E6%80%A7%E7%9C%9F%E5%AE%9E%E8%BE%93%E5%85%A5%E4%BC%B0%E8%AE%A1%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">📊</span><strong>扫描分布</strong><span>activation samples → min/max/histogram</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%8F%22%2C%22label%22%3A%22%E8%AE%BE%E7%BD%AE%E6%A0%BC%E8%B7%9D%22%2C%22data%22%3A%22scale%EF%BC%8Czero_point%22%2C%22action%22%3A%22%E6%95%B4%E6%95%B0%E6%A0%87%E5%B0%BA%E5%B9%B3%E7%A7%BB%E5%B9%B6%E7%BC%A9%E6%94%BE%E5%88%B0%E9%80%89%E5%AE%9A%E8%8C%83%E5%9B%B4%22%2C%22insight%22%3A%22scale%20%E6%8E%A7%E5%88%B6%E5%88%86%E8%BE%A8%E7%8E%87%EF%BC%8Czero-point%20%E5%86%B3%E5%AE%9A%E7%9C%9F%E5%AE%9E%E9%9B%B6%E6%98%A0%E5%B0%84%E5%88%B0%E5%93%AA%E4%B8%AA%E7%A0%81%22%7D"><span class="process-icon" aria-hidden="true">📏</span><strong>设置格距</strong><span>scale，zero_point</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B2%22%2C%22label%22%3A%22%E8%88%8D%E5%85%A5%E5%88%B0%E6%A0%BC%E7%82%B9%22%2C%22data%22%3A%22q%20%3D%20round(x%2Fscale)%2Bzp%22%2C%22action%22%3A%22%E6%AF%8F%E4%B8%AA%E6%B5%AE%E7%82%B9%E7%82%B9%E5%90%B8%E9%99%84%E5%88%B0%E6%9C%80%E8%BF%91%E6%95%B4%E6%95%B0%E5%88%BB%E5%BA%A6%22%2C%22insight%22%3A%22%E6%A0%BC%E5%86%85%E7%BB%86%E8%8A%82%E5%9C%A8%E6%AD%A4%E5%8F%98%E6%88%90%E4%B8%8D%E5%8F%AF%E6%81%A2%E5%A4%8D%E7%9A%84%E8%88%8D%E5%85%A5%E8%AF%AF%E5%B7%AE%22%7D"><span class="process-icon" aria-hidden="true">🧲</span><strong>舍入到格点</strong><span>q = round(x/scale)+zp</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B1%22%2C%22label%22%3A%22%E6%89%A7%E8%A1%8C%E9%A5%B1%E5%92%8C%22%2C%22data%22%3A%22q%20%3D%20clip(q%2Cqmin%2Cqmax)%22%2C%22action%22%3A%22%E8%B6%8A%E7%95%8C%E7%82%B9%E6%92%9E%E5%88%B0%E4%B8%A4%E4%BE%A7%E7%BA%A2%E8%89%B2%E6%8C%A1%E6%9D%BF%E5%B9%B6%E9%87%8D%E5%8F%A0%22%2C%22insight%22%3A%22%E9%A5%B1%E5%92%8C%E4%BC%9A%E6%8A%8A%E5%A4%9A%E4%B8%AA%E4%B8%8D%E5%90%8C%E5%8E%9F%E5%80%BC%E6%B0%B8%E4%B9%85%E6%98%A0%E6%88%90%E5%90%8C%E4%B8%80%E7%A0%81%22%7D"><span class="process-icon" aria-hidden="true">🧱</span><strong>执行饱和</strong><span>q = clip(q,qmin,qmax)</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22%E6%95%B4%E6%95%B0%20kernel%22%2C%22data%22%3A%22int8%20%C3%97%20int8%20%E2%86%92%20int32%20accumulate%22%2C%22action%22%3A%22%E6%95%B4%E6%95%B0%E7%A0%81%E8%BF%9B%E5%85%A5%E4%B9%98%E5%8A%A0%E9%98%B5%E5%88%97%EF%BC%8C%E7%B4%AF%E5%8A%A0%E6%A7%BD%E5%8F%98%E5%AE%BD%22%2C%22insight%22%3A%22%E4%BD%8E%E4%BD%8D%E8%BE%93%E5%85%A5%E4%B8%8D%E8%A1%A8%E7%A4%BA%E6%89%80%E6%9C%89%E4%B8%AD%E9%97%B4%E8%AE%A1%E7%AE%97%E9%83%BD%E4%BD%BF%E7%94%A8%E5%90%8C%E4%B8%80%E4%BD%8D%E5%AE%BD%22%7D"><span class="process-icon" aria-hidden="true">⚙️</span><strong>整数 kernel</strong><span>int8 × int8 → int32 accumulate</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%AC%22%2C%22label%22%3A%22%E9%87%8D%E6%A0%87%E5%BA%A6%E5%B9%B6%E6%AF%94%E5%AF%B9%22%2C%22data%22%3A%22requantize%20%E2%86%92%20q_out%EF%BC%9B%CE%94%20vs%20float%22%2C%22action%22%3A%22%E8%BE%93%E5%87%BA%E5%9B%9E%E5%88%B0%E7%9B%AE%E6%A0%87%E5%B0%BA%E5%BA%A6%EF%BC%8C%E4%B8%8E%20float%20%E6%9B%B2%E7%BA%BF%E5%8F%A0%E5%8A%A0%22%2C%22insight%22%3A%22%E5%90%8C%E6%97%B6%E6%A3%80%E6%9F%A5%E6%95%B0%E5%80%BC%E8%AF%AF%E5%B7%AE%E3%80%81%E9%A5%B1%E5%92%8C%E7%8E%87%E5%92%8C%E7%9C%9F%E5%AE%9E%20kernel%20%E5%BB%B6%E8%BF%9F%22%7D"><span class="process-icon" aria-hidden="true">🔬</span><strong>重标度并比对</strong><span>requantize → q_out；Δ vs float</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>扫描分布 · activation samples → min/max/histogram</h3><p data-process-action>样本点铺开成直方图，长尾以另一颜色标出</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>激活范围必须由代表性真实输入估计</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>若误差或饱和超限，播放器回到分布扫描，可切换校准样本、量化轴或范围策略；若性能不达标，则回到整数 kernel 检查 fallback 与转换边界。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">float x ──(x/scale)+zp──► int8 q ──runtime kernel──► int8/float output</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>q = round(x / scale + zero_point)
 q = clip(q, -128, 127)
 x_hat = (q - zero_point) * scale</code></pre></section>
@@ -33,6 +80,9 @@ x_hat = (q - zero_point) * scale</code></pre></section>
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

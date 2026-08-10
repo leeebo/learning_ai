@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="active" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,13 +18,56 @@
       <div class="eyebrow">DAY 02</div>
       <h1>训练与推理</h1>
       <p class="hero-sub">理解离线训练与设备端执行的边界</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 17 分钟</p>
       <section><h2>学习目标</h2><div class="callout">区分训练图、推理图和部署图，知道哪些状态必须保留、哪些可以折叠。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Epoch</th><td>训练集完整遍历一次。</td><td>像对一组整机测试用例完整跑一轮。</td></tr><tr><th scope="row">Batch</th><td>一次用于计算梯度的一小批样本。</td><td>像把多帧传感器窗口攒成一次 DSP 处理。</td></tr><tr><th scope="row">eval 模式</th><td>让 Dropout、BatchNorm 使用推理语义的模式。</td><td>像从调试配置切换到量产配置。</td></tr><tr><th scope="row">优化器</th><td>依据梯度更新参数的算法及其状态。</td><td>像自动调参器；部署后不应留在固件里。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Epoch</th><td>训练集完整遍历一次。</td><td>像对一组整机测试用例完整跑一轮。</td></tr><tr><th scope="row">Batch</th><td>一次用于计算梯度的一小批样本。</td><td>像把多帧传感器窗口攒成一次 DSP 处理。</td></tr><tr><th scope="row">eval 模式</th><td>让 Dropout、BatchNorm 使用推理语义的模式。</td><td>像从调试配置切换到量产配置。</td></tr><tr><th scope="row">优化器</th><td>依据梯度更新参数的算法及其状态。</td><td>像自动调参器；部署后不应留在固件里。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章把网络看作有输入输出契约的数据管线。本章继续追问：谁来修改权重、何时停止修改、设备端到底需要保留哪些状态。</p></section>
-      <section><h2>嵌入式类比</h2><p>训练像在实验室调试协议栈，推理像把确定好的状态机烧进设备；设备不应携带训练时的梯度、优化器和临时统计。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章把网络看作有输入输出契约的数据管线。本章继续追问：谁来修改权重、何时停止修改、设备端到底需要保留哪些状态。</p><h3>从 ESP32 系统心智模型进入</h3><p>训练与推理的分界不是“是否使用 GPU”，而是是否需要梯度、优化器和随机训练行为。端侧运行时应尽量只装载推理所需的图、常量和工作内存。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>数据集经过 batch 和 epoch 被反复喂入模型；loss 产生梯度，优化器据此修改权重；验证完成后切换 eval，导出固定图，并在目标 runtime 上复算同一测试向量。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>把训练视为实验室里的可观测控制回路，把推理视为量产固件。导出前后都应固定随机种子、输入 shape 与容差，不能只看“文件生成成功”。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">数据集 → 训练循环 → checkpoint → 导出/优化 → runtime → 输入 → 输出</pre></section>
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">训练与推理的分界，是随着网络从实验装置走向可复用软件逐渐清晰的。早期学习规则一边接收样本一边改权重；多层训练引入完整梯度状态，随后 Dropout、BatchNorm 等模块又让“训练态”和“推理态”出现不同语义。移动端 runtime 的出现，最终把部署产物收束为稳定前向图。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">1958</div>
+    <div class="timeline-content"><h3>感知机学习规则形成最小训练循环</h3><p>感知机依据预测错误修改连接权重，把样本、预测、误差、更新连接成闭环。虽然模型简单，它已经区分了“正在被样本改变的参数”和“使用当前参数给出判断”这两个时刻。</p><a href="https://doi.org/10.1037/h0042519" target="_blank" rel="noopener noreferrer">Rosenblatt 感知机原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">1986</div>
+    <div class="timeline-content"><h3>反向传播扩大了训练期状态与计算</h3><p>多层网络需要保留前向中间量，并在反向阶段计算各参数梯度。训练由此成为一条比推理更长的计算图：除了权重，还有激活、梯度和更新过程；部署只保留结果参数的理由随之明确。</p><a href="https://www.nature.com/articles/323533a0" target="_blank" rel="noopener noreferrer">Nature 反向传播原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2014</div>
+    <div class="timeline-content"><h3>Dropout 明确展示同一模块的两套运行语义</h3><p>Dropout 在训练时随机丢弃单元，以降低共适应；测试时则使用完整网络的确定性近似。它使工程师必须显式切换模式，否则同一输入会因训练期随机行为而得到不稳定输出。</p><a href="https://www.jmlr.org/papers/v15/srivastava14a.html" target="_blank" rel="noopener noreferrer">Dropout 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2015</div>
+    <div class="timeline-content"><h3>BatchNorm 增加了可学习参数之外的运行统计</h3><p>Batch Normalization 在训练批次上计算统计量，并在推理时使用累积统计与已学习的缩放、偏移。checkpoint 因而不只是权重矩阵，还包含会改变推理结果的 buffer；导出前固定模式成为必要步骤。</p><a href="https://proceedings.mlr.press/v37/ioffe15.html" target="_blank" rel="noopener noreferrer">Batch Normalization 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2017</div>
+    <div class="timeline-content"><h3>轻量 runtime 把设备端职责收束为低延迟前向执行</h3><p>TensorFlow Lite 的开发者预览面向移动和嵌入式设备，强调轻量、快速初始化与硬件加速。模型从训练框架转换为受限部署格式，训练状态、调试便利性与设备运行约束开始由工具链明确分工。</p><a href="https://developers.googleblog.com/en/announcing-tensorflow-lite/" target="_blank" rel="noopener noreferrer">TensorFlow Lite 官方发布说明 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>今天的可靠部署不是简单调用 eval 后保存文件，而是建立训练 checkpoint、评估模型、导出图、优化图和设备二进制之间的可追溯关系。每个产物都有自己的状态与版本，任何一步折叠或替换节点，都要用固定输入证明它仍代表同一个任务函数。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>从风洞试飞到封装进无人机的飞控程序</h3><p>训练像在风洞中反复试飞：工程师改变参数，注入扰动，记录每次偏航并调整控制律。推理像量产无人机起飞，机上只带定型的控制表、传感器接口和必要状态，不会把整座风洞、试验日志与调参团队一同装进去。导出则是把试验配置审定为可烧录版本。</p></div><div class="analogy-illustration" aria-label="从风洞试飞到封装进无人机的飞控程序"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🌬️</span>
+    <strong>风洞与扰动</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>数据批次、增强和 Dropout 等训练随机性</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🧑‍🔧</span>
+    <strong>调参工程师</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>优化器读取梯度并维护动量等更新状态</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">📋</span>
+    <strong>审定配置</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>eval 模式、checkpoint 选择与导出图冻结</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🛩️</span>
+    <strong>机载飞控</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>设备 runtime 只执行受验证的前向路径</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>飞控通常由明确物理模型和安全论证构成，而神经网络是统计模型，不能因“已定型”就视为覆盖所有现场条件。类比也不代表导出后图永远不变：常量折叠、量化与后端分区仍会改变数值和资源行为。</p></div></section>
+      <section><h2>本章讲解</h2><h3>训练循环同时推进参数状态与优化器状态</h3><p>一次 step 不只是执行 forward 与减去梯度：Adam 等优化器还维护每个参数的历史统计，学习率调度器也有自己的步数。若只恢复权重却遗漏优化器和 epoch，续训轨迹会改变；而这些状态对纯推理毫无用途。工程上应把“可续训 checkpoint”和“可部署权重”作为两种产物命名、校验和归档。</p><h3>模式切换必须逐模块验证，不能只相信一个布尔值</h3><p>eval 会递归切换 Dropout、BatchNorm 等模块的行为，但自定义层可能仍读取 training 标志或随机数。BatchNorm 的 running mean/variance 还可能因小批次、数据漂移而失真。导出前应对同一输入连续运行多次确认输出确定，并逐项检查随机算子、统计 buffer 和 requires-grad 状态是否符合预期。</p><h3>部署图是经变换后的新产物，不是 checkpoint 的复印件</h3><p>导出器可能内联函数、删除反向节点、折叠常量，把 Conv 与 BatchNorm 的参数合并，或依据 example input 固化控制流。这样能降低调度和内存开销，却也可能只捕获示例走过的分支。若模型包含依赖数据的循环、动态 shape 或自定义算子，应明确导出策略，不能假设源程序的所有路径都被保存。</p><h3>训练、验证与现场输入必须有三份边界说明</h3><p>训练集用于更新参数，验证集用于选择超参数和 checkpoint，测试或现场回放用于估计最终泛化；三者混用会让指标乐观。设备部署还增加传感器量程、颜色转换和采样时序等分布因素。应保存原始现场样本及标签规则，让导出后的模型在不启动训练代码的情况下也能重复跑同一套验收。</p><h3>用分层等价测试定位导出误差发生在哪一站</h3><p>先在源框架的 train/eval 两种模式比较，确认差异来自预期模块；再以固定输入比较 eval 模型与导出 runtime；最后把设备端原始 buffer 回传到 PC 重放。每层设置绝对与相对误差容差，并记录首个超差节点。这样能区分模式错误、图转换错误、量化误差和设备前处理错误。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一份 checkpoint 如何瘦身为设备前向图">
+    <div class="process-heading"><div><h3>一份 checkpoint 如何瘦身为设备前向图</h3><p>动画把训练态携带的对象画成一列可拆卸舱段；进入导出闸门后，只允许确定的前向语义和必要常量继续流向设备。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BA%22%2C%22label%22%3A%22%E7%BB%84%E6%88%90%E8%AE%AD%E7%BB%83%E6%89%B9%E6%AC%A1%22%2C%22data%22%3A%22samples%20%E2%86%92%20batch%5BB%2C%E2%80%A6%5D%22%2C%22action%22%3A%22%E6%A0%B7%E6%9C%AC%E8%A2%AB%E6%89%93%E4%B9%B1%E3%80%81%E5%A2%9E%E5%BC%BA%E5%B9%B6%E7%BB%84%E6%88%90%E4%B8%80%E4%B8%AA%20batch%22%2C%22insight%22%3A%22batch%20%E6%97%A2%E5%BD%B1%E5%93%8D%E6%A2%AF%E5%BA%A6%E4%BC%B0%E8%AE%A1%EF%BC%8C%E4%B9%9F%E5%8F%AF%E8%83%BD%E5%BD%B1%E5%93%8D%E8%AE%AD%E7%BB%83%E6%80%81%E7%BB%9F%E8%AE%A1%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🧺</span><strong>组成训练批次</strong><span>samples → batch[B,…]</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%84%22%2C%22label%22%3A%22%E5%AE%8C%E6%88%90%E8%AE%AD%E7%BB%83%20step%22%2C%22data%22%3A%22loss%20%E2%86%92%20grad%20%E2%86%92%20optimizer%20state%22%2C%22action%22%3A%22%E5%89%8D%E5%90%91%E3%80%81%E5%8F%8D%E5%90%91%E4%B8%8E%E5%8F%82%E6%95%B0%E6%9B%B4%E6%96%B0%E4%B8%89%E4%B8%AA%E7%8E%AF%E4%BE%9D%E6%AC%A1%E8%BD%AC%E5%8A%A8%22%2C%22insight%22%3A%22%E4%BC%98%E5%8C%96%E5%99%A8%E5%8A%A8%E9%87%8F%E5%92%8C%E6%A2%AF%E5%BA%A6%E5%B1%9E%E4%BA%8E%E7%BB%AD%E8%AE%AD%E7%8A%B6%E6%80%81%EF%BC%8C%E4%B8%8D%E5%B1%9E%E4%BA%8E%E6%8E%A8%E7%90%86%E8%BE%93%E5%85%A5%22%7D"><span class="process-icon" aria-hidden="true">🔄</span><strong>完成训练 step</strong><span>loss → grad → optimizer state</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%92%22%2C%22label%22%3A%22%E5%88%87%E6%8D%A2%E8%AF%84%E4%BC%B0%E8%AF%AD%E4%B9%89%22%2C%22data%22%3A%22Dropout%3Doff%EF%BC%8CBN%3Drunning%20stats%22%2C%22action%22%3A%22%E9%9A%8F%E6%9C%BA%E5%BC%80%E5%85%B3%E5%81%9C%E6%AD%A2%E9%97%AA%E7%83%81%EF%BC%8C%E7%BB%9F%E8%AE%A1%E8%A1%A8%E8%A2%AB%E9%94%81%E5%AE%9A%22%2C%22insight%22%3A%22%E5%90%8C%E4%B8%80%E5%B1%82%E5%9C%A8%E8%AE%AD%E7%BB%83%E6%80%81%E4%B8%8E%E6%8E%A8%E7%90%86%E6%80%81%E5%8F%AF%E8%83%BD%E6%89%A7%E8%A1%8C%E4%B8%8D%E5%90%8C%E5%85%AC%E5%BC%8F%22%7D"><span class="process-icon" aria-hidden="true">🔒</span><strong>切换评估语义</strong><span>Dropout=off，BN=running stats</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9C%82%EF%B8%8F%22%2C%22label%22%3A%22%E5%AF%BC%E5%87%BA%E5%B9%B6%E4%BC%98%E5%8C%96%22%2C%22data%22%3A%22checkpoint%20%E2%86%92%20inference%20graph%22%2C%22action%22%3A%22%E6%A2%AF%E5%BA%A6%E3%80%81%E4%BC%98%E5%8C%96%E5%99%A8%E8%88%B1%E6%AE%B5%E8%84%B1%E7%A6%BB%EF%BC%8C%E5%B8%B8%E9%87%8F%E8%8A%82%E7%82%B9%E8%A2%AB%E5%90%88%E5%B9%B6%22%2C%22insight%22%3A%22%E5%AF%BC%E5%87%BA%E4%BC%9A%E5%8F%98%E6%8D%A2%E5%9B%BE%EF%BC%8C%E5%BF%85%E9%A1%BB%E9%AA%8C%E8%AF%81%E5%8A%A8%E6%80%81%E5%88%86%E6%94%AF%E5%92%8C%E6%8A%98%E5%8F%A0%E7%BB%93%E6%9E%9C%22%7D"><span class="process-icon" aria-hidden="true">✂️</span><strong>导出并优化</strong><span>checkpoint → inference graph</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9F%22%2C%22label%22%3A%22%E8%AE%BE%E5%A4%87%E5%8F%AA%E5%81%9A%E5%89%8D%E5%90%91%22%2C%22data%22%3A%22input%20%E2%86%92%20runtime%20%E2%86%92%20output%22%2C%22action%22%3A%22%E5%9B%BA%E5%AE%9A%E5%9B%BE%E5%9C%A8%E7%9B%AE%E6%A0%87%20backend%20%E4%B8%8A%E9%80%90%E8%8A%82%E7%82%B9%E7%82%B9%E4%BA%AE%22%2C%22insight%22%3A%22%E8%AE%BE%E5%A4%87%E8%B5%84%E6%BA%90%E9%A2%84%E7%AE%97%E5%8F%AA%E8%A6%86%E7%9B%96%E6%9D%83%E9%87%8D%E3%80%81%E6%BF%80%E6%B4%BB%E3%80%81workspace%20%E4%B8%8E%20I%2FO%22%7D"><span class="process-icon" aria-hidden="true">📟</span><strong>设备只做前向</strong><span>input → runtime → output</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%8D%22%2C%22label%22%3A%22%E5%AF%B9%E9%BD%90%E5%9B%BA%E5%AE%9A%E5%90%91%E9%87%8F%22%2C%22data%22%3A%22%CE%94%20%3D%20output_source%20%E2%88%92%20output_device%22%2C%22action%22%3A%22%E4%B8%A4%E6%9D%A1%E8%BE%93%E5%87%BA%E6%9B%B2%E7%BA%BF%E5%8F%A0%E5%8A%A0%E5%B9%B6%E6%A0%87%E5%87%BA%E9%A6%96%E4%B8%AA%E8%B6%85%E5%B7%AE%E7%82%B9%22%2C%22insight%22%3A%22%E6%8C%89%E5%B1%82%E5%AF%B9%E6%AF%94%E6%AF%94%E5%8F%AA%E7%9C%8B%E6%9C%80%E7%BB%88%E7%B1%BB%E5%88%AB%E6%9B%B4%E5%AE%B9%E6%98%93%E5%AE%9A%E4%BD%8D%E8%AF%AD%E4%B9%89%E6%BC%82%E7%A7%BB%22%7D"><span class="process-icon" aria-hidden="true">🔍</span><strong>对齐固定向量</strong><span>Δ = output_source − output_device</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>组成训练批次 · samples → batch[B,…]</h3><p data-process-action>样本被打乱、增强并组成一个 batch</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>batch 既影响梯度估计，也可能影响训练态统计</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>新 checkpoint 只有在评估语义、导出图和设备输出三道校验都通过后，才替换上一版部署产物；失败则回到对应阶段而非直接重训。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">数据集 → 训练循环 → checkpoint → 导出/优化 → runtime → 输入 → 输出</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>model.eval()
 with no_grad():
     output = model(input)
@@ -34,6 +81,9 @@ export(model, example_input, format=&quot;onnx&quot;)</code></pre></section>
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

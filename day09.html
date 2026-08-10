@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="active" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,13 +18,59 @@
       <div class="eyebrow">DAY 09</div>
       <h1>Tokenizer</h1>
       <p class="hero-sub">理解文本如何变成模型可消费的整数流</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 17 分钟</p>
       <section><h2>学习目标</h2><div class="callout">能解释 vocabulary、merges、special tokens、padding 与 token budget，并定位端侧分词开销。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Vocabulary</th><td>token 到整数 id 的映射表。</td><td>像协议中的命令码表。</td></tr><tr><th scope="row">BPE</th><td>通过合并常见子串构建 token 的算法。</td><td>像把常见字节片段定义为更短的帧类型。</td></tr><tr><th scope="row">Special token</th><td>表示开始、结束、角色等控制含义的 token。</td><td>像帧头、帧尾和控制字。</td></tr><tr><th scope="row">Chat template</th><td>将消息列表格式化为模型训练期预期字符串的模板。</td><td>像不同设备各自的命令帧格式。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Vocabulary</th><td>token 到整数 id 的映射表。</td><td>像协议中的命令码表。</td></tr><tr><th scope="row">BPE</th><td>通过合并常见子串构建 token 的算法。</td><td>像把常见字节片段定义为更短的帧类型。</td></tr><tr><th scope="row">Special token</th><td>表示开始、结束、角色等控制含义的 token。</td><td>像帧头、帧尾和控制字。</td></tr><tr><th scope="row">Chat template</th><td>将消息列表格式化为模型训练期预期字符串的模板。</td><td>像不同设备各自的命令帧格式。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章让图像按严格格式进入模型。本章处理文本的同一问题：模型不直接理解字符串，而只读取有词表和边界规则的 token id。</p></section>
-      <section><h2>嵌入式类比</h2><p>Tokenizer 是串口协议的 framing 层：人类文本先被切成稳定的帧编号，模型只认编号，不直接认字。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章让图像按严格格式进入模型。本章处理文本的同一问题：模型不直接理解字符串，而只读取有词表和边界规则的 token id。</p><h3>从 ESP32 系统心智模型进入</h3><p>Tokenizer 是文本协议层。Unicode 规范化、BPE 或 SentencePiece、special token 和 chat template 一起决定“同一段人类文本”如何变成整数流；字符数无法代替 token 数。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>应用先组织 role/content 消息，chat template 插入控制 token，tokenizer 将字符串映射为 id，runtime 查 embedding 并分配位置。生成时还要为输入 token 和预计输出 token 留出 context budget。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>把 chat template 视为模型 ABI。切换模型时同时切换 tokenizer、模板和 special token；不要把两个模型的 prompt 格式混用，也不要在模板后重复添加 BOS/EOS。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">UTF-8 text → normalize → tokenize → [BOS, 1203, 88, EOS] → embedding lookup</pre></section>
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">Tokenizer 的演进是一段在“词表有限、任何文本都要可编码、序列不能太长”之间寻找平衡的历史。它从通用压缩中的重复片段替换，逐步变成语言模型输入协议，并进一步承担对话角色与工具消息的 framing。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">1994</div>
+    <div class="timeline-content"><h3>BPE 从反复替换高频字节对开始</h3><p>Philip Gage 描述的 Byte Pair Encoding 反复以新符号替换最高频相邻字节对，原本目标是用简单替换表压缩数据。</p><a href="https://www.derczynski.com/papers/archive/BPE_Gage.pdf" target="_blank" rel="noopener noreferrer">BPE 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2015</div>
+    <div class="timeline-content"><h3>BPE 被改造成神经翻译的子词算法</h3><p>Sennrich 等人用子词序列表示稀有词和未登录词，让固定词表不再把所有未知形式压成同一个 UNK。</p><a href="https://arxiv.org/abs/1508.07909" target="_blank" rel="noopener noreferrer">Subword NMT 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2016</div>
+    <div class="timeline-content"><h3>WordPiece 进入大规模翻译系统</h3><p>GNMT 将词切成有限的 common sub-word units，在受控词表规模下覆盖开放文本，子词分词成为神经语言系统的关键部件。</p><a href="https://arxiv.org/abs/1609.08144" target="_blank" rel="noopener noreferrer">GNMT 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2018</div>
+    <div class="timeline-content"><h3>SentencePiece 直接从原始句子训练</h3><p>SentencePiece 不要求先按空格切词，并提供语言无关的 tokenizer/detokenizer，使无空格语言和跨语言流程更一致。</p><a href="https://aclanthology.org/D18-2012/" target="_blank" rel="noopener noreferrer">SentencePiece 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2019</div>
+    <div class="timeline-content"><h3>GPT-2 采用字节级 BPE 覆盖任意文本</h3><p>GPT-2 报告使用 byte-level BPE，在字节覆盖与可复用子词之间折中，减少传统词级词表面对异常字符的盲区。</p><a href="https://cdn.openai.com/better-language-models/language-models.pdf" target="_blank" rel="noopener noreferrer">GPT-2 原始技术报告 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2023–现在</div>
+    <div class="timeline-content"><h3>Chat template 把消息结构纳入 tokenizer 契约</h3><p>现代聊天模型把 role/content 渲染为带控制 token 的单一序列；模板随 tokenizer 保存，应用不再适合手工猜测分隔符。</p><a href="https://huggingface.co/docs/transformers/chat_templating" target="_blank" rel="noopener noreferrer">Hugging Face 官方 Chat Template 文档 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>因此，tokenizer 不是可随意替换的文本工具，而是模型 ABI 的一部分。词表、merge/rank、规范化、特殊 token 和模板中的一个字节发生变化，都可能改变后续全部 token id、位置与 KV cache。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>跨国车站的检票与编组系统</h3><p>旅客说着不同语言、带着 emoji 和代码片段来到车站。检票处先按统一规则核验证件，再把常见同行片段编成短车厢编号；站长插入“列车开始、乘客发言、列车结束”等控制车厢，模型只看到最终编号序列。</p></div><div class="analogy-illustration" aria-label="跨国车站的检票与编组系统"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🪪</span>
+    <strong>证件核验</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>Unicode 处理、规范化与原始字节边界</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🧩</span>
+    <strong>车厢编组</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>BPE merge、WordPiece 或 SentencePiece 子词切分</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🎫</span>
+    <strong>编号车票</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>vocabulary 中稳定的 token id</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚉</span>
+    <strong>站长控制车厢</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>BOS/EOS、角色 token 与 chat template</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>类比容易让人误以为一个 token 就对应一个可读词；实际 token 可能是词、空格前缀、若干 UTF‑8 字节甚至跨字符片段。编号也没有跨 tokenizer 的通用含义，拆分结果更不直接代表模型对概念的理解程度。</p></div></section>
+      <section><h2>本章讲解</h2><h3>从字符串追到字节，先固定规范化语义</h3><p>视觉上相同的文本可能由不同 Unicode 码点序列组成，例如预组合字符与组合附加符；全角、换行和不可见控制字符也会改变 token。不要在应用、模板和 tokenizer 三处分别做清洗，否则训练与推理难以对齐。明确输入采用哪种规范化、是否保留空白与大小写，并用十六进制码点记录边界样本。字节级 tokenizer 虽能覆盖任意输入，也不意味着损坏的 UTF‑8 或替换字符可以被悄悄接受。</p><h3>理解子词算法在词表与序列长度间的交换</h3><p>BPE 从基础符号出发，按学习到的 rank 反复合并相邻片段；WordPiece 与 unigram/SentencePiece 的训练准则不同，不能只靠同一份词表复现。大词表可缩短常见文本，却增大 embedding 和输出层；小词表覆盖容易但序列更长。中文、代码、数字和 emoji 的频率结构不同，所以字符数无法预测 token 数。工程比较应使用产品语料的长度分布、编码耗时和模型质量，而非只试一句英文。</p><h3>把 special token 与 chat template 当成不可拆的 ABI</h3><p>聊天模型训练时看到的是 role/content 经模板渲染后的 token 序列，不是应用中的对象数组。模板决定 system、user、assistant 的边界，是否插入 BOS/EOS，以及生成提示停在哪里。先渲染字符串再 tokenize 时，通常应关闭重复的 special token 添加；切换模型必须连同 tokenizer 和模板一起切换。对用户文本还要区分普通字符与允许的控制 token，防止文本意外越过消息边界。</p><h3>预算的不只是 context 上限，还有编码路径本身</h3><p>请求预算应先套模板再计数，包含系统提示、历史消息、工具描述和预留输出，不能用字符数估算。端侧逐字符追加后每次重新编码整段会形成平方级重复工作；可缓存稳定前缀或使用支持增量的实现，但合并可能跨越追加边界，不能天真地把两段 token 列表直接拼接。限制超长输入时应按消息或语义块截断，并重新生成模板，避免从 UTF‑8 字节或 special token 中间切开。</p><h3>用金向量验证跨语言、跨实现的一致性</h3><p>建立包含中文、英文、空白、换行、emoji、组合字符、代码和疑似 special token 的小型语料，保存 tokenizer 哈希、模板版本、期望 id 与解码结果。在 Python、Host runtime 和设备实现上逐项比较，额外检查 encode→decode 是否满足声明的可逆边界。升级库后若 id 改变，即使解码文本相同也不能直接复用旧 prompt/KV cache；缓存键应包含完整 tokenizer 契约。</p><h3>沿分层快照定位第一个错误 token</h3><p>调试 token 差异时，不要只打印最终 ids。保存原始字节和 Unicode 码点，再快照规范化结果、模板字符串、预切分片段及各 token 的 id。按首个差异对齐：字符串不同就查换行、Jinja 空白控制和 BOS/EOS；字符串相同而片段不同，查 tokenizer.json 与 merge ranks；ids 相同而模型行为不同，再查 position 和 attention mask。这样能把问题定位到具体协议层。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一段对话如何变成整数列车">
+    <div class="process-heading"><div><h3>一段对话如何变成整数列车</h3><p>逐步播放器展示人类消息在每个协议层增加或改变了什么，最后再从 token 片段流式还原文本。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%92%AC%22%2C%22label%22%3A%22%E7%BB%84%E7%BB%87%E6%B6%88%E6%81%AF%22%2C%22data%22%3A%22%5B%7Brole%2C%20content%7D%2C%20%E2%80%A6%5D%22%2C%22action%22%3A%22%E4%BF%9D%E7%95%99%E8%A7%92%E8%89%B2%E3%80%81%E8%BD%AE%E6%AC%A1%E5%92%8C%E5%B7%A5%E5%85%B7%E5%AD%97%E6%AE%B5%E7%9A%84%E7%BB%93%E6%9E%84%22%2C%22insight%22%3A%22%E5%AF%B9%E8%B1%A1%E7%BB%93%E6%9E%84%E5%B0%9A%E4%B8%8D%E6%98%AF%E6%A8%A1%E5%9E%8B%E8%BE%93%E5%85%A5%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">💬</span><strong>组织消息</strong><span>[{role, content}, …]</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BE%22%2C%22label%22%3A%22%E5%BA%94%E7%94%A8%E6%A8%A1%E6%9D%BF%22%2C%22data%22%3A%22role%20tokens%20%2B%20content%20%2B%20generation%20marker%22%2C%22action%22%3A%22%E6%8C%89%E6%A8%A1%E5%9E%8B%E8%87%AA%E5%B8%A6%E6%A8%A1%E6%9D%BF%E6%8F%92%E5%85%A5%E6%8E%A7%E5%88%B6%E8%BE%B9%E7%95%8C%22%2C%22insight%22%3A%22%E5%90%8C%E4%B8%80%E6%B6%88%E6%81%AF%E5%8F%AF%E5%9B%A0%E6%A8%A1%E6%9D%BF%E4%B8%8D%E5%90%8C%E4%BA%A7%E7%94%9F%E4%B8%8D%E5%90%8C%E5%BA%8F%E5%88%97%22%7D"><span class="process-icon" aria-hidden="true">🧾</span><strong>应用模板</strong><span>role tokens + content + generation marker</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A4%22%2C%22label%22%3A%22%E8%A7%84%E8%8C%83%E5%8C%96%E4%B8%8E%E9%A2%84%E5%88%87%E5%88%86%22%2C%22data%22%3A%22Unicode%20text%20%E2%86%92%20pieces%2Fbytes%22%2C%22action%22%3A%22%E6%89%A7%E8%A1%8C%20tokenizer%20%E5%A3%B0%E6%98%8E%E7%9A%84%E5%AD%97%E7%AC%A6%E4%B8%8E%E6%AD%A3%E5%88%99%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E4%B8%8D%E5%8F%AF%E8%A7%81%E5%AD%97%E7%AC%A6%E4%B9%9F%E4%BC%9A%E5%8F%82%E4%B8%8E%E5%8D%8F%E8%AE%AE%22%7D"><span class="process-icon" aria-hidden="true">🔤</span><strong>规范化与预切分</strong><span>Unicode text → pieces/bytes</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B2%22%2C%22label%22%3A%22%E5%AD%90%E8%AF%8D%E5%90%88%E5%B9%B6%22%2C%22data%22%3A%22base%20symbols%20%E2%86%92%20ranked%20merges%22%2C%22action%22%3A%22%E6%8C%89%20BPE%2FWordPiece%2FSentencePiece%20%E8%A7%84%E5%88%99%E5%BD%A2%E6%88%90%E7%89%87%E6%AE%B5%22%2C%22insight%22%3A%22%E8%AF%8D%E8%A1%A8%E5%A4%A7%E5%B0%8F%E4%B8%8E%E5%BA%8F%E5%88%97%E9%95%BF%E5%BA%A6%E5%9C%A8%E4%BA%A4%E6%8D%A2%22%7D"><span class="process-icon" aria-hidden="true">🧲</span><strong>子词合并</strong><span>base symbols → ranked merges</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A2%22%2C%22label%22%3A%22%E6%9F%A5%E8%A1%A8%E6%88%90%20ID%22%2C%22data%22%3A%22%5B1%2C%202457%2C%2093%2C%20%E2%80%A6%5D%22%2C%22action%22%3A%22%E6%98%A0%E5%B0%84%E8%AF%8D%E8%A1%A8%E5%B9%B6%E8%AE%A1%E7%AE%97%20context%20budget%22%2C%22insight%22%3A%22%E6%A8%A1%E5%9E%8B%E5%8F%AA%E6%B6%88%E8%B4%B9%E5%B8%A6%E4%BD%8D%E7%BD%AE%E7%9A%84%E6%95%B4%E6%95%B0%E5%BA%8F%E5%88%97%22%7D"><span class="process-icon" aria-hidden="true">🔢</span><strong>查表成 ID</strong><span>[1, 2457, 93, …]</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A4%22%2C%22label%22%3A%22%E5%A2%9E%E9%87%8F%E8%A7%A3%E7%A0%81%22%2C%22data%22%3A%22token%20bytes%20%E2%86%92%20UTF-8%20text%22%2C%22action%22%3A%22%E7%B4%AF%E7%A7%AF%E5%AE%8C%E6%95%B4%E5%AD%97%E8%8A%82%E8%BE%B9%E7%95%8C%E5%90%8E%E5%90%91%E7%95%8C%E9%9D%A2%E8%BE%93%E5%87%BA%22%2C%22insight%22%3A%22%E5%8D%95%E4%B8%AA%20token%20%E6%9C%AA%E5%BF%85%E8%83%BD%E7%8B%AC%E7%AB%8B%E6%98%BE%E7%A4%BA%E4%B8%BA%E5%AD%97%E7%AC%A6%22%7D"><span class="process-icon" aria-hidden="true">📤</span><strong>增量解码</strong><span>token bytes → UTF-8 text</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>组织消息 · [{role, content}, …]</h3><p data-process-action>保留角色、轮次和工具字段的结构</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>对象结构尚不是模型输入</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>新一轮消息回到“组织消息”并重套模板；若要复用前缀，必须同时匹配模板、tokenizer 哈希、token 序列与位置。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">UTF-8 text → normalize → tokenize → [BOS, 1203, 88, EOS] → embedding lookup</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>ids = tokenizer.encode(&quot;温度 28°C&quot;)
 print(ids, len(ids))
 prompt = template(system, user)
@@ -34,6 +84,9 @@ prompt = template(system, user)
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
