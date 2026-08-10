@@ -1,22 +1,41 @@
 <main class="wrap day-layout">
+  <div class="reading-progress-bar" data-reading-progress role="progressbar" aria-label="{{ copy.readingProgress }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
   <aside class="toc panel" aria-label="{{ copy.learningNav }}">
     <span class="eyebrow">{{ copy.learningNav }}</span>
     {% for item in course %}
       <a class="{% if item.n == day.n %}active{% endif %}" {% if item.n == day.n %}aria-current="page"{% endif %} href="{{ ('/day' ~ (item.n | pad2) ~ '.html') | locale_url(lang) | url }}">Day {{ item.n | pad2 }} · {{ item.t }}</a>
     {% endfor %}
   </aside>
-  <article class="content" data-day="{{ day.n }}">
+  <article class="content" data-day="{{ day.n }}" data-title="{{ day.t }}">
     <div class="eyebrow">DAY {{ day.n | pad2 }}</div>
     <h1>{{ day.t }}</h1>
     <p class="hero-sub">{{ day.s }}</p>
     <p class="reading-time">{{ copy.suggestedReading }} {{ day.readingMinutes }} {{ copy.minutes }}</p>
 
-    <section>
+    <div class="resume-reading" data-resume-reading hidden>
+      <span data-resume-label></span>
+      <button type="button" class="button secondary" data-resume-button>{{ copy.resumeReading }}</button>
+      <button type="button" class="resume-dismiss" data-resume-dismiss aria-label="{{ copy.dismissResume }}">×</button>
+    </div>
+
+    <nav class="section-nav" aria-label="{{ copy.chapterSections }}">
+      <a href="#goal">{{ copy.learningGoal }}</a>
+      <a href="#keywords">{{ copy.keywords }}</a>
+      {% if day.history %}<a href="#history">{{ copy.historyTitle }}</a>{% endif %}
+      <a href="#analogy">{{ copy.analogyTitle }}</a>
+      <a href="#lesson">{{ copy.lessonTitle }}</a>
+      {% if day.infra %}<a href="#infra">{{ copy.infraTitle }}</a>{% endif %}
+      <a href="#process">{{ copy.processTitle }}</a>
+      <a href="#lab">{{ copy.lab }}</a>
+      <a href="#quiz">{{ copy.quizTitle }}</a>
+    </nav>
+
+    <section id="goal">
       <h2>{{ copy.learningGoal }}</h2>
       <div class="callout">{{ day.goal }}</div>
     </section>
 
-    <section>
+    <section id="keywords">
       <h2>{{ copy.keywords }}</h2>
       <div class="table-scroll responsive-cards">
         <table class="keyword-table">
@@ -28,7 +47,7 @@
       </div>
     </section>
 
-    <section><h2>{{ copy.recap }}</h2><p>{{ day.recap }}</p></section>
+    <section id="recap"><h2>{{ copy.recap }}</h2><p>{{ day.recap }}</p></section>
 
     {% if day.history %}
       <section class="history-section" id="history">
@@ -83,10 +102,10 @@
         </div>
       </section>
     {% else %}
-      <section><h2>{{ copy.analogyFallback }}</h2><p>{{ day.analogy }}</p></section>
+      <section id="analogy"><h2>{{ copy.analogyFallback }}</h2><p>{{ day.analogy }}</p></section>
     {% endif %}
 
-    <section>
+    <section id="lesson">
       <h2>{{ copy.lessonTitle }}</h2>
       {% for item in day.lesson %}<h3>{{ item.title }}</h3><p>{{ item.body }}</p>{% endfor %}
     </section>
@@ -158,14 +177,23 @@
         <details class="static-diagram" open><summary>{{ copy.staticOverview }}</summary><pre class="diagram">{{ day.diagram }}</pre></details>
       </section>
     {% else %}
-      <section><h2>{{ copy.flowchart }}</h2><pre class="diagram">{{ day.diagram }}</pre></section>
+      <section id="process"><h2>{{ copy.flowchart }}</h2><pre class="diagram">{{ day.diagram }}</pre></section>
     {% endif %}
 
-    <section><h2>{{ copy.codeExample }}</h2><pre class="code"><code>{{ day.code }}</code></pre></section>
-    <section><h2>{{ copy.lab }}</h2><div class="callout">{{ day.lab }}</div></section>
-    <section><h2>{{ copy.pitfall }}</h2><div class="pitfall"><strong>{{ copy.avoidMisread }}</strong> {{ day.pitfall }}</div></section>
+    <section id="code"><h2>{{ copy.codeExample }}</h2><pre class="code"><code>{{ day.code }}</code></pre></section>
+    <section id="lab">
+      <h2>{{ copy.lab }}</h2><div class="callout">{{ day.lab }}</div>
+      <details class="lab-notes" data-lab-notes data-lab-payload="{{ { n: day.n, title: day.t, lab: day.lab } | encodePayload }}">
+        <summary>{{ copy.labNotesTitle }}</summary>
+        <label for="lab-notes-{{ day.n }}">{{ copy.labNotesPrompt }}</label>
+        <textarea id="lab-notes-{{ day.n }}" rows="8" placeholder="{{ copy.labNotesPlaceholder }}" data-lab-notes-input></textarea>
+        <div class="lab-note-actions"><button type="button" class="button" data-save-notes>{{ copy.saveNotes }}</button><button type="button" class="button secondary" data-export-notes>{{ copy.exportMarkdown }}</button></div>
+        <p role="status" aria-live="polite" data-notes-status></p>
+      </details>
+    </section>
+    <section id="pitfall"><h2>{{ copy.pitfall }}</h2><div class="pitfall"><strong>{{ copy.avoidMisread }}</strong> {{ day.pitfall }}</div></section>
 
-    <section class="quiz" aria-labelledby="quiz-title-{{ day.n }}">
+    <section class="quiz" id="quiz" aria-labelledby="quiz-title-{{ day.n }}">
       <h2 id="quiz-title-{{ day.n }}">{{ copy.quizTitle }}</h2>
       <p>{{ copy.quizIntro }}</p>
       <form class="quiz-form" data-quiz-payload="{{ day.quiz | encodePayload }}" novalidate>
@@ -187,12 +215,12 @@
       </form>
     </section>
 
-    <section>
+    <section id="references">
       <h2>{{ copy.references }}</h2>
       <ul class="reference-list">{% for ref in day.references %}<li><a href="{{ ref[1] }}" target="_blank" rel="noopener noreferrer">{{ ref[0] }}{{ copy.sourceSuffix }}</a></li>{% endfor %}</ul>
     </section>
 
-    <section>
+    <section id="next">
       <h2>{{ copy.nextPreview }}</h2>
       <p>{{ day.nextPreview }}</p>
       {% if day.next %}<p>{{ copy.nextDay }} <a href="{{ ('/day' ~ ((day.n + 1) | pad2) ~ '.html') | locale_url(lang) | url }}">Day {{ day.n + 1 }} · {{ day.next }}</a></p>{% endif %}

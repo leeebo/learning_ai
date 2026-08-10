@@ -7,11 +7,13 @@ const { totalDays } = require("../src/_data/courseMeta.cjs");
 const dayFiles = Array.from({ length: totalDays }, (_, index) => `day${String(index + 1).padStart(2, "0")}.html`);
 const generatedFiles = [
   "index.html",
+  "review.html",
   "app.js",
   "favicon.svg",
   "styles.css",
   ...dayFiles,
   "en/index.html",
+  "en/review.html",
   ...dayFiles.map(filename => `en/${filename}`),
 ];
 

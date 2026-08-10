@@ -5,13 +5,46 @@
     <p>{{ copy.heroBody }}</p>
     <a class="button" href="{{ '/day01.html' | locale_url(lang) | url }}">{{ copy.startCourse }}</a>
   </section>
+  <section class="learning-dashboard panel" data-learning-dashboard hidden aria-labelledby="learning-dashboard-title">
+    <div class="dashboard-heading">
+      <div><span class="section-kicker">{{ copy.learningDashboardKicker }}</span><h2 id="learning-dashboard-title">{{ copy.learningDashboardTitle }}</h2></div>
+      <p>{{ copy.localProgressNote }}</p>
+    </div>
+    <div class="dashboard-stats">
+      <div><strong data-completed-count>0 / {{ course.length }}</strong><span>{{ copy.chaptersCompleted }}</span></div>
+      <div><strong data-streak-count>0</strong><span>{{ copy.learningStreak }}</span></div>
+      <div><strong data-mistake-count>0</strong><span>{{ copy.questionsToReview }}</span></div>
+    </div>
+    <div class="course-progress" role="progressbar" aria-label="{{ copy.courseProgress }}" aria-valuemin="0" aria-valuemax="{{ course.length }}" aria-valuenow="0" data-course-progress><span></span></div>
+    <div class="dashboard-actions">
+      <a class="button" data-continue-learning href="{{ '/day01.html' | locale_url(lang) | url }}">{{ copy.continueLearning }}</a>
+      <a class="button secondary" href="{{ '/review.html' | locale_url(lang) | url }}"><span>{{ copy.reviewMistakes }}</span> <span data-review-count-badge></span></a>
+    </div>
+    <div class="badge-shelf" aria-label="{{ copy.badgesTitle }}">
+      <h3>{{ copy.badgesTitle }}</h3>
+      <div class="badge-grid">
+        <div class="learning-badge" data-badge-days="1-5"><span aria-hidden="true">🧩</span><strong>{{ copy.badgeFoundations }}</strong><small>{{ copy.days }} 1–5</small></div>
+        <div class="learning-badge" data-badge-days="6-10"><span aria-hidden="true">🔧</span><strong>{{ copy.badgeDeployment }}</strong><small>{{ copy.days }} 6–10</small></div>
+        <div class="learning-badge" data-badge-days="11-15"><span aria-hidden="true">🛡️</span><strong>{{ copy.badgeIntegration }}</strong><small>{{ copy.days }} 11–15</small></div>
+        <div class="learning-badge" data-badge-days="16-17"><span aria-hidden="true">🌐</span><strong>{{ copy.badgeInfrastructure }}</strong><small>{{ copy.days }} 16–17</small></div>
+        <div class="learning-badge" data-badge-streak="3"><span aria-hidden="true">🔥</span><strong>{{ copy.badgeStreak }}</strong><small>3 {{ copy.streakDays }}</small></div>
+      </div>
+    </div>
+  </section>
+  <section class="course-search" data-course-search hidden>
+    <label for="course-search-input">{{ copy.searchCourse }}</label>
+    <div class="search-control"><input id="course-search-input" type="search" inputmode="search" autocomplete="off" placeholder="{{ copy.searchPlaceholder }}" data-course-search-input><button type="button" class="button secondary" data-clear-search>{{ copy.clearSearch }}</button></div>
+    <p class="search-status" role="status" aria-live="polite" data-search-status></p>
+  </section>
   <section class="grid" aria-label="{{ copy.learningNav }}">
     {% for item in course %}
-      <a class="card" href="{{ ('/day' ~ (item.n | pad2) ~ '.html') | locale_url(lang) | url }}">
+      <a class="card" data-course-card data-day="{{ item.n }}" href="{{ ('/day' ~ (item.n | pad2) ~ '.html') | locale_url(lang) | url }}">
         <span class="tag">DAY {{ item.n | pad2 }}</span>
         <h2>{{ item.t }}</h2>
         <p>{{ item.s }}</p>
+        <span class="sr-only" data-search-keywords>{% for keyword in item.keywords %}{{ keyword.term }} {{ keyword.definition }} {% endfor %} {{ item.goal }}</span>
         <span class="card-meta">{{ item.readingMinutes }} {{ copy.minutes }} · {{ copy.cardMeta }}</span>
+        <span class="card-status" data-card-status></span>
       </a>
     {% endfor %}
   </section>
