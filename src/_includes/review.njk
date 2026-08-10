@@ -1,0 +1,30 @@
+<main class="wrap review-page" data-review-page>
+  <section class="review-hero">
+    <div class="eyebrow">{{ copy.reviewKicker }}</div>
+    <h1>{{ copy.reviewTitle }}</h1>
+    <p>{{ copy.reviewDescription }}</p>
+    <a href="{{ '/' | locale_url(lang) | url }}">← {{ copy.home }}</a>
+  </section>
+
+  <section class="review-empty panel" data-review-empty hidden>
+    <span aria-hidden="true">🎉</span><h2>{{ copy.noMistakesTitle }}</h2><p>{{ copy.noMistakesBody }}</p>
+  </section>
+
+  <form class="review-form" data-review-form hidden novalidate>
+    <div class="review-toolbar panel"><strong data-review-total></strong><button class="button" type="submit">{{ copy.submitReview }}</button></div>
+    <div class="review-list">
+      {% for item in course %}
+        {% set dayIndex = loop.index0 %}
+        {% for question in item.quiz %}
+          <fieldset class="question-card review-card" data-review-item data-day="{{ item.n }}" data-question-index="{{ loop.index0 }}" data-review-payload="{{ question | encodePayload }}" hidden>
+            <legend><a href="{{ ('/day' ~ (item.n | pad2) ~ '.html') | locale_url(lang) | url }}">Day {{ item.n | pad2 }} · {{ item.t }}</a><strong>{{ loop.index }}. {{ question.prompt }}</strong></legend>
+            {% set questionIndex = loop.index0 %}
+            {% for option in question.options %}<label class="quiz-option"><input type="radio" name="review-{{ item.n }}-{{ questionIndex }}" value="{{ loop.index0 }}"> <span>{{ option }}</span></label>{% endfor %}
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+        {% endfor %}
+      {% endfor %}
+    </div>
+    <p class="quiz-feedback" role="status" aria-live="polite" data-review-feedback></p>
+  </form>
+</main>
