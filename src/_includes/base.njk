@@ -5,6 +5,9 @@
 {% elif pageKind == "review" %}
   {% set pageTitle = copy.reviewTitle ~ " · " ~ copy.siteTitle %}
   {% set pageDescription = copy.reviewDescription %}
+{% elif pageKind == "certificate" %}
+  {% set pageTitle = copy.certificateTitle ~ " · " ~ copy.siteTitle %}
+  {% set pageDescription = copy.certificateDescription %}
 {% else %}
   {% set pageTitle = copy.siteTitle %}
   {% set pageDescription = copy.siteDescription %}
@@ -24,22 +27,22 @@
   <link rel="icon" href="{{ '/favicon.svg' | url }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ '/styles.css' | url }}">
 </head>
-<body data-ui="{{ copy | encodePayload }}" data-locale="{{ lang }}" data-page-kind="{% if day %}chapter{% elif pageKind %}{{ pageKind }}{% else %}home{% endif %}">
+<body data-ui="{{ copy | encodePayload }}" data-locale="{{ lang }}" data-page-kind="{% if day %}chapter{% elif pageKind %}{{ pageKind }}{% else %}home{% endif %}" data-total-days="{{ course.length }}">
   <noscript>
     <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
-    <div class="noscript-banner">{% if day %}{{ copy.noscriptDay }}{% elif pageKind == "review" %}{{ copy.noscriptReview }}{% else %}{{ copy.noscriptHome }}{% endif %}</div>
+    <div class="noscript-banner">{% if day %}{{ copy.noscriptDay }}{% elif pageKind == "review" %}{{ copy.noscriptReview }}{% elif pageKind == "certificate" %}{{ copy.noscriptCertificate }}{% else %}{{ copy.noscriptHome }}{% endif %}</div>
   </noscript>
   <header class="top">
     <div class="brand">{{ copy.siteTitle }}</div>
     <div class="top-actions">
-      {% if day or pageKind == "review" %}<a href="{{ '/' | locale_url(lang) | url }}">{{ copy.home }}</a>{% else %}<span>{{ copy.offlineLabel }}</span>{% endif %}
+      {% if day or pageKind == "review" or pageKind == "certificate" %}<a href="{{ '/' | locale_url(lang) | url }}">{{ copy.home }}</a>{% else %}<span>{{ copy.offlineLabel }}</span>{% endif %}
       {% for link in localizedPages %}
         <a class="language-switch" href="{{ link.url | url }}" lang="{{ link.lang }}" hreflang="{{ link.lang }}" aria-label="{{ copy.languageSwitchLabel }}">{{ copy.languageSwitch }}</a>
       {% endfor %}
     </div>
   </header>
   {{ content | safe }}
-  <footer><div class="wrap">{% if day or pageKind == "review" %}{{ copy.footer }}{% else %}{{ copy.homeFooter }}{% endif %}</div></footer>
+  <footer><div class="wrap">{% if day or pageKind == "review" or pageKind == "certificate" %}{{ copy.footer }}{% else %}{{ copy.homeFooter }}{% endif %}</div></footer>
   <script src="{{ '/app.js' | url }}" defer></script>
 </body>
 </html>

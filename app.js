@@ -4,15 +4,65 @@
   const decodePayload = value => JSON.parse(decodeURIComponent(value));
   const ui = document.body.dataset.ui ? decodePayload(document.body.dataset.ui) : {};
   const STORAGE_KEY = "learning-ai-progress-v1";
+  const ARCHIVE_FORMAT = "learning-ai-progress";
+  const MAX_ARCHIVE_BYTES = 6_000_000;
+  const TOTAL_DAYS = Number(document.body.dataset.totalDays) || 17;
 
-  const emptyLearningState = () => ({ version: 1, lastDay: null, streak: { count: 0, lastDate: null }, days: {} });
+  const emptyLearningState = () => ({ version: 1, profileName: "", lastDay: null, streak: { count: 0, lastDate: null }, days: {} });
+  const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
+  const validDay = value => Number.isInteger(value) && value >= 1 && value <= TOTAL_DAYS;
+
+  const normalizeLearningState = input => {
+    if (!isObject(input) || input.version !== 1 || !isObject(input.days) || !isObject(input.streak)) {
+      throw new TypeError("Invalid learning state");
+    }
+
+    const normalized = emptyLearningState();
+    if (input.profileName !== undefined && typeof input.profileName !== "string") throw new TypeError("Invalid profile name");
+    normalized.profileName = String(input.profileName || "").slice(0, 80);
+    if (input.lastDay !== null && input.lastDay !== undefined && !validDay(input.lastDay)) throw new TypeError("Invalid last day");
+    normalized.lastDay = validDay(input.lastDay) ? input.lastDay : null;
+
+    const streakCount = input.streak.count ?? 0;
+    if (typeof streakCount !== "number" || !Number.isInteger(streakCount) || streakCount < 0) throw new TypeError("Invalid streak");
+    if (input.streak.lastDate !== null && input.streak.lastDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.streak.lastDate)) {
+      throw new TypeError("Invalid streak date");
+    }
+    normalized.streak = { count: streakCount, lastDate: input.streak.lastDate || null };
+
+    Object.entries(input.days).forEach(([key, value]) => {
+      const dayNumber = Number(key);
+      if (!/^\d+$/.test(key) || !validDay(dayNumber) || !isObject(value)) throw new TypeError("Invalid chapter state");
+      const scroll = value.scroll ?? 0;
+      const bestScore = value.bestScore ?? 0;
+      const completed = value.completed ?? false;
+      if (typeof scroll !== "number" || !Number.isFinite(scroll) || scroll < 0 || scroll > 1) throw new TypeError("Invalid reading position");
+      if (typeof bestScore !== "number" || !Number.isInteger(bestScore) || bestScore < 0 || bestScore > 3) throw new TypeError("Invalid quiz score");
+      if (typeof completed !== "boolean" || (completed && bestScore !== 3)) throw new TypeError("Invalid completion state");
+      if (value.wrong !== undefined && (!Array.isArray(value.wrong) || value.wrong.some(index => !Number.isInteger(index) || index < 0 || index > 2))) {
+        throw new TypeError("Invalid mistake list");
+      }
+      if (value.notes !== undefined && typeof value.notes !== "string") throw new TypeError("Invalid notes");
+      for (const field of ["visitedAt", "completedAt"]) {
+        if (value[field] !== undefined && value[field] !== null && typeof value[field] !== "string") throw new TypeError(`Invalid ${field}`);
+      }
+      normalized.days[key] = {
+        visitedAt: value.visitedAt || null,
+        completedAt: value.completedAt || null,
+        scroll,
+        completed,
+        bestScore,
+        wrong: [...new Set(value.wrong || [])],
+        notes: String(value.notes || "").slice(0, 200000),
+      };
+    });
+    return normalized;
+  };
 
   const loadLearningState = () => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
-      if (!parsed || parsed.version !== 1 || typeof parsed.days !== "object") return emptyLearningState();
-      parsed.streak ??= { count: 0, lastDate: null };
-      return parsed;
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      return stored ? normalizeLearningState(JSON.parse(stored)) : emptyLearningState();
     } catch {
       return emptyLearningState();
     }
@@ -31,9 +81,10 @@
 
   const ensureDayState = dayNumber => {
     const key = String(dayNumber);
-    learningState.days[key] ??= { visitedAt: null, scroll: 0, completed: false, bestScore: 0, wrong: [], notes: "" };
+    learningState.days[key] ??= { visitedAt: null, completedAt: null, scroll: 0, completed: false, bestScore: 0, wrong: [], notes: "" };
     const dayState = learningState.days[key];
     dayState.visitedAt ??= null;
+    dayState.completedAt ??= null;
     dayState.scroll = Number(dayState.scroll) || 0;
     dayState.completed = Boolean(dayState.completed);
     dayState.bestScore = Number(dayState.bestScore) || 0;
@@ -65,8 +116,22 @@
     const dayState = ensureDayState(dayNumber);
     dayState.bestScore = Math.max(dayState.bestScore || 0, score);
     dayState.wrong = correct.map((isCorrect, index) => isCorrect ? null : index).filter(index => index !== null);
-    if (correct.every(Boolean)) dayState.completed = true;
+    if (correct.every(Boolean)) {
+      dayState.completed = true;
+      dayState.completedAt ||= new Date().toISOString();
+    }
     saveLearningState();
+  };
+
+  const downloadFile = (content, type, filename) => {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const download = document.createElement("a");
+    download.href = url;
+    download.download = filename;
+    document.body.append(download);
+    download.click();
+    download.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   function bindQuiz(form) {
@@ -273,6 +338,56 @@
     schedule();
   }
 
+  function bindLearningArchive(root) {
+    const archiveRoot = root.querySelector("[data-learning-archive]");
+    if (!archiveRoot) return;
+    const status = archiveRoot.querySelector("[data-archive-status]");
+    const importInput = archiveRoot.querySelector("[data-import-progress]");
+
+    archiveRoot.querySelector("[data-export-progress]").addEventListener("click", () => {
+      const archive = {
+        format: ARCHIVE_FORMAT,
+        formatVersion: 1,
+        courseDays: TOTAL_DAYS,
+        exportedAt: new Date().toISOString(),
+        state: learningState,
+      };
+      downloadFile(`${JSON.stringify(archive, null, 2)}\n`, "application/json;charset=utf-8", `learning-ai-progress-${localDateKey(new Date())}.json`);
+      status.textContent = ui.progressExported;
+    });
+
+    importInput.addEventListener("change", async () => {
+      const file = importInput.files?.[0];
+      if (!file) return;
+      try {
+        if (file.size > MAX_ARCHIVE_BYTES) throw new TypeError("Archive is too large");
+        const archive = JSON.parse(await file.text());
+        if (!isObject(archive) || archive.format !== ARCHIVE_FORMAT || archive.formatVersion !== 1 || archive.courseDays !== TOTAL_DAYS) {
+          throw new TypeError("Invalid archive envelope");
+        }
+        const imported = normalizeLearningState(archive.state);
+        learningState = imported;
+        if (!saveLearningState()) throw new TypeError("Storage is unavailable");
+        status.textContent = ui.progressImported;
+        window.setTimeout(() => window.location.reload(), 700);
+      } catch {
+        status.textContent = ui.progressImportError;
+        importInput.value = "";
+      }
+    });
+
+    archiveRoot.querySelector("[data-reset-progress]").addEventListener("click", () => {
+      if (!window.confirm(ui.resetProgressConfirm)) return;
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+        learningState = emptyLearningState();
+        window.location.reload();
+      } catch {
+        status.textContent = ui.progressImportError;
+      }
+    });
+  }
+
   function bindLearningDashboard(root) {
     const cards = [...document.querySelectorAll("[data-course-card]")];
     const searchRoot = document.querySelector("[data-course-search]");
@@ -349,6 +464,7 @@
       });
       renderSearch();
     }
+    bindLearningArchive(root);
   }
 
   function bindChapterProgress(article) {
@@ -434,14 +550,7 @@
         saveLearningState();
         const dayLabel = document.querySelector(".content > .eyebrow")?.textContent.trim() || String(payload.n);
         const markdown = `# ${dayLabel} · ${payload.title} — ${ui.notesMarkdownTitle}\n\n## ${ui.notesMarkdownLab}\n\n${payload.lab}\n\n## ${ui.notesMarkdownNotes}\n\n${input.value || "—"}\n\n---\n${ui.notesMarkdownSaved}: ${new Date().toISOString()}\n`;
-        const url = URL.createObjectURL(new Blob([markdown], { type: "text/markdown;charset=utf-8" }));
-        const download = document.createElement("a");
-        download.href = url;
-        download.download = `learning-ai-day${String(payload.n).padStart(2, "0")}-notes.md`;
-        document.body.append(download);
-        download.click();
-        download.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+        downloadFile(markdown, "text/markdown;charset=utf-8", `learning-ai-day${String(payload.n).padStart(2, "0")}-notes.md`);
         status.textContent = ui.notesExported;
       } catch {
         status.textContent = ui.notesError;
@@ -501,6 +610,51 @@
     });
   }
 
+  function bindCertificatePage(root) {
+    const locked = root.querySelector("[data-certificate-locked]");
+    const unlocked = root.querySelector("[data-certificate-unlocked]");
+    const completed = Array.from({ length: TOTAL_DAYS }, (_, index) => index + 1)
+      .filter(dayNumber => ensureDayState(dayNumber).completed);
+
+    if (completed.length !== TOTAL_DAYS) {
+      locked.hidden = false;
+      unlocked.hidden = true;
+      locked.querySelector("[data-certificate-progress]").textContent = ui.certificateProgress
+        .replace("{count}", String(completed.length))
+        .replace("{total}", String(TOTAL_DAYS));
+      return;
+    }
+
+    locked.hidden = true;
+    unlocked.hidden = false;
+    const input = unlocked.querySelector("[data-certificate-name-input]");
+    const name = unlocked.querySelector("[data-certificate-name]");
+    const completionDates = completed
+      .map(dayNumber => ensureDayState(dayNumber).completedAt)
+      .filter(Boolean)
+      .map(value => new Date(value))
+      .filter(value => !Number.isNaN(value.getTime()));
+    const completionDate = completionDates.length
+      ? new Date(Math.max(...completionDates.map(value => value.getTime())))
+      : new Date();
+    const locale = document.body.dataset.locale === "zh-CN" ? "zh-CN" : "en";
+    unlocked.querySelector("[data-certificate-date]").textContent = new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(completionDate);
+
+    const renderName = () => {
+      learningState.profileName = input.value.trim().slice(0, 80);
+      name.textContent = learningState.profileName || ui.certificateAnonymous;
+      saveLearningState();
+    };
+    input.value = learningState.profileName || "";
+    renderName();
+    input.addEventListener("input", renderName);
+    unlocked.querySelector("[data-print-certificate]").addEventListener("click", () => window.print());
+  }
+
   function revealActiveNavigation() {
     const navigation = document.querySelector(".toc");
     const active = navigation?.querySelector(".active");
@@ -520,5 +674,6 @@
   document.querySelectorAll(".content[data-day]").forEach(bindChapterProgress);
   document.querySelectorAll("[data-lab-notes]").forEach(bindLabNotes);
   document.querySelectorAll("[data-review-page]").forEach(bindReviewPage);
+  document.querySelectorAll("[data-certificate-page]").forEach(bindCertificatePage);
   revealActiveNavigation();
 })();

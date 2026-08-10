@@ -11,9 +11,9 @@ This file applies to the whole repository. The site is a bilingual Eleventy 3 pr
 - Edit chapter count, ordered chapter numbers, and volatile-technology verification date in `src/_data/courseMeta.cjs`; loaders, synchronization, and tests must consume it instead of scattering numeric totals.
 - Edit shared UI copy in `src/_data/i18n.cjs`.
 - Edit localized per-chapter perfect-quiz rewards in `src/_data/courseRewards.cjs`; every chapter keeps three unique variants in each locale.
-- Edit page structure in `src/_includes/` and locale entry templates in `src/zh-CN/` and `src/en/`. Keep paired `review.njk` entries for the browser-local mistake notebook.
+- Edit page structure in `src/_includes/` and locale entry templates in `src/zh-CN/` and `src/en/`. Keep paired `review.njk` and `certificate.njk` entries for the browser-local mistake notebook and completion keepsake.
 - Edit browser behavior and styling in `src/assets/app.js` and `src/assets/styles.css`.
-- Treat root `index.html`, `review.html`, `dayNN.html`, `en/`, `app.js`, and `styles.css` as generated deployment artifacts. Never edit them directly.
+- Treat root `index.html`, `review.html`, `certificate.html`, `dayNN.html`, `en/`, `app.js`, and `styles.css` as generated deployment artifacts. Never edit them directly.
 - `_site/` is disposable Eleventy output and must not be committed.
 
 ## Commands
@@ -58,14 +58,16 @@ npm run check
 - Put localized runtime labels in `i18n.cjs` and pass them through the page payload; do not add Chinese or English UI literals to the shared client script.
 - Prefer `textContent` and DOM construction for dynamic feedback. Do not inject translated content with unsafe `innerHTML`.
 - Store progress, mistakes, streaks, reading positions, and lab notes only under the versioned `learning-ai-progress-v1` localStorage key. Loading failures must fall back to an empty in-memory state without blocking course reading.
+- Validate imported learning archives by format version, exact course length, day range, quiz indexes, field types, and file size before replacing local state. Never merge arbitrary archive fields into runtime objects.
 - Keep completion explicit: only a perfect submitted quiz marks a chapter complete. Merely visiting or scrolling a page may mark it started but never mastered.
-- Search, dashboards, review filtering, and note export are enhancements. Home cards, chapter lessons, and ordinary locale links must remain useful without JavaScript.
+- Treat the printable certificate as a local keepsake, not an independently verifiable credential. It unlocks only when every chapter is complete.
+- Search, dashboards, archive controls, review filtering, certificates, and note export are enhancements. Home cards, chapter lessons, and ordinary locale links must remain useful without JavaScript.
 - When adding images that contain text, provide locale-specific assets and localized alternative text.
 
 ## Adding another locale
 
 1. Add a complete course data module and UI dictionary entry.
-2. Add a locale directory with `index.njk`, `review.njk`, `day01.njk` through `day17.njk`, and directory data matching the existing English structure.
+2. Add a locale directory with `index.njk`, `review.njk`, `certificate.njk`, `day01.njk` through `day17.njk`, and directory data matching the existing English structure.
 3. Extend the sync manifest so every generated locale file is deployed.
 4. Extend canonical, alternate-link, and language-switch coverage; update the sitemap too if one is added.
 5. Add parity and generated-page assertions to the test suite.
@@ -76,5 +78,5 @@ npm run check
 - `npm run check` passes from a clean install.
 - Generated root files match `_site/` byte-for-byte.
 - Both locales contain 17 working chapter pages with no broken in-locale navigation.
-- Quiz grading, local progress, mistake review, note export, process controls, reduced-motion behavior, no-JavaScript reading, canonical links, and language switches are verified in the generated pages.
+- Quiz grading, local progress, archive validation, mistake review, certificate gating/printing, note export, process controls, reduced-motion behavior, no-JavaScript reading, canonical links, and language switches are verified in the generated pages.
 - `git diff --check` reports no whitespace errors, and unrelated user changes remain untouched.

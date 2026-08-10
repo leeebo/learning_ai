@@ -21,9 +21,11 @@ const dayFiles = Array.from(
 const pageFiles = [
   "index.html",
   "review.html",
+  "certificate.html",
   ...dayFiles,
   "en/index.html",
   "en/review.html",
+  "en/certificate.html",
   ...dayFiles.map(filename => `en/${filename}`),
 ];
 const syncedFiles = [...pageFiles, "app.js", "favicon.svg", "styles.css"];
@@ -242,7 +244,8 @@ function pageContext(relativePath) {
   const match = relativePath.match(/day(\d{2})\.html$/);
   const number = match ? Number(match[1]) : null;
   const review = relativePath.endsWith("review.html");
-  return { english, locale, course, number, review, copy: i18n[locale] };
+  const certificate = relativePath.endsWith("certificate.html");
+  return { english, locale, course, number, review, certificate, copy: i18n[locale] };
 }
 
 function read(base, relativePath) {
@@ -413,7 +416,7 @@ test("Eleventy registers strict i18n, escaping, filters, passthrough assets, and
   assert.ok(manifest.scripts?.build?.includes("sync:pages"), "the production build must sync verified static pages");
 });
 
-test("the root publication tree and _site each contain exactly 38 bilingual HTML pages", () => {
+test("the root publication tree and _site each contain exactly 40 bilingual HTML pages", () => {
   const expected = [...pageFiles].sort();
   assert.deepEqual(listPublishedHtml(ROOT), expected, "repository-root publication pages are incomplete or contain stale HTML");
   assert.deepEqual(listPublishedHtml(SITE_ROOT), expected, "_site pages are incomplete or contain stale HTML");
@@ -423,10 +426,11 @@ test("every generated page has correct language, title, canonical URL, hreflang 
   for (const base of [ROOT, SITE_ROOT]) {
     for (const relativePath of pageFiles) {
       const html = read(base, relativePath);
-      const { locale, course, number, review, copy } = pageContext(relativePath);
+      const { locale, course, number, review, certificate, copy } = pageContext(relativePath);
       const localizedTitle = number !== null
         ? `Day ${String(number).padStart(2, "0")} · ${course[number - 1].t}`
-        : review ? `${copy.reviewTitle} · ${copy.siteTitle}` : copy.siteTitle;
+        : review ? `${copy.reviewTitle} · ${copy.siteTitle}`
+          : certificate ? `${copy.certificateTitle} · ${copy.siteTitle}` : copy.siteTitle;
       const canonical = `${SITE_ORIGIN}${publicUrl(relativePath)}`;
       const oppositePath = counterpart(relativePath);
       const zhPath = relativePath.startsWith("en/") ? oppositePath : relativePath;
@@ -478,6 +482,14 @@ test("home pages and all 34 chapter pages retain useful no-JavaScript content", 
       assert.ok(html.includes(escapeHtml(copy.noscriptReview)), `${relativePath} needs a localized no-JavaScript explanation`);
     }
 
+    for (const relativePath of ["certificate.html", "en/certificate.html"]) {
+      const html = read(base, relativePath);
+      const { copy } = pageContext(relativePath);
+      assert.ok(html.includes("<noscript>"), `${relativePath} needs a noscript block`);
+      assert.ok(html.includes(escapeHtml(copy.noscriptCertificate)), `${relativePath} needs a localized no-JavaScript explanation`);
+      assert.ok(html.includes("data-certificate-locked"), `${relativePath} must explain its locked state without exposing a false credential`);
+    }
+
     for (const relativePath of pageFiles.filter(filename => filename.includes("day"))) {
       const html = read(base, relativePath);
       const { course, number, copy } = pageContext(relativePath);
@@ -490,7 +502,7 @@ test("home pages and all 34 chapter pages retain useful no-JavaScript content", 
   }
 });
 
-test("learning-loop pages pre-render dashboards, chapter tools, search data, and bilingual mistake review", () => {
+test("learning-loop pages pre-render dashboards, archives, chapter tools, review, and certificates", () => {
   for (const base of [ROOT, SITE_ROOT]) {
     for (const relativePath of ["index.html", "en/index.html"]) {
       const html = read(base, relativePath);
@@ -499,6 +511,10 @@ test("learning-loop pages pre-render dashboards, chapter tools, search data, and
       assert.equal(countMatches(html, /data-course-card/g), courseMeta.totalDays, `${relativePath} must expose all chapters to search and progress`);
       assert.equal(countMatches(html, /data-badge-days/g), 4, `${relativePath} must render four stage badges`);
       assert.ok(html.includes("review.html"), `${relativePath} must link to localized mistake review`);
+      assert.ok(html.includes("certificate.html"), `${relativePath} must link to the localized completion certificate`);
+      assert.ok(html.includes("data-export-progress"), `${relativePath} needs learning-archive export`);
+      assert.ok(html.includes("data-import-progress"), `${relativePath} needs learning-archive restore`);
+      assert.ok(html.includes("data-reset-progress"), `${relativePath} needs an explicit local reset control`);
     }
 
     for (const relativePath of pageFiles.filter(filename => filename.includes("day"))) {
@@ -518,6 +534,16 @@ test("learning-loop pages pre-render dashboards, chapter tools, search data, and
       assert.ok(html.includes("data-review-page"), `${relativePath} needs the review controller root`);
       assert.equal(countMatches(html, /data-review-item/g), courseMeta.totalDays * 3, `${relativePath} must pre-render all quiz questions for local filtering`);
       assert.equal(countMatches(html, /class="question-card review-card"/g), courseMeta.totalDays * 3, `${relativePath} must render accessible review fieldsets`);
+    }
+
+    for (const relativePath of ["certificate.html", "en/certificate.html"]) {
+      const html = read(base, relativePath);
+      assert.ok(html.includes("data-certificate-page"), `${relativePath} needs the local certificate controller`);
+      assert.ok(html.includes("data-certificate-locked"), `${relativePath} needs a locked state`);
+      assert.ok(html.includes("data-certificate-unlocked"), `${relativePath} needs an unlocked certificate state`);
+      assert.ok(html.includes("data-certificate-name-input"), `${relativePath} needs a local learner-name input`);
+      assert.ok(html.includes("data-print-certificate"), `${relativePath} needs a print/PDF action`);
+      assert.ok(html.includes("17 / 17"), `${relativePath} must state the completion threshold`);
     }
   }
 });
@@ -592,13 +618,23 @@ test("the client honors runtime reduced-motion changes and reveals the active mo
   assert.ok(source.includes('const STORAGE_KEY = "learning-ai-progress-v1"'), "learning progress must use a versioned local key");
   assert.ok(source.includes("window.localStorage.setItem"), "progress, mistakes, and notes must be saved locally");
   assert.ok(source.includes("URL.createObjectURL(new Blob"), "lab notes must export as a local Markdown blob");
+  assert.ok(source.includes('const ARCHIVE_FORMAT = "learning-ai-progress"'), "portable learning archives need a stable format marker");
+  assert.ok(source.includes("normalizeLearningState"), "stored and imported progress must be validated before use");
+  assert.ok(source.includes("file.size > MAX_ARCHIVE_BYTES"), "archive restore must reject unexpectedly large files");
+  assert.ok(source.includes('typeof completed !== "boolean"'), "archive restore must not coerce completion flags from arbitrary values");
+  assert.ok(source.includes("completed && bestScore !== 3"), "archive restore must not unlock completion without a historical perfect score");
+  assert.ok(source.includes("archive.courseDays !== TOTAL_DAYS"), "archive restore must reject incompatible course shapes");
+  assert.ok(source.includes("window.confirm(ui.resetProgressConfirm)"), "destructive local reset must require explicit confirmation");
   assert.ok(source.includes("bindReviewPage"), "the client must bind mistake-review behavior");
   assert.ok(source.includes("bindLearningDashboard"), "the client must bind dashboard and search behavior");
+  assert.ok(source.includes("bindCertificatePage"), "the client must gate and personalize the completion certificate");
+  assert.ok(source.includes("window.print()"), "the unlocked certificate must support print/PDF export");
   assert.ok(!source.includes("innerHTML"), "dynamic learning tools must not inject content with innerHTML");
 
   assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.toc\s*\{[\s\S]*?overflow-x:\s*auto;/, "mobile chapter navigation must be horizontally scrollable");
   assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.toc\s*\{[\s\S]*?position:\s*sticky;/, "mobile chapter navigation must remain available on long pages");
   assert.match(css, /@media\s*\(max-width:\s*460px\)[\s\S]*?\.keyword-table\s+thead,[\s\S]*?display:\s*none;/, "mobile keyword tables must switch to labeled cards");
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/, "CSS must disable non-essential motion when requested");
+  assert.match(css, /@media\s+print[\s\S]*?body\[data-page-kind="certificate"\]/, "certificate printing must remove surrounding site chrome");
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0\.01ms/, "reduced-motion CSS must collapse animation duration");
 });

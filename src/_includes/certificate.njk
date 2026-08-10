@@ -1,0 +1,38 @@
+<main class="wrap certificate-page" data-certificate-page>
+  <section class="certificate-hero">
+    <div class="eyebrow">{{ copy.certificateKicker }}</div>
+    <h1>{{ copy.certificateTitle }}</h1>
+    <p>{{ copy.certificateDescription }}</p>
+    <a href="{{ '/' | locale_url(lang) | url }}">← {{ copy.home }}</a>
+  </section>
+
+  <section class="certificate-locked panel" data-certificate-locked hidden>
+    <span class="certificate-lock-icon" aria-hidden="true">🔒</span>
+    <div><h2>{{ copy.certificateLockedTitle }}</h2><p>{{ copy.certificateLockedBody }}</p><strong data-certificate-progress></strong></div>
+  </section>
+
+  <section class="certificate-unlocked" data-certificate-unlocked hidden>
+    <div class="certificate-controls panel">
+      <label for="certificate-name-{{ lang }}">{{ copy.certificateNameLabel }}</label>
+      <input id="certificate-name-{{ lang }}" type="text" maxlength="80" autocomplete="name" placeholder="{{ copy.certificateNamePlaceholder }}" data-certificate-name-input>
+      <button class="button" type="button" data-print-certificate>{{ copy.printCertificate }}</button>
+    </div>
+
+    <article class="certificate-card" data-certificate-card>
+      <div class="certificate-orbit" aria-hidden="true"></div>
+      <div class="certificate-mark" aria-hidden="true">AI<span>17</span></div>
+      <p class="certificate-overline">{{ copy.certificateOverline }}</p>
+      <h2>{{ copy.certificateAward }}</h2>
+      <p class="certificate-presented">{{ copy.certificatePresentedTo }}</p>
+      <strong class="certificate-name" data-certificate-name>{{ copy.certificateAnonymous }}</strong>
+      <p class="certificate-statement">{{ copy.certificateStatement }}</p>
+      <div class="certificate-metrics">
+        <div><strong>17 / 17</strong><span>{{ copy.certificateChapters }}</span></div>
+        <div><strong data-certificate-date></strong><span>{{ copy.certificateDate }}</span></div>
+        <div><strong>100%</strong><span>{{ copy.certificateQuizStandard }}</span></div>
+      </div>
+      <div class="certificate-footer-line"><span>{{ copy.siteTitle }}</span><span>{{ copy.certificateLocalProof }}</span></div>
+    </article>
+    <p class="certificate-disclaimer">{{ copy.certificateDisclaimer }}</p>
+  </section>
+</main>
