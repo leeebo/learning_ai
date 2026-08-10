@@ -12,6 +12,32 @@
     const feedback = form.querySelector(".quiz-feedback");
     const retry = form.querySelector(".retry-quiz");
     const submit = form.querySelector('button[type="submit"]');
+    const rewardRoot = form.querySelector("[data-chapter-reward]");
+    const rewardPool = rewardRoot ? decodePayload(rewardRoot.dataset.rewardPayload) : [];
+    let previousRewardIndex = -1;
+
+    const hideReward = () => {
+      if (!rewardRoot) return;
+      rewardRoot.hidden = true;
+      rewardRoot.classList.remove("is-visible");
+    };
+
+    const showReward = () => {
+      if (!rewardRoot || !rewardPool.length) return;
+      let rewardIndex = Math.floor(Math.random() * rewardPool.length);
+      if (rewardPool.length > 1 && rewardIndex === previousRewardIndex) {
+        rewardIndex = (rewardIndex + 1 + Math.floor(Math.random() * (rewardPool.length - 1))) % rewardPool.length;
+      }
+      previousRewardIndex = rewardIndex;
+      const reward = rewardPool[rewardIndex];
+      rewardRoot.querySelector("[data-reward-icon]").textContent = reward.icon;
+      rewardRoot.querySelector("[data-reward-title]").textContent = reward.title;
+      rewardRoot.querySelector("[data-reward-message]").textContent = reward.message;
+      rewardRoot.dataset.variant = String(rewardIndex + 1);
+      rewardRoot.hidden = false;
+      rewardRoot.classList.add("is-visible");
+      rewardRoot.focus({ preventScroll: true });
+    };
 
     form.addEventListener("submit", event => {
       event.preventDefault();
@@ -43,6 +69,8 @@
       });
 
       feedback.textContent = `${ui.quizScore} ${score} / ${quiz.length}. ${ui.quizAdvice}`;
+      if (score === quiz.length) showReward();
+      else hideReward();
       submit.hidden = true;
       retry.hidden = false;
     });
@@ -58,6 +86,7 @@
       });
       submit.hidden = false;
       retry.hidden = true;
+      hideReward();
     });
   }
 

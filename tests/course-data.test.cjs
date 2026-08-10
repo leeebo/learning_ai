@@ -10,10 +10,12 @@ const SITE_ORIGIN = "https://leeebo.github.io";
 const PATH_PREFIX = "/learning_ai/";
 const courseZh = require(path.join(ROOT, "src/_data/courseZh.cjs"));
 const courseEn = require(path.join(ROOT, "src/_data/courseEn.cjs"));
+const courseMeta = require(path.join(ROOT, "src/_data/courseMeta.cjs"));
+const courseRewards = require(path.join(ROOT, "src/_data/courseRewards.cjs"));
 const i18n = require(path.join(ROOT, "src/_data/i18n.cjs"));
 
 const dayFiles = Array.from(
-  { length: 15 },
+  { length: courseMeta.totalDays },
   (_, index) => `day${String(index + 1).padStart(2, "0")}.html`,
 );
 const pageFiles = [
@@ -47,6 +49,7 @@ const dayKeys = [
   "t",
   "visual",
 ].sort();
+const advancedDayKeys = [...dayKeys, "infra"].sort();
 const cjkPattern = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/gu;
 const englishWordPattern = /[A-Za-z]+(?:['\u2019-][A-Za-z]+)*/g;
 const iconPattern = /[\p{Extended_Pictographic}\p{Emoji_Presentation}\u2190-\u2bff]/u;
@@ -84,14 +87,18 @@ function assertIcon(value, label) {
 
 function validateDay(day, locale, expectedNumber) {
   const label = `${locale} Day ${expectedNumber}`;
-  assertExactKeys(day, dayKeys, label);
+  assertExactKeys(day, expectedNumber >= 16 ? advancedDayKeys : dayKeys, label);
   assert.equal(day.n, expectedNumber, `${label} must use contiguous numbering`);
 
   for (const field of ["t", "s", "goal", "analogy", "diagram", "code", "lab", "pitfall", "recap", "nextPreview"]) {
     assertText(day[field], `${label}.${field}`);
   }
   assert.ok(Number.isInteger(day.readingMinutes), `${label}.readingMinutes must be an integer`);
-  assert.ok(day.readingMinutes >= 16 && day.readingMinutes <= 20, `${label} must target a 16–20 minute reading session`);
+  if (expectedNumber <= 15) {
+    assert.ok(day.readingMinutes >= 16 && day.readingMinutes <= 20, `${label} must target a 16–20 minute reading session`);
+  } else {
+    assert.ok(day.readingMinutes >= 25 && day.readingMinutes <= 30, `${label} must target a 25–30 minute reading session`);
+  }
 
   assert.ok(Array.isArray(day.concept) && day.concept.length >= 4 && day.concept.length <= 5, `${label}.concept must contain 4–5 items`);
   day.concept.forEach((item, index) => assertText(item, `${label}.concept[${index}]`));
@@ -135,11 +142,21 @@ function validateDay(day, locale, expectedNumber) {
     assertText(keyword.espAnalogy, `${keywordLabel}.espAnalogy`);
   });
 
-  assertExactKeys(day.history, ["intro", "milestones", "bridge"], `${label}.history`);
+  const hasTracks = Array.isArray(day.history.tracks);
+  assertExactKeys(day.history, hasTracks ? ["intro", "tracks", "bridge"] : ["intro", "milestones", "bridge"], `${label}.history`);
   assertText(day.history.intro, `${label}.history.intro`, locale === "en" ? 180 : 70);
   assertText(day.history.bridge, `${label}.history.bridge`, locale === "en" ? 140 : 55);
-  assert.ok(day.history.milestones.length >= 5 && day.history.milestones.length <= 6, `${label}.history.milestones must contain 5–6 sourced events`);
-  day.history.milestones.forEach((milestone, index) => {
+  const historyGroups = hasTracks ? day.history.tracks : [{ title: null, milestones: day.history.milestones }];
+  if (hasTracks) {
+    assert.equal(day.history.tracks.length, 2, `${label}.history.tracks must contain exactly two historical tracks`);
+    day.history.tracks.forEach((track, index) => {
+      assertExactKeys(track, ["title", "milestones"], `${label}.history.tracks[${index}]`);
+      assertText(track.title, `${label}.history.tracks[${index}].title`);
+    });
+  }
+  historyGroups.forEach((group, groupIndex) => {
+    assert.ok(group.milestones.length >= 5 && group.milestones.length <= 6, `${label} history group ${groupIndex} must contain 5–6 sourced events`);
+    group.milestones.forEach((milestone, index) => {
     const milestoneLabel = `${label}.history.milestones[${index}]`;
     assertExactKeys(milestone, ["year", "title", "body", "source"], milestoneLabel);
     assertText(milestone.year, `${milestoneLabel}.year`);
@@ -148,6 +165,7 @@ function validateDay(day, locale, expectedNumber) {
     assertExactKeys(milestone.source, ["label", "url"], `${milestoneLabel}.source`);
     assertText(milestone.source.label, `${milestoneLabel}.source.label`);
     assertHttpsUrl(milestone.source.url, `${milestoneLabel}.source.url`);
+    });
   });
 
   assertExactKeys(day.visual, ["title", "description", "steps", "loop"], `${label}.visual`);
@@ -175,7 +193,31 @@ function validateDay(day, locale, expectedNumber) {
     assertText(item.mapsTo, `${itemLabel}.mapsTo`);
   });
 
-  if (expectedNumber < 15) assertText(day.next, `${label}.next`);
+  if (expectedNumber >= 16) {
+    assertExactKeys(day.infra, ["verifiedOn", "intro", "layers", "matrix"], `${label}.infra`);
+    assert.equal(day.infra.verifiedOn, courseMeta.verifiedOn, `${label}.infra.verifiedOn must use the course verification date`);
+    assertText(day.infra.intro, `${label}.infra.intro`, locale === "en" ? 120 : 45);
+    assert.ok(day.infra.layers.length >= 4, `${label}.infra.layers must contain at least four responsibility layers`);
+    day.infra.layers.forEach((layer, layerIndex) => {
+      assertExactKeys(layer, ["layer", "projects"], `${label}.infra.layers[${layerIndex}]`);
+      assertText(layer.layer, `${label}.infra.layers[${layerIndex}].layer`);
+      assert.ok(layer.projects.length >= 1, `${label}.infra.layers[${layerIndex}] needs at least one project`);
+      layer.projects.forEach((project, projectIndex) => {
+        const projectLabel = `${label}.infra.layers[${layerIndex}].projects[${projectIndex}]`;
+        assertExactKeys(project, ["name", "url", "problem", "mechanism", "boundary"], projectLabel);
+        assertText(project.name, `${projectLabel}.name`);
+        assertHttpsUrl(project.url, `${projectLabel}.url`);
+        for (const field of ["problem", "mechanism", "boundary"]) assertText(project[field], `${projectLabel}.${field}`);
+      });
+    });
+    assert.ok(day.infra.matrix.length >= 4, `${label}.infra.matrix must contain at least four cross-scale lessons`);
+    day.infra.matrix.forEach((item, index) => {
+      assertExactKeys(item, ["source", "lesson", "boundary"], `${label}.infra.matrix[${index}]`);
+      for (const field of ["source", "lesson", "boundary"]) assertText(item[field], `${label}.infra.matrix[${index}].${field}`);
+    });
+  }
+
+  if (expectedNumber < courseMeta.totalDays) assertText(day.next, `${label}.next`);
   else assert.equal(day.next, null, `${label}.next must be null in the final chapter`);
 }
 
@@ -227,9 +269,11 @@ function listPublishedHtml(base) {
   return [...topLevel, ...english].sort();
 }
 
-test("Chinese and English courses expose 15 chapters with a strict nested schema", () => {
-  assert.equal(courseZh.length, 15);
-  assert.equal(courseEn.length, 15);
+test("Chinese and English courses expose 17 chapters with a strict nested schema", () => {
+  assert.equal(courseMeta.totalDays, 17);
+  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: 17 }, (_, index) => index + 1));
+  assert.equal(courseZh.length, courseMeta.totalDays);
+  assert.equal(courseEn.length, courseMeta.totalDays);
 
   courseZh.forEach((day, index) => validateDay(day, "zh-CN", index + 1));
   courseEn.forEach((day, index) => validateDay(day, "en", index + 1));
@@ -251,29 +295,42 @@ test("localized chapters remain structurally aligned and preserve answer indices
     assert.equal(enDay.n, zhDay.n, `${label} numbering differs across locales`);
     assert.equal(enDay.readingMinutes, zhDay.readingMinutes, `${label} reading-time metadata differs across locales`);
     mirroredArrays.forEach(field => assert.equal(enDay[field].length, zhDay[field].length, `${label}.${field} length differs across locales`));
-    assert.equal(enDay.history.milestones.length, zhDay.history.milestones.length, `${label} history length differs across locales`);
+    if (zhDay.history.tracks) {
+      assert.equal(enDay.history.tracks.length, zhDay.history.tracks.length, `${label} history track length differs across locales`);
+      assert.deepEqual(enDay.history.tracks.map(track => track.milestones.length), zhDay.history.tracks.map(track => track.milestones.length), `${label} milestone lengths differ across locales`);
+    } else {
+      assert.equal(enDay.history.milestones.length, zhDay.history.milestones.length, `${label} history length differs across locales`);
+    }
     assert.equal(enDay.visual.steps.length, zhDay.visual.steps.length, `${label} process length differs across locales`);
     assert.equal(enDay.analogyDetail.illustration.length, zhDay.analogyDetail.illustration.length, `${label} illustration length differs across locales`);
 
     assert.deepEqual(enDay.quiz.map(question => question.answer), zhDay.quiz.map(question => question.answer), `${label} quiz answer indices differ across locales`);
     assert.deepEqual(enDay.references.map(reference => reference[1]), zhDay.references.map(reference => reference[1]), `${label} reference URLs differ across locales`);
-    assert.deepEqual(enDay.history.milestones.map(item => item.source.url), zhDay.history.milestones.map(item => item.source.url), `${label} historical source URLs differ across locales`);
+    const historyUrls = day => (day.history.tracks ?? [{ milestones: day.history.milestones }]).flatMap(track => track.milestones.map(item => item.source.url));
+    assert.deepEqual(historyUrls(enDay), historyUrls(zhDay), `${label} historical source URLs differ across locales`);
     assert.deepEqual(enDay.visual.steps.map(step => step.icon), zhDay.visual.steps.map(step => step.icon), `${label} process icons differ across locales`);
     assert.deepEqual(enDay.analogyDetail.illustration.map(item => item.icon), zhDay.analogyDetail.illustration.map(item => item.icon), `${label} analogy icons differ across locales`);
+    if (zhDay.infra) {
+      assert.deepEqual(enDay.infra.layers.map(layer => layer.projects.length), zhDay.infra.layers.map(layer => layer.projects.length), `${label} project map differs across locales`);
+      assert.deepEqual(enDay.infra.layers.flatMap(layer => layer.projects.map(project => project.url)), zhDay.infra.layers.flatMap(layer => layer.projects.map(project => project.url)), `${label} project URLs differ across locales`);
+      assert.equal(enDay.infra.matrix.length, zhDay.infra.matrix.length, `${label} infrastructure matrix differs across locales`);
+    }
   });
 });
 
 test("Chinese and English chapters meet independent reading-depth and script requirements", () => {
   courseZh.forEach(day => {
     const characters = JSON.stringify(day).match(cjkPattern) ?? [];
-    assert.ok(characters.length >= 2200, `zh-CN Day ${day.n} has only ${characters.length} CJK characters; expected at least 2200`);
+    const minimum = day.n >= 16 ? 4000 : 2200;
+    assert.ok(characters.length >= minimum, `zh-CN Day ${day.n} has only ${characters.length} CJK characters; expected at least ${minimum}`);
   });
 
   courseEn.forEach(day => {
     const serialized = JSON.stringify(day);
     assert.doesNotMatch(serialized, cjkPattern, `en Day ${day.n} must not contain CJK text`);
     const words = serialized.match(englishWordPattern) ?? [];
-    assert.ok(words.length >= 1800, `en Day ${day.n} has only ${words.length} English words; expected at least 1800`);
+    const minimum = day.n >= 16 ? 3200 : 1800;
+    assert.ok(words.length >= minimum, `en Day ${day.n} has only ${words.length} English words; expected at least ${minimum}`);
   });
 });
 
@@ -284,6 +341,28 @@ test("the UI dictionary has complete, non-empty keys for both locales", () => {
 
   for (const [locale, dictionary] of Object.entries(i18n)) {
     for (const [key, value] of Object.entries(dictionary)) assertText(value, `${locale}.${key}`);
+  }
+});
+
+test("every chapter has a distinct localized pool of three completion rewards", () => {
+  assert.deepEqual(Object.keys(courseRewards).sort(), ["en", "zh-CN"]);
+  for (const locale of ["zh-CN", "en"]) {
+    const pools = courseRewards[locale];
+    assert.equal(pools.length, courseMeta.totalDays, `${locale} must provide rewards for every chapter`);
+    const titles = [];
+    pools.forEach((pool, dayIndex) => {
+      assert.equal(pool.length, 3, `${locale} Day ${dayIndex + 1} must have three random reward variants`);
+      pool.forEach((reward, rewardIndex) => {
+        const label = `${locale} Day ${dayIndex + 1} reward ${rewardIndex + 1}`;
+        assertExactKeys(reward, ["icon", "title", "message"], label);
+        assertIcon(reward.icon, `${label}.icon`);
+        assertText(reward.title, `${label}.title`);
+        assertText(reward.message, `${label}.message`);
+        if (locale === "en") assert.doesNotMatch(JSON.stringify(reward), cjkPattern, `${label} must not contain CJK text`);
+        titles.push(reward.title);
+      });
+    });
+    assert.equal(new Set(titles).size, titles.length, `${locale} reward titles must remain unique across the course`);
   }
 });
 
@@ -331,7 +410,7 @@ test("Eleventy registers strict i18n, escaping, filters, passthrough assets, and
   assert.ok(manifest.scripts?.build?.includes("sync:pages"), "the production build must sync verified static pages");
 });
 
-test("the root publication tree and _site each contain exactly 32 bilingual HTML pages", () => {
+test("the root publication tree and _site each contain exactly 36 bilingual HTML pages", () => {
   const expected = [...pageFiles].sort();
   assert.deepEqual(listPublishedHtml(ROOT), expected, "repository-root publication pages are incomplete or contain stale HTML");
   assert.deepEqual(listPublishedHtml(SITE_ROOT), expected, "_site pages are incomplete or contain stale HTML");
@@ -374,7 +453,7 @@ test("every generated page has correct language, title, canonical URL, hreflang 
   }
 });
 
-test("home pages and all 30 chapter pages retain useful no-JavaScript content", () => {
+test("home pages and all 34 chapter pages retain useful no-JavaScript content", () => {
   for (const base of [ROOT, SITE_ROOT]) {
     for (const relativePath of ["index.html", "en/index.html"]) {
       const html = read(base, relativePath);
@@ -415,8 +494,28 @@ test("all chapter pages render complete quiz markup and six-stage interactive pr
 
       assert.ok(html.includes('class="quiz-form"'), `${relativePath} needs a quiz form`);
       assert.ok(html.includes("data-quiz-payload"), `${relativePath} needs static quiz payload data`);
+      assert.ok(html.includes('class="chapter-reward"'), `${relativePath} needs a completion reward region`);
+      assert.ok(html.includes("data-reward-payload"), `${relativePath} needs its localized reward pool`);
+      assert.match(html, /class="chapter-reward"[^>]*hidden/, `${relativePath} must hide its reward before a perfect quiz`);
       assert.equal(countMatches(html, /class="question-card"/g), 3, `${relativePath} must render three quiz questions`);
       assert.equal(countMatches(html, /class="answer-explanation" hidden/g), 3, `${relativePath} answers must remain hidden before submission`);
+    }
+  }
+});
+
+test("Day 16 and Day 17 render dual history tracks, layered project maps, and verification metadata", () => {
+  for (const base of [ROOT, SITE_ROOT]) {
+    for (const relativePath of ["day16.html", "day17.html", "en/day16.html", "en/day17.html"]) {
+      const html = read(base, relativePath);
+      const { course, number } = pageContext(relativePath);
+      const day = course[number - 1];
+      const projectCount = day.infra.layers.reduce((total, layer) => total + layer.projects.length, 0);
+
+      assert.equal(countMatches(html, /class="history-track"/g), 2, `${relativePath} must render two historical tracks`);
+      assert.equal(countMatches(html, /class="infra-layer"/g), day.infra.layers.length, `${relativePath} rendered the wrong infrastructure-layer count`);
+      assert.equal(countMatches(html, /class="project-card"/g), projectCount, `${relativePath} rendered the wrong project-card count`);
+      assert.equal(countMatches(html, /<tr>/g) >= day.infra.matrix.length + 2, true, `${relativePath} must render the cross-scale matrix rows`);
+      assert.ok(html.includes(`<time datetime="${courseMeta.verifiedOn}">${courseMeta.verifiedOn}</time>`), `${relativePath} must expose the verification date semantically`);
     }
   }
 });
@@ -443,8 +542,13 @@ test("the client honors runtime reduced-motion changes and reveals the active mo
   assert.ok(source.includes("navigation.scrollLeft = Math.max"), "mobile navigation must center the active chapter");
   assert.ok(source.includes("navigation.scrollTop = Math.max"), "desktop navigation must reveal the active chapter");
   assert.ok(!source.includes("toggle.setAttribute(\"aria-pressed\""), "the playback action must not expose a conflicting toggle state");
+  assert.ok(source.includes("Math.random()"), "perfect chapter completion must choose a random reward variant");
+  assert.ok(source.includes('rewardRoot.querySelector("[data-reward-title]").textContent'), "reward titles must be inserted with textContent");
+  assert.ok(source.includes('rewardRoot.querySelector("[data-reward-message]").textContent'), "reward messages must be inserted with textContent");
 
   assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.toc\s*\{[\s\S]*?overflow-x:\s*auto;/, "mobile chapter navigation must be horizontally scrollable");
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.toc\s*\{[\s\S]*?position:\s*sticky;/, "mobile chapter navigation must remain available on long pages");
+  assert.match(css, /@media\s*\(max-width:\s*460px\)[\s\S]*?\.keyword-table\s+thead,[\s\S]*?display:\s*none;/, "mobile keyword tables must switch to labeled cards");
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/, "CSS must disable non-essential motion when requested");
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0\.01ms/, "reduced-motion CSS must collapse animation duration");
 });
