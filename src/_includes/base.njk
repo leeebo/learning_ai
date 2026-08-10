@@ -1,0 +1,42 @@
+{% set copy = i18n[lang] %}
+{% if day %}
+  {% set pageTitle = "Day " ~ (day.n | pad2) ~ " · " ~ day.t %}
+  {% set pageDescription = day.s ~ " — " ~ day.goal %}
+{% else %}
+  {% set pageTitle = copy.siteTitle %}
+  {% set pageDescription = copy.siteDescription %}
+{% endif %}
+{% set localizedPages = page.url | locale_links %}
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ pageTitle }}</title>
+  <meta name="description" content="{{ pageDescription }}">
+  <link rel="canonical" href="{{ siteOrigin }}{{ page.url | url }}">
+  <link rel="alternate" hreflang="{{ lang }}" href="{{ siteOrigin }}{{ page.url | url }}">
+  {% for link in localizedPages %}<link rel="alternate" hreflang="{{ link.lang }}" href="{{ siteOrigin }}{{ link.url | url }}">
+  {% endfor %}<link rel="alternate" hreflang="x-default" href="{{ siteOrigin }}{{ page.url | locale_url('zh-CN') | url }}">
+  <link rel="icon" href="{{ '/favicon.svg' | url }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ '/styles.css' | url }}">
+</head>
+<body data-ui="{{ copy | encodePayload }}">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">{% if day %}{{ copy.noscriptDay }}{% else %}{{ copy.noscriptHome }}{% endif %}</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">{{ copy.siteTitle }}</div>
+    <div class="top-actions">
+      {% if day %}<a href="{{ '/' | locale_url(lang) | url }}">{{ copy.home }}</a>{% else %}<span>{{ copy.offlineLabel }}</span>{% endif %}
+      {% for link in localizedPages %}
+        <a class="language-switch" href="{{ link.url | url }}" lang="{{ link.lang }}" hreflang="{{ link.lang }}" aria-label="{{ copy.languageSwitchLabel }}">{{ copy.languageSwitch }}</a>
+      {% endfor %}
+    </div>
+  </header>
+  {{ content | safe }}
+  <footer><div class="wrap">{% if day %}{{ copy.footer }}{% else %}{{ copy.homeFooter }}{% endif %}</div></footer>
+  <script src="{{ '/app.js' | url }}" defer></script>
+</body>
+</html>

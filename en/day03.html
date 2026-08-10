@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 03 · Model Formats</title>
+  <meta name="description" content="Turn a model into a portable intermediate representation — Learn to read formats such as ONNX, TFLite, and GGUF from three perspectives: computation graph, weight tensors, and metadata.">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/en/day03.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day03.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day03.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day03.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
+</head>
+<body data-ui="%7B%22siteTitle%22%3A%22Edge%20AI%20%C2%B7%20A%2015-Day%20Engineering%20Path%22%2C%22siteDescription%22%3A%22A%20bilingual%20edge%20AI%20course%20for%20embedded%20engineers%2C%20from%20neural%20networks%20and%20deployment%20to%20complete%20system%20validation.%22%2C%22offlineLabel%22%3A%22Offline-first%20static%20course%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22From%20Neural%20Networks%20to%20a%20Shippable%20Edge%20AI%20System%22%2C%22heroBody%22%3A%22Built%20for%20engineers%20who%20already%20know%20ESP32%2C%20USB%2C%20and%20networking%20stacks.%20Each%20day%20follows%20one%20layer%20of%20the%20path%E2%80%94model%20%E2%86%92%20representation%20%E2%86%92%20runtime%20%E2%86%92%20kernel%20%E2%86%92%20memory%20and%20bandwidth%20%E2%86%92%20hardware%20%E2%86%92%20product%E2%80%94then%20connects%20its%20history%2C%20an%20illustrated%20analogy%2C%20and%20an%20interactive%20data-flow%20walkthrough.%22%2C%22startCourse%22%3A%22Start%20with%20Day%201%20%E2%86%92%22%2C%22cardMeta%22%3A%22history%20%2B%20visual%20analogy%20%2B%20animation%22%2C%22minutes%22%3A%22min%22%2C%22languageSwitch%22%3A%22%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20Simplified%20Chinese%22%2C%22home%22%3A%22Course%20home%22%2C%22learningNav%22%3A%22COURSE%20NAVIGATION%22%2C%22suggestedReading%22%3A%22Suggested%20reading%3A%20about%22%2C%22learningGoal%22%3A%22Learning%20goal%22%2C%22keywords%22%3A%22Chapter%20keywords%22%2C%22keyword%22%3A%22Keyword%22%2C%22explanation%22%3A%22Explanation%22%2C%22espAnalogy%22%3A%22ESP32%20engineering%20analogy%22%2C%22recap%22%3A%22Bridge%20from%20the%20previous%20chapter%22%2C%22historyKicker%22%3A%22HOW%20WE%20GOT%20HERE%22%2C%22historyTitle%22%3A%22Historical%20development%22%2C%22historyBridge%22%3A%22Why%20it%20still%20matters%20today%3A%22%2C%22analogyKicker%22%3A%22BUILD%20INTUITION%20FROM%20A%20FAMILIAR%20SYSTEM%22%2C%22analogyTitle%22%3A%22Illustrated%20analogy%22%2C%22analogyFallback%22%3A%22Embedded-systems%20analogy%22%2C%22analogyBoundary%22%3A%22Where%20the%20analogy%20stops%3A%22%2C%22lessonTitle%22%3A%22Chapter%20walkthrough%22%2C%22processKicker%22%3A%22WATCH%20THE%20DATA%20MOVE%22%2C%22processTitle%22%3A%22Interactive%20process%22%2C%22pausePlayback%22%3A%22Pause%20autoplay%22%2C%22reducedMotion%22%3A%22Reduced%20motion%20is%20enabled%22%2C%22restartPlayback%22%3A%22Play%20from%20the%20start%22%2C%22resumePlayback%22%3A%22Resume%20autoplay%22%2C%22step%22%3A%22Step%22%2C%22observation%22%3A%22Watch%20for%22%2C%22loopCondition%22%3A%22Loop%20%2F%20return%20condition%3A%22%2C%22previousStep%22%3A%22%E2%86%90%20Previous%22%2C%22nextStep%22%3A%22Next%20%E2%86%92%22%2C%22switchedStep%22%3A%22Switched%20to%20step%22%2C%22staticOverview%22%3A%22View%20the%20complete%20static%20diagram%22%2C%22flowchart%22%3A%22Process%20diagram%22%2C%22codeExample%22%3A%22Code%20or%20command%20example%22%2C%22lab%22%3A%22Hands-on%20lab%22%2C%22pitfall%22%3A%22Engineering%20pitfall%22%2C%22avoidMisread%22%3A%22Avoid%20this%20mistake%3A%22%2C%22quizTitle%22%3A%22Knowledge%20check%22%2C%22quizIntro%22%3A%22Answer%20all%20three%20multiple-choice%20questions%2C%20then%20submit.%20Answers%20stay%20hidden%20until%20submission.%22%2C%22submitQuiz%22%3A%22Submit%20this%20quiz%22%2C%22retryQuiz%22%3A%22Try%20again%22%2C%22completeQuestion%22%3A%22Please%20answer%20question%22%2C%22questionSuffix%22%3A%22.%22%2C%22correct%22%3A%22Correct.%22%2C%22incorrect%22%3A%22Not%20quite.%22%2C%22correctAnswer%22%3A%22Correct%20answer%3A%22%2C%22quizScore%22%3A%22Chapter%20score%3A%22%2C%22quizAdvice%22%3A%22Read%20each%20explanation%20before%20deciding%20whether%20to%20retry.%22%2C%22references%22%3A%22Further%20reading%22%2C%22sourceSuffix%22%3A%22%20(official%20or%20primary%20source)%22%2C%22nextPreview%22%3A%22Bridge%20to%20the%20next%20chapter%22%2C%22nextDay%22%3A%22Next%3A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22Back%20to%20course%20home%22%2C%22footer%22%3A%22Offline-ready%20%C2%B7%20For%20engineers%20familiar%20with%20ESP32%2C%20USB%2C%20and%20networking%20stacks%22%2C%22homeFooter%22%3A%2215%20days%20%C2%B7%2015%20standalone%20pages%20%C2%B7%20Chinese%20and%20English%20%C2%B7%20zero%20runtime%20dependencies%22%2C%22noscriptHome%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20chapter%20directory%20still%20works%2C%20and%20every%20chapter%20includes%20an%20expanded%20process%20diagram.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptDay%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20history%2C%20analogy%2C%20lesson%2C%20and%20expanded%20process%20overview%20remain%20readable.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%7D">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">You are in static reading mode. The history, analogy, lesson, and expanded process overview remain readable. Enable JavaScript for animation and quiz scoring.</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">Edge AI · A 15-Day Engineering Path</div>
+    <div class="top-actions">
+      <a href="/learning_ai/en/">Course home</a>
+
+        <a class="language-switch" href="/learning_ai/day03.html" lang="zh-CN" hreflang="zh-CN" aria-label="Switch to Simplified Chinese">简体中文</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="COURSE NAVIGATION">
+    <span class="eyebrow">COURSE NAVIGATION</span>
+
+      <a class=""  href="/learning_ai/en/day01.html">Day 01 · Neural Network Fundamentals</a>
+
+      <a class=""  href="/learning_ai/en/day02.html">Day 02 · Training and Inference</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/en/day03.html">Day 03 · Model Formats</a>
+
+      <a class=""  href="/learning_ai/en/day04.html">Day 04 · Quantization</a>
+
+      <a class=""  href="/learning_ai/en/day05.html">Day 05 · Operators</a>
+
+      <a class=""  href="/learning_ai/en/day06.html">Day 06 · Training and Deploying Non-LLM Edge Models</a>
+
+      <a class=""  href="/learning_ai/en/day07.html">Day 07 · Memory, Bandwidth, MCU, and NPU</a>
+
+      <a class=""  href="/learning_ai/en/day08.html">Day 08 · On-Device Vision Models</a>
+
+      <a class=""  href="/learning_ai/en/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/en/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/en/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/en/day12.html">Day 12 · LLM Quantization and GGUF</a>
+
+      <a class=""  href="/learning_ai/en/day13.html">Day 13 · On-Device LLM Inference Frameworks</a>
+
+      <a class=""  href="/learning_ai/en/day14.html">Day 14 · Performance Analysis</a>
+
+      <a class=""  href="/learning_ai/en/day15.html">Day 15 · Integration: The Edge-AI Engineering Pipeline</a>
+
+  </aside>
+  <article class="content" data-day="3">
+    <div class="eyebrow">DAY 03</div>
+    <h1>Model Formats</h1>
+    <p class="hero-sub">Turn a model into a portable intermediate representation</p>
+    <p class="reading-time">Suggested reading: about 18 min</p>
+
+    <section>
+      <h2>Learning goal</h2>
+      <div class="callout">Learn to read formats such as ONNX, TFLite, and GGUF from three perspectives: computation graph, weight tensors, and metadata.</div>
+    </section>
+
+    <section>
+      <h2>Chapter keywords</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>Keyword</th><th>Explanation</th><th>ESP32 engineering analogy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Computation graph</th><td>A set of nodes and edges describing how tensors pass through operators to produce outputs.</td><td>Like a firmware data-flow graph or task-dependency graph.</td></tr><tr><th scope="row">ONNX opset</th><td>The version of operator semantics declared by a model.</td><td>Like a communication-protocol version: sender and receiver must be compatible.</td></tr><tr><th scope="row">Metadata</th><td>Names, vocabularies, quantization details, or configuration saved with a model.</td><td>Like a USB descriptor that helps the host interpret a payload correctly.</td></tr><tr><th scope="row">Runtime</th><td>Software that loads a model and schedules its operators for execution.</td><td>Like an RTOS plus a driver abstraction layer—not the model file itself.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>Bridge from the previous chapter</h2><p>The previous chapter fixed the model as an inference graph and a set of weights. This chapter examines how that artifact moves among frameworks, converters, and hardware backends, and what can be distorted in transit.</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">HOW WE GOT HERE</span><h2>Historical development</h2></div>
+        <p class="section-lead">The evolution of model formats is fundamentally the story of handing an object internal to one framework to another software and hardware stack. Early models often depended on training code for interpretation; later, data-flow graphs, common operator semantics, and lightweight binary containers separated those concerns. Formats did not erase differences—they moved them from hidden source-code dependencies into inspectable schemas, opsets, and metadata.</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">2014</div>
+              <div class="timeline-content"><h3>Caffe promoted model reuse through declarative networks and weight files</h3><p>Caffe organized network structure, training configuration, and learned parameters as exchangeable artifacts, using layers as extension units. It demonstrated that a model could be shared and deployed outside one research script, while also exposing the problem of framework-specific layers tied to a format.</p><a href="https://arxiv.org/abs/1408.5093" target="_blank" rel="noopener noreferrer">Original Caffe paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2015</div>
+              <div class="timeline-content"><h3>TensorFlow expressed training and inference in one data-flow graph</h3><p>The TensorFlow white paper represented machine-learning computation on heterogeneous systems as a stateful data-flow graph. Nodes, edges, device placement, and tensor flow became system-level interfaces, providing a clear foundation for later graph optimization, serialization, and cross-device execution.</p><a href="https://research.google/pubs/tensorflow-large-scale-machine-learning-on-heterogeneous-distributed-systems/" target="_blank" rel="noopener noreferrer">2015 TensorFlow white paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>ONNX v1 published interoperability as a graph-and-operator contract</h3><p>ONNX v1 released a production-ready format for multiple frameworks, promoting model transfer through an open graph format and operator sets. Exporters, converters, and runtimes could now collaborate around a common IR, although each still had to support the domains and opsets declared by a model.</p><a href="https://engineering.fb.com/2017/12/08/ml-applications/onnx-v1-released/" target="_blank" rel="noopener noreferrer">Official ONNX v1 release announcement ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>TensorFlow Lite tightened format boundaries for mobile and embedded execution</h3><p>TensorFlow Lite targeted small binaries, fast startup, and on-device acceleration. Model conversion was no longer only for interchange; it prepared structures that a constrained runtime could read directly. Supported operators, static memory planning, and hardware delegation began to influence model design upstream.</p><a href="https://developers.googleblog.com/en/announcing-tensorflow-lite/" target="_blank" rel="noopener noreferrer">Official TensorFlow Lite announcement ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2023</div>
+              <div class="timeline-content"><h3>GGUF emphasized single-file packaging, extensibility, and fast loading</h3><p>GGUF, a model format for GGML-family runtimes, placed tensors and key-value metadata in an extensible binary container and superseded earlier GGML, GGMF, and GGJT formats. It showed that LLM deployment must preserve not just weights, but also reliable interpretation data such as architecture and tokenizer metadata.</p><a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md" target="_blank" rel="noopener noreferrer">Official GGUF specification ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>Why it still matters today:</strong> Modern formats follow two complementary paths. IRs such as ONNX emphasize general computation graphs and operator semantics, while deployment containers such as LiteRT and GGUF stay closer to the loading and resource constraints of particular runtimes. Engineering choices should begin not with a file extension, but with the target backend’s support matrix, the input contract, variable shapes, and assets that must travel with the model.</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">BUILD INTUITION FROM A FAMILIAR SYSTEM</span><h2>Illustrated analogy</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>Containers, manifests, and port rules in international shipping</h3><p>A model is like a shipment of precision equipment changing carriers across countries. Weights are the cargo, the computation graph is the unloading and connection plan, metadata is the manifest, and the opset is the current edition of handling rules. Arriving at port only means the container can be identified; the destination still needs matching cranes and trained crews to assemble everything correctly.</p></div>
+          <div class="analogy-illustration" aria-label="Containers, manifests, and port rules in international shipping">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📦</span>
+                <strong>Shipping container</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>The binary model file packages tensors and structure</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🗺️</span>
+                <strong>Unloading route map</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>The computation graph defines node dependencies and tensor flow</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📑</span>
+                <strong>Manifest and rulebook</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Metadata, IR version, opset, and custom domains</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🏗️</span>
+                <strong>Port cranes</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>The runtime and backend must implement the required operators and dtypes</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>Where the analogy stops:</strong> Real model conversion does not move a sealed container unchanged. A converter may alter layouts, split operators, fold constants, or quantize tensors. The shipping analogy also cannot express floating-point non-associativity or dynamic control flow, so “all cargo present” never replaces numerical comparison with fixed inputs.</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>Chapter walkthrough</h2>
+      <h3>Separate a format into syntax, semantics, and companion assets</h3><p>A schema only says how fields are encoded; operator specifications say what nodes must compute; tokenizers, label maps, and normalization parameters may live in metadata or external files. Successful parsing proves only that the syntax is valid. Missing operator semantics makes a runtime reject the model, while missing assets may let it run but misinterpret its outputs. List validation methods for every layer in the delivery checklist instead of recording only one model-file hash.</p><h3>While reading a graph, track each value’s origin, lifetime, and variability</h3><p>Graph inputs come from the caller, initializers usually store constant weights, and intermediate values are produced by nodes; symbolic or unknown values express dynamic dimensions. Topological order gives dependencies but not necessarily final execution order, because a runtime can reuse memory and schedule work in parallel. Mark which path produces each output, which dimensions may vary, and where shape inference fails.</p><h3>IR, opset, and runtime versions are three different locks</h3><p>The IR version constrains the model container and graph structure, an opset constrains signatures and semantics in a particular domain, and the runtime version determines implementation coverage. Lowering an opset is not changing an integer: if the older set has no equivalent expression, the converter must decompose a node or fail. A custom domain also requires shipping its implementation. A compatibility matrix should record all three versions with the target chip, not merely say “supports ONNX.”</p><h3>Converters rewrite representations, so audit the change list</h3><p>Conversion may expand a high-level operator into a subgraph, precompute constants, change NCHW to NHWC, or store weights in another dtype. Even mathematically equivalent rewrites can alter rounding, workspace, and backend partitioning. Preserve counts of added, removed, and replaced nodes in conversion logs, and map names for important intermediate tensors so an abnormal final output does not leave you guessing.</p><h3>Build a model ABI test bundle instead of saving the model alone</h3><p>Attach input names, shape ranges, dtypes, units, preprocessing and postprocessing versions, and several golden samples to every model version. Samples should include normal values, boundary shapes, and invalid inputs. CI first runs schema/checker validation, then loads the model in the target runtime and compares outputs within tolerance. If the model uses external weights or tokenizer files, validate relative paths and hashes as well, preventing a stable main file from hiding drift in companion assets.</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">WATCH THE DATA MOVE</span><h2>Interactive process</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="A model passes through five format gates">
+          <div class="process-heading">
+            <div><h3>A model passes through five format gates</h3><p>The same test data travels with the model from its training framework to the target backend. Each gate checks one type of contract, and any red light stops the journey near its root cause.</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>Pause autoplay</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22Framework%20object%22%2C%22data%22%3A%22modules%20%2B%20parameters%20%2B%20control%20flow%22%2C%22action%22%3A%22Expand%20the%20modules%20actually%20executed%20and%20their%20parameter%20references%22%2C%22insight%22%3A%22The%20source%20program%20may%20contain%20dynamic%20behavior%20that%20cannot%20be%20serialized%20directly%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">🧩</span><strong>Framework object</strong><span>modules + parameters + control flow</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%95%B8%EF%B8%8F%22%2C%22label%22%3A%22Export%20computation%20graph%22%2C%22data%22%3A%22nodes%20%2B%20edges%20%2B%20initializers%22%2C%22action%22%3A%22Capture%20control%20paths%20and%20connect%20tensor%20dependencies%20into%20a%20directed%20graph%22%2C%22insight%22%3A%22The%20example%20input%20may%20determine%20which%20branches%20and%20shapes%20are%20captured%22%7D">
+                  <span class="process-icon" aria-hidden="true">🕸️</span><strong>Export computation graph</strong><span>nodes + edges + initializers</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9C%22%2C%22label%22%3A%22Check%20specifications%22%2C%22data%22%3A%22IR%20vN%20%2B%20domain%2Fopset%22%2C%22action%22%3A%22Look%20up%20every%20node%E2%80%99s%20signature%20and%20semantics%20in%20the%20version%20registry%22%2C%22insight%22%3A%22Parsing%20a%20file%20does%20not%20mean%20the%20runtime%20implements%20every%20operator%22%7D">
+                  <span class="process-icon" aria-hidden="true">📜</span><strong>Check specifications</strong><span>IR vN + domain/opset</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22Convert%20deployment%20format%22%2C%22data%22%3A%22layout%2Fdtype%2Fmetadata%20changes%22%2C%22action%22%3A%22Fold%2C%20split%2C%20or%20relayout%20nodes%20while%20updating%20the%20change%20table%22%2C%22insight%22%3A%22Conversion%20is%20a%20semantics-preserving%20rewrite%2C%20not%20a%20byte-for-byte%20copy%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔁</span><strong>Convert deployment format</strong><span>layout/dtype/metadata changes</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B1%22%2C%22label%22%3A%22Partition%20in%20the%20runtime%22%2C%22data%22%3A%22supported%20subgraphs%20%E2%86%92%20backend%22%2C%22action%22%3A%22Route%20supported%20nodes%20to%20the%20accelerator%20and%20mark%20fallback%20paths%20for%20the%20rest%22%2C%22insight%22%3A%22Even%20after%20format%20compatibility%2C%20kernel%2C%20copy%2C%20and%20memory%20constraints%20remain%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧱</span><strong>Partition in the runtime</strong><span>supported subgraphs → backend</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9C%85%22%2C%22label%22%3A%22Accept%20with%20fixed%20inputs%22%2C%22data%22%3A%22golden%20input%20%E2%86%92%20%CE%94output%22%2C%22action%22%3A%22Overlay%20source%20and%20target%20outputs%2C%20showing%20error%20and%20the%20first%20divergent%20node%22%2C%22insight%22%3A%22Numerical%20evidence%20closes%20the%20handoff%20claim%20that%20this%20is%20%E2%80%9Cthe%20same%20model%E2%80%9D%22%7D">
+                  <span class="process-icon" aria-hidden="true">✅</span><strong>Accept with fixed inputs</strong><span>golden input → Δoutput</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>Step 1 / 6</span><h3 data-process-title>Framework object · modules + parameters + control flow</h3><p data-process-action>Expand the modules actually executed and their parameter references</p></div>
+            <div class="process-insight"><span>Watch for</span><p data-process-insight>The source program may contain dynamic behavior that cannot be serialized directly</p></div>
+          </div>
+          <p class="process-loop"><strong>Loop / return condition:</strong> When a runtime, opset, converter, or companion asset changes, replay from the affected gate. Golden inputs always travel with the model, forming a regression-ready format passport.</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← Previous</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>Next →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>View the complete static diagram</summary><pre class="diagram">Framework → Export IR → Converter → Optimizer → Runtime → Backend
+ PyTorch       ONNX/TFLite/GGUF                     CPU/GPU/NPU</pre></details>
+      </section>
+
+
+    <section><h2>Code or command example</h2><pre class="code"><code>onnx.checker.check_model(model)
+print(model.graph.input, model.graph.output)
+# For TFLite/GGUF, also inspect quantization types and tokenizer metadata</code></pre></section>
+    <section><h2>Hands-on lab</h2><div class="callout">Choose a small model and list its inputs, outputs, operators, weight dtypes, dynamic dimensions, and metadata.</div></section>
+    <section><h2>Engineering pitfall</h2><div class="pitfall"><strong>Avoid this mistake:</strong> Being able to open a model in Netron proves only that the file is parseable; it does not prove that the target runtime supports its opset, dynamic dimensions, or custom operators.</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-3">
+      <h2 id="quiz-title-3">Knowledge check</h2>
+      <p>Answer all three multiple-choice questions, then submit. Answers stay hidden until submission.</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22What%20does%20an%20ONNX%20opset%20primarily%20declare%3F%22%2C%22options%22%3A%5B%22The%20number%20of%20training%20epochs%22%2C%22The%20semantic%20version%20that%20graph%20operators%20must%20follow%22%2C%22The%20chip%20clock%20frequency%22%2C%22The%20weight%20compression%20ratio%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22An%20opset%20is%20a%20versioned%20operator%20collection.%20The%20same%20Add%20operator%20can%20follow%20different%20definitions%20across%20opsets%2C%20so%20the%20runtime%20must%20support%20the%20declared%20domain%20and%20version.%22%7D%2C%7B%22prompt%22%3A%22Which%20description%20of%20GGUF%20is%20most%20accurate%3F%22%2C%22options%22%3A%5B%22One%20specific%20quantization%20algorithm%22%2C%22A%20model%20container%20format%20for%20inference%20in%20GGML-family%20runtimes%22%2C%22A%20training%20framework%22%2C%22An%20NPU%20driver%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22GGUF%20stores%20tensors%20and%20extensible%20metadata.%20Its%20tensors%20may%20use%20different%20quantization%20schemes%2C%20so%20the%20container%20format%20must%20not%20be%20confused%20with%20a%20particular%20quantization%20algorithm.%22%7D%2C%7B%22prompt%22%3A%22What%20is%20the%20most%20reliable%20first%20validation%20after%20conversion%3F%22%2C%22options%22%3A%5B%22Compare%20file%20sizes%20only%22%2C%22Compare%20source-model%20and%20target-runtime%20outputs%20using%20fixed%20inputs%22%2C%22Check%20only%20the%20filename%20extension%22%2C%22Read%20only%20the%20parameter%20count%20on%20the%20model%20card%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22Fixed%20test%20vectors%20directly%20reveal%20changes%20in%20I%2FO%20layout%2C%20numerical%20type%2C%20or%20operator%20semantics.%20File%20size%20cannot%20prove%20that%20inference%20results%20are%20correct.%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. What does an ONNX opset primarily declare?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>The number of training epochs</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>The semantic version that graph operators must follow</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>The chip clock frequency</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>The weight compression ratio</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. Which description of GGUF is most accurate?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>One specific quantization algorithm</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>A model container format for inference in GGML-family runtimes</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>A training framework</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>An NPU driver</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. What is the most reliable first validation after conversion?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>Compare file sizes only</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>Compare source-model and target-runtime outputs using fixed inputs</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>Check only the filename extension</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>Read only the parameter count on the model card</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">Submit this quiz</button>
+        <button class="button secondary retry-quiz" type="button" hidden>Try again</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Further reading</h2>
+      <ul class="reference-list"><li><a href="https://onnx.ai/onnx/intro/concepts.html" target="_blank" rel="noopener noreferrer">ONNX Concepts (official or primary source)</a></li><li><a href="https://onnx.ai/onnx/repo-docs/Versioning.html" target="_blank" rel="noopener noreferrer">ONNX Versioning (official or primary source)</a></li><li><a href="https://github.com/ggerganov/ggml/blob/master/docs/gguf.md" target="_blank" rel="noopener noreferrer">GGUF Format Specification (official or primary source)</a></li></ul>
+    </section>
+
+    <section>
+      <h2>Bridge to the next chapter</h2>
+      <p>The next chapter reduces numerical precision while keeping the format contract stable. Quantization scales, zero-points, and calibration data all depend on the tensor semantics confirmed here.</p>
+      <p>Next: <a href="/learning_ai/en/day04.html">Day 4 · Quantization</a></p>
+    </section>
+
+    <nav class="nav" aria-label="COURSE NAVIGATION">
+      <a class="button secondary" href="/learning_ai/en/day02.html">← Day 2</a>
+      <a class="button" href="/learning_ai/en/day04.html">Day 4 →</a>
+    </nav>
+  </article>
+</main>
+
+
+  <footer><div class="wrap">Offline-ready · For engineers familiar with ESP32, USB, and networking stacks</div></footer>
+  <script src="/learning_ai/app.js" defer></script>
+</body>
+</html>

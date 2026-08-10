@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 07 · Memory, Bandwidth, MCU, and NPU</title>
+  <meta name="description" content="Progress from “it runs” to “it runs reliably” — Explain edge performance using peak RAM, sustained bandwidth, and compute budgets instead of parameter count alone.">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/en/day07.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day07.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day07.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day07.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
+</head>
+<body data-ui="%7B%22siteTitle%22%3A%22Edge%20AI%20%C2%B7%20A%2015-Day%20Engineering%20Path%22%2C%22siteDescription%22%3A%22A%20bilingual%20edge%20AI%20course%20for%20embedded%20engineers%2C%20from%20neural%20networks%20and%20deployment%20to%20complete%20system%20validation.%22%2C%22offlineLabel%22%3A%22Offline-first%20static%20course%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22From%20Neural%20Networks%20to%20a%20Shippable%20Edge%20AI%20System%22%2C%22heroBody%22%3A%22Built%20for%20engineers%20who%20already%20know%20ESP32%2C%20USB%2C%20and%20networking%20stacks.%20Each%20day%20follows%20one%20layer%20of%20the%20path%E2%80%94model%20%E2%86%92%20representation%20%E2%86%92%20runtime%20%E2%86%92%20kernel%20%E2%86%92%20memory%20and%20bandwidth%20%E2%86%92%20hardware%20%E2%86%92%20product%E2%80%94then%20connects%20its%20history%2C%20an%20illustrated%20analogy%2C%20and%20an%20interactive%20data-flow%20walkthrough.%22%2C%22startCourse%22%3A%22Start%20with%20Day%201%20%E2%86%92%22%2C%22cardMeta%22%3A%22history%20%2B%20visual%20analogy%20%2B%20animation%22%2C%22minutes%22%3A%22min%22%2C%22languageSwitch%22%3A%22%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20Simplified%20Chinese%22%2C%22home%22%3A%22Course%20home%22%2C%22learningNav%22%3A%22COURSE%20NAVIGATION%22%2C%22suggestedReading%22%3A%22Suggested%20reading%3A%20about%22%2C%22learningGoal%22%3A%22Learning%20goal%22%2C%22keywords%22%3A%22Chapter%20keywords%22%2C%22keyword%22%3A%22Keyword%22%2C%22explanation%22%3A%22Explanation%22%2C%22espAnalogy%22%3A%22ESP32%20engineering%20analogy%22%2C%22recap%22%3A%22Bridge%20from%20the%20previous%20chapter%22%2C%22historyKicker%22%3A%22HOW%20WE%20GOT%20HERE%22%2C%22historyTitle%22%3A%22Historical%20development%22%2C%22historyBridge%22%3A%22Why%20it%20still%20matters%20today%3A%22%2C%22analogyKicker%22%3A%22BUILD%20INTUITION%20FROM%20A%20FAMILIAR%20SYSTEM%22%2C%22analogyTitle%22%3A%22Illustrated%20analogy%22%2C%22analogyFallback%22%3A%22Embedded-systems%20analogy%22%2C%22analogyBoundary%22%3A%22Where%20the%20analogy%20stops%3A%22%2C%22lessonTitle%22%3A%22Chapter%20walkthrough%22%2C%22processKicker%22%3A%22WATCH%20THE%20DATA%20MOVE%22%2C%22processTitle%22%3A%22Interactive%20process%22%2C%22pausePlayback%22%3A%22Pause%20autoplay%22%2C%22reducedMotion%22%3A%22Reduced%20motion%20is%20enabled%22%2C%22restartPlayback%22%3A%22Play%20from%20the%20start%22%2C%22resumePlayback%22%3A%22Resume%20autoplay%22%2C%22step%22%3A%22Step%22%2C%22observation%22%3A%22Watch%20for%22%2C%22loopCondition%22%3A%22Loop%20%2F%20return%20condition%3A%22%2C%22previousStep%22%3A%22%E2%86%90%20Previous%22%2C%22nextStep%22%3A%22Next%20%E2%86%92%22%2C%22switchedStep%22%3A%22Switched%20to%20step%22%2C%22staticOverview%22%3A%22View%20the%20complete%20static%20diagram%22%2C%22flowchart%22%3A%22Process%20diagram%22%2C%22codeExample%22%3A%22Code%20or%20command%20example%22%2C%22lab%22%3A%22Hands-on%20lab%22%2C%22pitfall%22%3A%22Engineering%20pitfall%22%2C%22avoidMisread%22%3A%22Avoid%20this%20mistake%3A%22%2C%22quizTitle%22%3A%22Knowledge%20check%22%2C%22quizIntro%22%3A%22Answer%20all%20three%20multiple-choice%20questions%2C%20then%20submit.%20Answers%20stay%20hidden%20until%20submission.%22%2C%22submitQuiz%22%3A%22Submit%20this%20quiz%22%2C%22retryQuiz%22%3A%22Try%20again%22%2C%22completeQuestion%22%3A%22Please%20answer%20question%22%2C%22questionSuffix%22%3A%22.%22%2C%22correct%22%3A%22Correct.%22%2C%22incorrect%22%3A%22Not%20quite.%22%2C%22correctAnswer%22%3A%22Correct%20answer%3A%22%2C%22quizScore%22%3A%22Chapter%20score%3A%22%2C%22quizAdvice%22%3A%22Read%20each%20explanation%20before%20deciding%20whether%20to%20retry.%22%2C%22references%22%3A%22Further%20reading%22%2C%22sourceSuffix%22%3A%22%20(official%20or%20primary%20source)%22%2C%22nextPreview%22%3A%22Bridge%20to%20the%20next%20chapter%22%2C%22nextDay%22%3A%22Next%3A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22Back%20to%20course%20home%22%2C%22footer%22%3A%22Offline-ready%20%C2%B7%20For%20engineers%20familiar%20with%20ESP32%2C%20USB%2C%20and%20networking%20stacks%22%2C%22homeFooter%22%3A%2215%20days%20%C2%B7%2015%20standalone%20pages%20%C2%B7%20Chinese%20and%20English%20%C2%B7%20zero%20runtime%20dependencies%22%2C%22noscriptHome%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20chapter%20directory%20still%20works%2C%20and%20every%20chapter%20includes%20an%20expanded%20process%20diagram.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptDay%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20history%2C%20analogy%2C%20lesson%2C%20and%20expanded%20process%20overview%20remain%20readable.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%7D">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">You are in static reading mode. The history, analogy, lesson, and expanded process overview remain readable. Enable JavaScript for animation and quiz scoring.</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">Edge AI · A 15-Day Engineering Path</div>
+    <div class="top-actions">
+      <a href="/learning_ai/en/">Course home</a>
+
+        <a class="language-switch" href="/learning_ai/day07.html" lang="zh-CN" hreflang="zh-CN" aria-label="Switch to Simplified Chinese">简体中文</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="COURSE NAVIGATION">
+    <span class="eyebrow">COURSE NAVIGATION</span>
+
+      <a class=""  href="/learning_ai/en/day01.html">Day 01 · Neural Network Fundamentals</a>
+
+      <a class=""  href="/learning_ai/en/day02.html">Day 02 · Training and Inference</a>
+
+      <a class=""  href="/learning_ai/en/day03.html">Day 03 · Model Formats</a>
+
+      <a class=""  href="/learning_ai/en/day04.html">Day 04 · Quantization</a>
+
+      <a class=""  href="/learning_ai/en/day05.html">Day 05 · Operators</a>
+
+      <a class=""  href="/learning_ai/en/day06.html">Day 06 · Training and Deploying Non-LLM Edge Models</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/en/day07.html">Day 07 · Memory, Bandwidth, MCU, and NPU</a>
+
+      <a class=""  href="/learning_ai/en/day08.html">Day 08 · On-Device Vision Models</a>
+
+      <a class=""  href="/learning_ai/en/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/en/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/en/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/en/day12.html">Day 12 · LLM Quantization and GGUF</a>
+
+      <a class=""  href="/learning_ai/en/day13.html">Day 13 · On-Device LLM Inference Frameworks</a>
+
+      <a class=""  href="/learning_ai/en/day14.html">Day 14 · Performance Analysis</a>
+
+      <a class=""  href="/learning_ai/en/day15.html">Day 15 · Integration: The Edge-AI Engineering Pipeline</a>
+
+  </aside>
+  <article class="content" data-day="7">
+    <div class="eyebrow">DAY 07</div>
+    <h1>Memory, Bandwidth, MCU, and NPU</h1>
+    <p class="hero-sub">Progress from “it runs” to “it runs reliably”</p>
+    <p class="reading-time">Suggested reading: about 18 min</p>
+
+    <section>
+      <h2>Learning goal</h2>
+      <div class="callout">Explain edge performance using peak RAM, sustained bandwidth, and compute budgets instead of parameter count alone.</div>
+    </section>
+
+    <section>
+      <h2>Chapter keywords</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>Keyword</th><th>Explanation</th><th>ESP32 engineering analogy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Peak live memory</th><td>The total size of all buffers that must be retained at the same instant.</td><td>Like task stacks and DMA descriptors that coexist during a context switch.</td></tr><tr><th scope="row">Bandwidth</th><td>The amount of data that can be moved per unit time.</td><td>Like SPI/I2S bus throughput: fast compute still waits for its data.</td></tr><tr><th scope="row">PSRAM</th><td>High-capacity RAM connected through an external interface.</td><td>Like an expansion warehouse with more space but different access and DMA rules.</td></tr><tr><th scope="row">Delegate</th><td>A backend mechanism that assigns supported subgraphs to a specialized accelerator.</td><td>Like forwarding supported peripheral requests to a coprocessor.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>Bridge from the previous chapter</h2><p>The previous chapter proved a functional loop for a small model. This chapter shifts attention from accuracy to resource budgets: which buffers are live together, whether data movement is the bottleneck, and whether the NPU delegate is actually being used.</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">HOW WE GOT HERE</span><h2>Historical development</h2></div>
+        <p class="section-lead">The history of edge performance repeatedly shows that multiply–accumulate units are merely the stove in a kitchen. How data reaches the stove, where it waits, and whether it is moved repeatedly often determines throughput and energy more strongly. MCU/NPU engineering consequently evolved from counting FLOPs to planning compute and data flow together.</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1982</div>
+              <div class="timeline-content"><h3>Systolic arrays let data flow among processing elements</h3><p>H. T. Kung systematically described systolic architectures: regularly arranged processing elements reuse and pass data in rhythm. This provided an important foundation for the data-flow design of later matrix accelerators.</p><a href="https://doi.org/10.1109/MC.1982.1653825" target="_blank" rel="noopener noreferrer">Original Why Systolic Architectures paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2009</div>
+              <div class="timeline-content"><h3>Roofline plotted compute and bandwidth ceilings together</h3><p>The Roofline model connected peak compute with sustainable memory bandwidth through arithmetic intensity, turning “optimize arithmetic or reduce movement?” into a measurable, discussable question.</p><a href="https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf" target="_blank" rel="noopener noreferrer">Original UC Berkeley Roofline report ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2016</div>
+              <div class="timeline-content"><h3>Eyeriss quantified the energy cost of moving data</h3><p>Eyeriss introduced a row-stationary dataflow that reused weights, activations, and partial sums through local storage and inter-PE communication, emphasizing that moving less data is itself acceleration.</p><a href="https://research.nvidia.com/publication/2016-06_eyeriss-spatial-architecture-energy-efficient-dataflow-convolutional-neural" target="_blank" rel="noopener noreferrer">Original Eyeriss paper page ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2018</div>
+              <div class="timeline-content"><h3>MCU kernels optimized runtime and workspace together</h3><p>CMSIS-NN showed how SIMD, fixed-point computation, and partial im2col improve Cortex-M throughput while reducing memory use, demonstrating that kernel selection changes the peak working set.</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">Original CMSIS-NN paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2020</div>
+              <div class="timeline-content"><h3>MCUNet co-designed networks and inference engines</h3><p>MCUNet used TinyNAS to search for networks under device constraints and TinyEngine to schedule memory over whole-graph lifetimes, advancing joint optimization of models, runtimes, and hardware.</p><a href="https://arxiv.org/abs/2007.10319" target="_blank" rel="noopener noreferrer">Original MCUNet paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">Present</div>
+              <div class="timeline-content"><h3>Memory capabilities and coherence became explicit APIs</h3><p>ESP-IDF distinguishes properties such as DMA suitability and byte accessibility through a capability allocator. On chips with caches and DMA, synchronization and ownership must also be handled explicitly.</p><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/mem_alloc.html" target="_blank" rel="noopener noreferrer">Official ESP-IDF memory-allocation documentation ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>Why it still matters today:</strong> Resource analysis today should answer four questions together: which buffers are live simultaneously, how many buses each byte crosses, who executes every subgraph, and whether the measured bottleneck changes with input and temperature. Reporting only parameter count or peak TOPS misses the most expensive path.</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">BUILD INTUITION FROM A FAMILIAR SYSTEM</span><h2>Illustrated analogy</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>A small restaurant during the dinner rush</h3><p>A well-stocked cold room does not mean the kitchen can prepare many tables at once. Counter space determines how many plates can be spread out, a narrow aisle limits how quickly servers move food, and a very fast specialty oven accepts only the right trays. Every change of plate and every trip in or out costs time.</p></div>
+          <div class="analogy-illustration" aria-label="A small restaurant during the dinner rush">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🧊</span>
+                <strong>External cold room</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Weights and data with high capacity but higher access cost in Flash/PSRAM</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔪</span>
+                <strong>Preparation counter</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Inputs, outputs, and workspace simultaneously live in internal SRAM</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🛎️</span>
+                <strong>Serving aisle</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>The memory bus, DMA, cache lines, and sustained bandwidth</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔥</span>
+                <strong>Specialty oven</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>An NPU delegate supporting only certain operators, layouts, and dtypes</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>Where the analogy stops:</strong> The restaurant analogy is useful for capacity, throughput, and repacking costs, but real storage levels are not mutually exclusive rooms: cache replaces entries automatically, and DMA and CPU may access the same physical memory concurrently. Whether flush, invalidate, or alignment is required must come from the chip manual and measurement.</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>Chapter walkthrough</h2>
+      <h3>Peak memory comes from overlapping lifetimes, not adding file sizes</h3><p>For every tensor in the computation graph, list its producer, last consumer, size, and memory capabilities, then draw live intervals before calculating the peak. Weights can often remain in mapped Flash, while activations, accumulators, and kernel workspace coexist in the same layer. Camera double buffers, task stacks, and network packets must also enter the system peak. A planner can reuse regions with non-overlapping lifetimes, but dynamic shapes, branches, and fallback alter the plan, so validate static estimates against the runtime high-water mark.</p><h3>Use arithmetic intensity to decide whether the MAC unit or memory is waiting</h3><p>Roughly divide each operator’s MACs by bytes moved from slower levels to build intuition for “operations per byte.” Low-intensity paths are more likely bandwidth-bound. A higher clock or more NPU units helps directly only when compute is the limit; under a bandwidth limit, first fuse operators, reuse tiled data, prevent intermediates from materializing, and improve layouts. Theoretical bandwidth is a ceiling. Sequential access, cache misses, bus contention, and refresh protocols determine the sustained value, so benchmark a realistic access pattern.</p><h3>Zero-copy is an ownership protocol, not a pointer cast</h3><p>Having camera DMA write directly into model input can remove one copy, but only when address capabilities, alignment, stride, cache coherence, and lifetime satisfy both parties. The CPU must not read before DMA completion, and inference must release the buffer before DMA reuses it; cached systems also need synchronization in the correct direction. Use an explicit state machine such as FREE, FILLING, READY, and IN_USE, and log timeouts and dropped frames. “Zero-copy” without these constraints often becomes intermittent tearing or stale data.</p><h3>Judge NPU acceleration by net benefit across the complete partition boundary</h3><p>A delegate partitions subgraphs according to operator, shape, dtype, and layout support. If it claims only a few middle layers, CPU→NPU quantization, layout transforms, buffer copies, and synchronization can consume the time saved by kernels; unsupported nodes may also fall back silently. Inspect runtime partition logs, time the accelerated subgraph and its boundary conversions separately, and compare with a CPU-only baseline. Prefer a smaller network that fits wholly on the NPU over a large one producing fragmented partitions solely because of advertised TOPS.</p><h3>Accept a resource plan with steady-state curves, not one fastest run</h3><p>Warm up under fixed inputs, frequency, and compiler options, then record stage cycles, bus or cache counters, peak heap, and power. Vary resolution and sample rate progressively to plot latency and memory curves. Long-running tests should include competing Wi-Fi, camera, and OTA loads and observe thermal throttling and tail latency. If outputs change after optimization, test numerical equivalence first. Reserve budget for fragmentation, abnormal logging, and firmware upgrades instead of promising all idle lab memory to the model.</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">WATCH THE DATA MOVE</span><h2>Interactive process</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="The resource journey of one activation tensor">
+          <div class="process-heading">
+            <div><h3>The resource journey of one activation tensor</h3><p>Each step shows the tensor’s storage level, the movement taking place, and the resource truly limiting throughput at that moment.</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>Pause autoplay</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%97%84%EF%B8%8F%22%2C%22label%22%3A%22Fetch%20weights%22%2C%22data%22%3A%22Flash%2FPSRAM%20%E2%86%92%20cache%22%2C%22action%22%3A%22Read%20the%20weights%20needed%20for%20this%20iteration%20one%20tile%20at%20a%20time%22%2C%22insight%22%3A%22Adequate%20capacity%20can%20still%20be%20limited%20by%20bandwidth%20from%20a%20slow%20level%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">🗄️</span><strong>Fetch weights</strong><span>Flash/PSRAM → cache</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22Receive%20input%22%2C%22data%22%3A%22DMA%20buffer%20%E2%86%92%20SRAM%22%2C%22action%22%3A%22Confirm%20alignment%20and%20ownership%2C%20then%20synchronize%20cache%22%2C%22insight%22%3A%22Zero-copy%20begins%20as%20a%20coherence%20contract%22%7D">
+                  <span class="process-icon" aria-hidden="true">📥</span><strong>Receive input</strong><span>DMA buffer → SRAM</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22Plan%20live%20regions%22%2C%22data%22%3A%22input%20%2B%20output%20%2B%20workspace%22%2C%22action%22%3A%22Reuse%20non-overlapping%20memory%20regions%20according%20to%20lifetimes%22%2C%22insight%22%3A%22The%20working%20set%20present%20at%20one%20instant%20determines%20the%20peak%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧩</span><strong>Plan live regions</strong><span>input + output + workspace</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22Execute%20kernel%22%2C%22data%22%3A%22tile%20%C3%97%20weights%20%E2%86%92%20partial%20sums%22%2C%22action%22%3A%22Reuse%20data%20in%20registers%20and%20local%20storage%20as%20much%20as%20possible%22%2C%22insight%22%3A%22One%20less%20move%20can%20be%20worth%20more%20than%20several%20extra%20MACs%22%7D">
+                  <span class="process-icon" aria-hidden="true">⚙️</span><strong>Execute kernel</strong><span>tile × weights → partial sums</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A7%22%2C%22label%22%3A%22Cross%20a%20backend%20boundary%22%2C%22data%22%3A%22CPU%20layout%20%E2%86%94%20NPU%20layout%22%2C%22action%22%3A%22Convert%20dtype%2Flayout%20and%20synchronize%20the%20subgraph%22%2C%22insight%22%3A%22A%20delegate%20boundary%20charges%20a%20visible%20toll%22%7D">
+                  <span class="process-icon" aria-hidden="true">🚧</span><strong>Cross a backend boundary</strong><span>CPU layout ↔ NPU layout</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%88%22%2C%22label%22%3A%22Measure%20and%20rearrange%22%2C%22data%22%3A%22cycles%20%2B%20bytes%20%2B%20peak%20RAM%22%2C%22action%22%3A%22Use%20the%20measured%20bottleneck%20to%20choose%20fusion%2C%20tiling%2C%20or%20lower%20resolution%22%2C%22insight%22%3A%22Evidence%2C%20not%20TOPS%2C%20should%20select%20the%20optimization%20target%22%7D">
+                  <span class="process-icon" aria-hidden="true">📈</span><strong>Measure and rearrange</strong><span>cycles + bytes + peak RAM</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>Step 1 / 6</span><h3 data-process-title>Fetch weights · Flash/PSRAM → cache</h3><p data-process-action>Read the weights needed for this iteration one tile at a time</p></div>
+            <div class="process-insight"><span>Watch for</span><p data-process-insight>Adequate capacity can still be limited by bandwidth from a slow level</p></div>
+          </div>
+          <p class="process-loop"><strong>Loop / return condition:</strong> Measurements feed back into memory planning: reduce movement when bandwidth dominates, shrink the tile or input when the working set overflows, and replace a kernel only when compute is saturated.</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← Previous</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>Next →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>View the complete static diagram</summary><pre class="diagram">Flash weights ─mmap/copy─► RAM/PSRAM ─► cache ─► MAC unit
+                              ▲ DMA / zero-copy</pre></details>
+      </section>
+
+
+    <section><h2>Code or command example</h2><pre class="code"><code>peak = weights + activations + workspace + io_buffers
+if peak &gt; available_ram:
+    reduce_resolution_or_batch()
+    enable_streaming_or_tiling()</code></pre></section>
+    <section><h2>Hands-on lab</h2><div class="callout">Given a table of model layers, estimate peak activation and workspace memory at every layer, then plot RAM and latency against several input resolutions.</div></section>
+    <section><h2>Engineering pitfall</h2><div class="pitfall"><strong>Avoid this mistake:</strong> Treating “PSRAM has more capacity” as “PSRAM can replace internal SRAM” can make DMA unavailable, reduce bandwidth, or create cache-coherence problems—especially when camera and display streams run together.</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-7">
+      <h2 id="quiz-title-7">Knowledge check</h2>
+      <p>Answer all three multiple-choice questions, then submit. Answers stay hidden until submission.</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22What%20should%20an%20edge-inference%20peak%20RAM%20budget%20include%20at%20minimum%3F%22%2C%22options%22%3A%5B%22Weights%20only%22%2C%22Weights%2C%20activations%2C%20workspace%2C%20and%20I%2FO%20buffers%22%2C%22Only%20the%20model%20name%22%2C%22Only%20the%20FreeRTOS%20tick%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22The%20peak%20is%20determined%20by%20buffers%20live%20at%20the%20same%20time.%20Weights%20may%20reside%20in%20Flash%2C%20while%20activations%20and%20temporary%20workspace%20often%20determine%20whether%20execution%20is%20stable.%22%7D%2C%7B%22prompt%22%3A%22For%20the%20classic%20ESP32%2C%20what%20does%20ESP-IDF%20MALLOC_CAP_DMA%20most%20closely%20mean%3F%22%2C%22options%22%3A%5B%22Prefer%20external%20PSRAM%22%2C%22Allocate%20memory%20suitable%20for%20hardware%20DMA%2C%20usually%20excluding%20external%20PSRAM%22%2C%22Force%20allocation%20in%20Flash%22%2C%22Disable%20cache%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22The%20official%20documentation%20states%20that%20this%20capability%20is%20DMA-suitable%20and%20excludes%20external%20PSRAM.%20Always%20confirm%20exact%20capabilities%20in%20the%20documentation%20for%20the%20chosen%20SoC%20and%20peripheral.%22%7D%2C%7B%22prompt%22%3A%22Why%20might%20adding%20MAC%20units%20fail%20to%20speed%20up%20a%20bandwidth-bound%20model%3F%22%2C%22options%22%3A%5B%22MAC%20units%20delete%20weights%22%2C%22The%20processor%20still%20waits%20for%20weights%20and%20activations%20to%20move%20from%20memory%22%2C%22The%20input%20shape%20shrinks%20automatically%22%2C%22Quantization%20fails%20automatically%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22When%20bytes%20per%20second%20are%20the%20bottleneck%2C%20additional%20compute%20sits%20idle%20waiting.%20First%20reduce%20reads%20and%20writes%2C%20improve%20layouts%2C%20or%20fuse%20operators.%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. What should an edge-inference peak RAM budget include at minimum?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>Weights only</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>Weights, activations, workspace, and I/O buffers</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>Only the model name</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>Only the FreeRTOS tick</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. For the classic ESP32, what does ESP-IDF MALLOC_CAP_DMA most closely mean?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>Prefer external PSRAM</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>Allocate memory suitable for hardware DMA, usually excluding external PSRAM</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>Force allocation in Flash</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>Disable cache</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. Why might adding MAC units fail to speed up a bandwidth-bound model?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>MAC units delete weights</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>The processor still waits for weights and activations to move from memory</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>The input shape shrinks automatically</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>Quantization fails automatically</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">Submit this quiz</button>
+        <button class="button secondary retry-quiz" type="button" hidden>Try again</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Further reading</h2>
+      <ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/memory-types.html" target="_blank" rel="noopener noreferrer">ESP-IDF Memory Types (official or primary source)</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers (official or primary source)</a></li></ul>
+    </section>
+
+    <section>
+      <h2>Bridge to the next chapter</h2>
+      <p>The next chapter places these budgets into a real-time camera pipeline and observes how DMA, frame buffers, color formats, and postprocessing jointly affect results.</p>
+      <p>Next: <a href="/learning_ai/en/day08.html">Day 8 · Vision Models</a></p>
+    </section>
+
+    <nav class="nav" aria-label="COURSE NAVIGATION">
+      <a class="button secondary" href="/learning_ai/en/day06.html">← Day 6</a>
+      <a class="button" href="/learning_ai/en/day08.html">Day 8 →</a>
+    </nav>
+  </article>
+</main>
+
+
+  <footer><div class="wrap">Offline-ready · For engineers familiar with ESP32, USB, and networking stacks</div></footer>
+  <script src="/learning_ai/app.js" defer></script>
+</body>
+</html>
