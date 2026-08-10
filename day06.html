@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="active" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,13 +18,59 @@
       <div class="eyebrow">DAY 06</div>
       <h1>非 LLM 端侧模型训练与部署</h1>
       <p class="hero-sub">把视觉/音频/传感器模型真正烧进设备</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 19 分钟</p>
       <section><h2>学习目标</h2><div class="callout">完成数据、训练、导出、量化、部署、验证的闭环，重点覆盖 MCU 常见小模型。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">代表性数据</th><td>覆盖真实设备工况的数据集合。</td><td>像整机测试必须覆盖温湿度、电源和负载边界。</td></tr><tr><th scope="row">Tensor arena</th><td>为 MCU 推理预分配输入、输出和中间张量的内存区。</td><td>像启动时规划好的静态工作区。</td></tr><tr><th scope="row">前处理</th><td>将原始传感器数据变成模型输入的步骤。</td><td>像协议栈的 framing、字节序和校验。</td></tr><tr><th scope="row">混淆矩阵</th><td>按真实类别与预测类别统计的表。</td><td>像按故障类型统计误报和漏报。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">代表性数据</th><td>覆盖真实设备工况的数据集合。</td><td>像整机测试必须覆盖温湿度、电源和负载边界。</td></tr><tr><th scope="row">Tensor arena</th><td>为 MCU 推理预分配输入、输出和中间张量的内存区。</td><td>像启动时规划好的静态工作区。</td></tr><tr><th scope="row">前处理</th><td>将原始传感器数据变成模型输入的步骤。</td><td>像协议栈的 framing、字节序和校验。</td></tr><tr><th scope="row">混淆矩阵</th><td>按真实类别与预测类别统计的表。</td><td>像按故障类型统计误报和漏报。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章说明图最终由算子和 kernel 执行。本章把这些部件放回完整产品链路，完成一个可部署的视觉、音频或传感器小模型。</p></section>
-      <section><h2>嵌入式类比</h2><p>模型只是固件中的一个模块；采样率、DMA buffer、任务优先级和 watchdog 与准确率同样决定产品体验。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章说明图最终由算子和 kernel 执行。本章把这些部件放回完整产品链路，完成一个可部署的视觉、音频或传感器小模型。</p><h3>从 ESP32 系统心智模型进入</h3><p>非 LLM 模型通常不是直接接收“现实世界”，而是接收严格定义的窗口、图像或特征。训练数据、设备前处理、量化输入和阈值策略必须像通信协议一样逐字节一致。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>确定产品事件和采样窗口，采集并标注数据，训练小模型，导出和量化，部署到 ESP-DL 或 LiteRT Micro，再在板上记录延迟、混淆矩阵、堆内存与异常输入结果。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>优先做最小闭环：两到四类任务、可回放的原始样本、明确的阈值和 fallback。先证明设备输入与 PC 输入一致，再扩大数据集或替换更大模型。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">Sensor → DMA/RingBuffer → Preprocess → Inference → Postprocess → Event/Actuator</pre></section>
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">把小模型放进 MCU，并不是把桌面推理代码缩小后复制过去。它经历了“结构更省算力—kernel 更贴硬件—runtime 更少依赖—产品验证更可重复”的共同演进，最终才形成今天从数据到固件的闭环。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">1989</div>
+    <div class="timeline-content"><h3>结构化卷积网络走向真实任务</h3><p>LeCun 等人把局部连接、权重共享与反向传播用于邮政编码识别，说明可以让网络直接处理像素，同时用结构约束压低参数与计算需求。</p><a href="https://doi.org/10.1162/neco.1989.1.4.541" target="_blank" rel="noopener noreferrer">LeCun 等原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2017</div>
+    <div class="timeline-content"><h3>MobileNet 把硬件预算写进网络设计</h3><p>MobileNet 以深度可分离卷积和宽度、分辨率系数显式交换准确率与延迟，“先定设备预算再选模型”由经验做法变成可调设计方法。</p><a href="https://arxiv.org/abs/1704.04861" target="_blank" rel="noopener noreferrer">MobileNet 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2017</div>
+    <div class="timeline-content"><h3>生产级 ML 开始强调系统测试</h3><p>Google 的 ML Test Score 将数据、特征、模型、基础设施与监控拆成具体测试项，指出离线指标只是上线准备度的一部分。</p><a href="https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/" target="_blank" rel="noopener noreferrer">Google Research 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2018</div>
+    <div class="timeline-content"><h3>CMSIS-NN 让量化模型贴近 Cortex-M</h3><p>CMSIS-NN 提供面向 Cortex-M 的卷积、全连接等优化 kernel，并用部分 im2col 等办法同时降低运行时间和峰值内存。</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">CMSIS-NN 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2020</div>
+    <div class="timeline-content"><h3>TFLite Micro 固化微控制器运行时范式</h3><p>TFLite Micro 面向没有虚拟内存、资源紧张且平台碎片化的设备，采用小型解释器和预规划工作区，让同一模型能进入多种 MCU。</p><a href="https://arxiv.org/abs/2010.08678" target="_blank" rel="noopener noreferrer">TFLite Micro 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">现在</div>
+    <div class="timeline-content"><h3>ESP-DL 串起量化、格式、内存规划与分析</h3><p>当前 ESP-DL 用 ESP-PPQ、.espdl 格式、静态内存规划和设备侧 profiling 把模型转换、加载、执行与测量放进同一工具链。</p><a href="https://docs.espressif.com/projects/esp-dl/en/latest/introduction/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 官方介绍 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>这条脉络留下的工程结论很明确：模型结构只决定“可能跑多快”，前处理契约、量化导出、kernel 覆盖、任务调度和板端回归测试才决定它是否真的成为产品功能。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>一座把鲜果变成果汁的微型工厂</h3><p>果园每天送来的果子并不整齐：大小、成熟度、泥点都不同。实验室先制定验收样本和清洗配方，再训练“质检员”；量产线必须照同一配方切块、称重，质检结果还要经过阈值与复核，才会真正打开装瓶阀门。</p></div><div class="analogy-illustration" aria-label="一座把鲜果变成果汁的微型工厂"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🧺</span>
+    <strong>果筐与留样</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>真实设备采集、标签规范、训练/验证/测试切分</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚿</span>
+    <strong>清洗切块配方</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>采样、resize、归一化、量化输入等前处理契约</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🔬</span>
+    <strong>微型质检员</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>量化后的模型、设备 kernel 与 tensor arena</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚦</span>
+    <strong>装瓶放行灯</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>阈值、去抖、fallback 与业务事件</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>类比能解释闭环和契约，却不能把模型当成固定规则质检机：它输出的是依赖数据分布的概率或分数。现场出现训练集未覆盖的新工况时，配方完全一致也不保证判断正确，仍需漂移监控、拒识与安全状态机。</p></div></section>
+      <section><h2>本章讲解</h2><h3>从产品事件反推数据，而不是从现成数据集寻找用途</h3><p>先写出设备最终要发布的事件、允许的漏报和误报、响应时限以及无法判断时的动作，再据此定义采样窗口和标签。训练集要按设备或采集批次切分，避免同一段连续信号泄漏到训练与测试两侧；负类不能只有“安静背景”，还要包含容易混淆的动作、噪声和传感器异常。每条样本应保留固件版本、采样率与环境元数据，才能在回归时定位数据漂移。</p><h3>把前处理做成可校验的二进制契约</h3><p>PC 训练管线与固件必须对采样率、通道顺序、裁剪窗口、插值方式、颜色空间、归一化常数、舍入和饱和规则逐项一致。不要只比较最终类别；选若干黄金样本，在原始 buffer、预处理浮点张量、量化整数张量三个边界计算摘要并抽查元素。若部署工具要求 int8 输入，还要确认 scale 与 zero-point 的方向，避免把已经量化的数据再次量化。</p><h3>把导出和转换看作编译链，而不是文件另存为</h3><p>训练 checkpoint 先切换推理语义，再导出含固定 I/O 契约的图；转换器随后折叠常量、替换算子、量化并生成目标格式。每一阶段都可能改变布局或数值，因此要锁定工具版本，保存算子清单、输入输出名称和量化参数，并用同一批输入做逐阶段差分。转换成功只证明文件可生成；目标 runtime 没有对应 kernel、发生浮点 fallback 或 shape 超界时仍会失败。</p><h3>让推理成为受调度约束的固件任务</h3><p>设备端需要同时安排传感器生产者、DMA、预处理、推理和事件消费者。采用有界队列并明确满队列策略：实时任务通常丢旧帧比无限等待更合理；推理期间若占用长时间 CPU，应分片、降低频率或喂狗，但不能用喂狗掩盖死锁。arena、模型和 I/O buffer 尽量在初始化期分配，稳态路径避免碎片化；错误分支必须归还帧并发布可观察的降级状态。</p><h3>用四层证据完成部署验收</h3><p>验收依次比较源框架、导出模型、目标 runtime 和真实板端，既测固定黄金向量，也回放整段原始采集。结果至少包含混淆矩阵、按类别阈值曲线、p50/p95 延迟、峰值 arena、长时间运行与异常输入。业务层还要验证迟滞、连续命中次数和冷却时间，避免分数在阈值附近抖动成事件风暴。升级模型或 SDK 后重跑同一清单，才能区分精度回归与系统回归。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一条样本如何变成设备事件">
+    <div class="process-heading"><div><h3>一条样本如何变成设备事件</h3><p>播放器逐步点亮数据形态和责任边界，并在最后把现场失败样本送回数据集。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%99%EF%B8%8F%22%2C%22label%22%3A%22%E9%87%87%E9%9B%86%E4%B8%8E%E6%A0%87%E6%B3%A8%22%2C%22data%22%3A%22raw%20window%20%2B%20label%20%2B%20metadata%22%2C%22action%22%3A%22%E6%8C%89%E8%AE%BE%E5%A4%87%E4%B8%8E%E5%9C%BA%E6%99%AF%E8%AE%B0%E5%BD%95%E5%8E%9F%E5%A7%8B%E6%A0%B7%E6%9C%AC%EF%BC%8C%E5%86%BB%E7%BB%93%E6%A0%87%E7%AD%BE%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E6%95%B0%E6%8D%AE%E6%9D%A5%E6%BA%90%E5%86%B3%E5%AE%9A%E6%A8%A1%E5%9E%8B%E8%83%BD%E8%AF%86%E5%88%AB%E7%9A%84%E4%B8%96%E7%95%8C%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🎙️</span><strong>采集与标注</strong><span>raw window + label + metadata</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BD%22%2C%22label%22%3A%22%E7%AD%89%E4%BB%B7%E5%89%8D%E5%A4%84%E7%90%86%22%2C%22data%22%3A%22tensor%5Bshape%2C%20dtype%2C%20range%5D%22%2C%22action%22%3A%22%E5%9C%A8%20PC%20%E4%B8%8E%E5%9B%BA%E4%BB%B6%E6%89%A7%E8%A1%8C%E5%90%8C%E4%B8%80%E8%A3%81%E5%89%AA%E3%80%81%E7%BC%A9%E6%94%BE%E5%92%8C%E9%87%8F%E5%8C%96%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E8%BE%93%E5%85%A5%E5%A5%91%E7%BA%A6%E6%AF%94%20API%20%E5%90%8D%E7%A7%B0%E6%9B%B4%E9%87%8D%E8%A6%81%22%7D"><span class="process-icon" aria-hidden="true">🧽</span><strong>等价前处理</strong><span>tensor[shape, dtype, range]</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A0%22%2C%22label%22%3A%22%E8%AE%AD%E7%BB%83%E4%B8%8E%E5%AF%BC%E5%87%BA%22%2C%22data%22%3A%22checkpoint%20%E2%86%92%20graph%20%E2%86%92%20quantized%20model%22%2C%22action%22%3A%22%E5%9B%BA%E5%AE%9A%E6%8E%A8%E7%90%86%E6%80%81%E5%B9%B6%E9%80%90%E9%98%B6%E6%AE%B5%E6%AF%94%E8%BE%83%E8%BE%93%E5%87%BA%22%2C%22insight%22%3A%22%E6%AF%8F%E6%AC%A1%E8%BD%AC%E6%8D%A2%E9%83%BD%E6%98%AF%E6%BD%9C%E5%9C%A8%E8%AF%AD%E4%B9%89%E8%BE%B9%E7%95%8C%22%7D"><span class="process-icon" aria-hidden="true">🧠</span><strong>训练与导出</strong><span>checkpoint → graph → quantized model</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9F%22%2C%22label%22%3A%22%E6%9D%BF%E7%AB%AF%E6%89%A7%E8%A1%8C%22%2C%22data%22%3A%22arena%20%2B%20kernels%20%2B%20latency%22%2C%22action%22%3A%22%E5%8A%A0%E8%BD%BD%E6%A8%A1%E5%9E%8B%E3%80%81%E8%B0%83%E5%BA%A6%20kernel%20%E5%B9%B6%E8%AE%B0%E5%BD%95%E5%86%85%E5%AD%98%E5%92%8C%E9%98%B6%E6%AE%B5%E8%80%97%E6%97%B6%22%2C%22insight%22%3A%22%E8%83%BD%E5%8A%A0%E8%BD%BD%E4%B8%8D%E7%AD%89%E4%BA%8E%E7%A8%B3%E6%80%81%E8%83%BD%E8%BF%90%E8%A1%8C%22%7D"><span class="process-icon" aria-hidden="true">📟</span><strong>板端执行</strong><span>arena + kernels + latency</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A8%22%2C%22label%22%3A%22%E4%BA%8B%E4%BB%B6%E5%86%B3%E7%AD%96%22%2C%22data%22%3A%22score%20%E2%86%92%20threshold%20%E2%86%92%20state%22%2C%22action%22%3A%22%E5%BA%94%E7%94%A8%E8%BF%9F%E6%BB%9E%E3%80%81%E5%8E%BB%E6%8A%96%E5%92%8C%20fallback%20%E5%90%8E%E5%86%8D%E9%A9%B1%E5%8A%A8%E7%89%A9%E7%90%86%E5%8A%A8%E4%BD%9C%22%2C%22insight%22%3A%22%E6%A8%A1%E5%9E%8B%E5%88%86%E6%95%B0%E4%B8%8D%E6%98%AF%E6%9C%80%E7%BB%88%E6%8E%A7%E5%88%B6%E5%91%BD%E4%BB%A4%22%7D"><span class="process-icon" aria-hidden="true">🚨</span><strong>事件决策</strong><span>score → threshold → state</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22%E7%8E%B0%E5%9C%BA%E5%9B%9E%E6%B5%81%22%2C%22data%22%3A%22false%20positive%20%2F%20false%20negative%22%2C%22action%22%3A%22%E4%BF%9D%E5%AD%98%E8%AF%AF%E6%8A%A5%E6%BC%8F%E6%8A%A5%E5%8F%8A%E5%85%B6%E5%8E%9F%E5%A7%8B%E4%B8%8A%E4%B8%8B%E6%96%87%EF%BC%8C%E8%BF%9B%E5%85%A5%E4%B8%8B%E4%B8%80%E8%BD%AE%E6%95%B0%E6%8D%AE%E5%AE%A1%E6%9F%A5%22%2C%22insight%22%3A%22%E9%97%AD%E7%8E%AF%E8%AE%A9%E9%83%A8%E7%BD%B2%E4%BB%8E%E6%BC%94%E7%A4%BA%E5%8F%98%E6%88%90%E5%8F%AF%E7%BB%B4%E6%8A%A4%E7%B3%BB%E7%BB%9F%22%7D"><span class="process-icon" aria-hidden="true">🔁</span><strong>现场回流</strong><span>false positive / false negative</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>采集与标注 · raw window + label + metadata</h3><p data-process-action>按设备与场景记录原始样本，冻结标签规则</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>数据来源决定模型能识别的世界</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>现场回流的样本经过人工复核后重新进入“采集与标注”，但旧测试集保持冻结，用来判断新版本是否真的改善。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Sensor → DMA/RingBuffer → Preprocess → Inference → Postprocess → Event/Actuator</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>idf.py build flash monitor
 # 设备端关注：arena、tensor arena、输入归一化、推理耗时
 ESP_LOGI(TAG, &quot;latency=%d ms&quot;, elapsed_ms);</code></pre></section>
@@ -33,6 +83,9 @@ ESP_LOGI(TAG, &quot;latency=%d ms&quot;, elapsed_ms);</code></pre></section>
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

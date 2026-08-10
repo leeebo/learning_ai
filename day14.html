@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="active" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,14 +18,57 @@
       <div class="eyebrow">DAY 14</div>
       <h1>性能分析</h1>
       <p class="hero-sub">把“感觉慢”变成可定位的预算</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 17 分钟</p>
       <section><h2>学习目标</h2><div class="callout">用端到端指标、分阶段计时、硬件计数器和功耗测量定位瓶颈。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">TTFT</th><td>从请求发出到首个 token 返回的时间。</td><td>像首次中断到第一条有效状态消息的延迟。</td></tr><tr><th scope="row">p95</th><td>95% 请求不超过的尾延迟分位数。</td><td>像对最慢一小部分现场事件的时延预算。</td></tr><tr><th scope="row">Warm-up</th><td>正式测量前预热 runtime、cache 和频率。</td><td>像设备上电稳定后再测性能。</td></tr><tr><th scope="row">Joules/token</th><td>每生成一个 token 的能耗。</td><td>像每次执行控制动作的能量预算。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">TTFT</th><td>从请求发出到首个 token 返回的时间。</td><td>像首次中断到第一条有效状态消息的延迟。</td></tr><tr><th scope="row">p95</th><td>95% 请求不超过的尾延迟分位数。</td><td>像对最慢一小部分现场事件的时延预算。</td></tr><tr><th scope="row">Warm-up</th><td>正式测量前预热 runtime、cache 和频率。</td><td>像设备上电稳定后再测性能。</td></tr><tr><th scope="row">Joules/token</th><td>每生成一个 token 的能耗。</td><td>像每次执行控制动作的能量预算。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章完成框架和 backend 选择。本章为这些选择建立证据链：把“感觉慢”拆成可测的请求阶段、资源计数和功耗，而不是只报一个 tokens/s。</p></section>
-      <section><h2>嵌入式类比</h2><p>像抓 USB/网络协议问题：先看端到端时序，再缩小到阶段、包和 handler；单看平均吞吐会掩盖尾延迟。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章完成框架和 backend 选择。本章为这些选择建立证据链：把“感觉慢”拆成可测的请求阶段、资源计数和功耗，而不是只报一个 tokens/s。</p><h3>从 ESP32 系统心智模型进入</h3><p>性能不是单一吞吐。TTFT 决定首次响应体验，inter-token latency 决定流式节奏，p95 反映尾部风险；同时还要看输入长度、并发、热状态、功耗和准确率。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>固定模型、量化、prompt、输出长度、线程、温度和供电条件；先 warm-up，再多次测量；把总时间拆为预处理、prefill、decode、网络和后处理；记录中位数、p95、内存与 joules/token。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>遇到退化时先用 trace 定位阶段：TTFT 增大多与 prompt/preprocess 有关，decode 变慢常与 KV 带宽、线程或热降频有关。不要通过改变 prompt 或采样参数来“优化”不一致的比较。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">Request → preprocess → prefill → decode×N → postprocess
-  | wall time | p50/p95 | bytes moved | joules/token | thermal state</pre></section>
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">性能分析远早于机器学习。它从“局部加速受整体串行部分限制”，发展到“算力与带宽共同限定上限”，再进入在线系统的尾延迟与标准化基准。LLM 又带来 prefill、decode、流式响应和每 token 能耗等阶段性指标。历史反复说明：没有工作负载、测量条件和分解视角的单个数字，几乎不能指导工程决策。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">1967</div>
+    <div class="timeline-content"><h3>Amdahl 定律提醒局部加速受整体比例限制</h3><p>Amdahl 的工作指出，并行部分无论提速多少，未被加速的部分仍限制总收益。映射到端侧 AI：kernel 快一倍不代表请求快一倍，tokenize、copy、采样、网络与同步都可能成为新的串行主项。</p><a href="https://doi.org/10.1145/1465482.1465560" target="_blank" rel="noopener noreferrer">Amdahl 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2009</div>
+    <div class="timeline-content"><h3>Roofline 用算术强度连接算力与带宽上限</h3><p>Roofline 模型把可达性能放在峰值计算能力和内存带宽两条“屋顶”下观察。它让工程师先判断 workload 是计算受限还是带宽受限，再决定优化 MAC、缓存复用或数据布局；decode 读取大量权重与 KV 的问题尤其适合这一直觉。</p><a href="https://escholarship.org/uc/item/6vv2j84j" target="_blank" rel="noopener noreferrer">Roofline 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2013</div>
+    <div class="timeline-content"><h3>尾延迟成为交互式服务的核心指标</h3><p>《The Tail at Scale》说明平均值会隐藏少量但显著的慢请求，而大型交互系统必须关注延迟分布尾部。端侧 LLM 即使只有少量并发，也会受冷启动、热降频、队列和网络抖动影响，因此 p50 不能替代 p95。</p><a href="https://research.google/pubs/the-tail-at-scale/" target="_blank" rel="noopener noreferrer">The Tail at Scale 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2019</div>
+    <div class="timeline-content"><h3>MLPerf Inference 推动可比较的推理基准</h3><p>MLPerf Inference 将模型、场景、准确率约束和提交规则组合成基准套件，强调性能数字必须绑定工作负载与质量门槛。它提供的工程启示是：改变模型精度、输入或正确率目标后，吞吐数字就不再属于同一次公平比较。</p><a href="https://docs.mlcommons.org/inference/index_gh/" target="_blank" rel="noopener noreferrer">MLPerf Inference 官方文档 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2023—至今</div>
+    <div class="timeline-content"><h3>生成式模型形成 TTFT、ITL 与吞吐的专门指标组</h3><p>生成服务将 prompt 处理与逐 token 生成拆开，分别报告首 token、输出 token 间隔、请求吞吐和输入输出长度。工具开始把这些指标与并发、分位数和端点协议共同记录，性能分析由单次命令计时转为可重放的请求实验。</p><a href="https://github.com/triton-inference-server/perf_analyzer/blob/main/genai-perf/README.md" target="_blank" rel="noopener noreferrer">NVIDIA GenAI-Perf 官方指标文档 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>本章将这四代思想合并成一张证据链：先定义产品体验指标，再把端到端时间拆成阶段，用 Roofline 和计数器解释瓶颈，最后用分布、功耗与热状态验证优化没有转移问题。报告任何数字时都附带输入长度、输出长度、并发、量化、线程、供电与软件版本。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>把性能分析想成追查一趟总迟到的高铁</h3><p>乘客只感受到总行程，这就是端到端延迟；进站安检像预处理，等首班车像 TTFT，途中每站间隔像 inter-token latency。平均到站时间看似正常，但少数暴雨天的严重晚点就是 p95。只把列车最高时速提高，若检票、换轨或进站仍占大头，总时间几乎不变；车厢空调全开还会提高每位乘客的能耗并触发温度保护。真正的优化要拿时刻表、轨迹和电表对账。</p></div><div class="analogy-illustration" aria-label="把性能分析想成追查一趟总迟到的高铁"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🎫</span>
+    <strong>进站等待</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>排队、tokenize、预处理和 context 分配</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚄</span>
+    <strong>首班发车</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>Prefill 完成并返回首 token，即 TTFT</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🚉</span>
+    <strong>站间节奏</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>Decode 的 inter-token latency 与 tokens/s</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🌡️</span>
+    <strong>暴雨限速</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>尾延迟、功耗、温度和热降频造成的长尾</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>列车各段通常近似串行，而推理可能流水化、异步复制或将多个请求合批；单请求阶段之和也不直接等于高并发吞吐。类比用于提醒分段和长尾，不能取代 trace 时间戳、硬件计数器与排队模型。</p></div></section>
+      <section><h2>本章讲解</h2><h3>先写实验契约，再启动计时器</h3><p>一次可比较基准至少固定模型与哈希、量化格式、runtime commit、线程和绑核、prompt token 数、输出上限、采样、并发、供电及散热。先 warm-up，再执行足够重复次数并保留原始样本。若两轮测试的输入长度或温度不同，p95 与 tokens/s 没有直接可比性。把这些字段保存为机器可读 manifest，可让固件或模型升级后自动复跑。</p><h3>TTFT 与生成速度必须拆开诊断</h3><p>TTFT 包含排队、模板化、tokenize、context 准备、prefill 和首轮采样；稳定 decode 则主要反映逐步读取权重与 KV、执行小批矩阵和采样输出。长 prompt 会显著拉高前者，长 context 与带宽压力会拖慢后者。应在相同请求上打单调时钟时间戳，并报告 prompt tokens/s、ITL 分布和 output tokens/s，而不是只给总耗时。</p><h3>用瓶颈假设驱动下一项观测</h3><p>看到 CPU 利用率低，不应直接断言“算力富余”：线程可能等待内存、锁、GPU 同步或网络背压。先由 trace 找最长阶段，再提出可证伪假设。若怀疑带宽，改变量化或 context 并观察速度与 bytes moved；若怀疑计算，改变核心数或频率；若怀疑 copy，记录分区边界。每次只改一个变量，让证据能区分相关性与因果。</p><h3>分位数、热状态和能耗共同决定稳定性</h3><p>短跑 benchmark 常发生在冷芯片与满电源预算下，产品却可能连续运行数小时。记录每次请求而非只留平均值，至少给出中位数与 p95，并同步采集频率、温度、功率和峰值内存。对流式体验还要看最长 token 间隔。若 tokens/s 提高但 joules/token、温升或尾延迟恶化，应回到产品场景判断，而不能自动宣称优化成功。</p><h3>把性能回归变成可二分的版本证据</h3><p>基准结果应绑定模型、数据、编译选项、runtime 和固件版本，并保存阶段 trace 摘要。设置有噪声容忍度的阈值，例如相对基线连续多轮退化才告警，避免把偶然抖动当回归。出现问题时先确认环境，再按版本二分；同时用固定正确性样本防止“关掉工作换速度”。最终报告要能指出退化发生在哪个阶段、伴随何种资源变化。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="从一条慢请求收敛到可验证瓶颈">
+    <div class="process-heading"><div><h3>从一条慢请求收敛到可验证瓶颈</h3><p>动画不是播放漂亮曲线，而是演示性能工程的推理顺序：锁定条件、分段、提出假设、做单变量实验、再回归验证。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%8C%22%2C%22label%22%3A%22%E5%86%BB%E7%BB%93%E6%9D%A1%E4%BB%B6%22%2C%22data%22%3A%22model%2Fconfig%2Fprompt%2Fdevice%2Fpower%20manifest%22%2C%22action%22%3A%22%E6%A0%A1%E9%AA%8C%E7%89%88%E6%9C%AC%E4%B8%8E%E8%BE%93%E5%85%A5%EF%BC%8C%E5%AE%8C%E6%88%90%20warm-up%22%2C%22insight%22%3A%22%E6%B2%A1%E6%9C%89%E5%AE%9E%E9%AA%8C%E5%A5%91%E7%BA%A6%EF%BC%8C%E5%90%8E%E7%BB%AD%E5%B7%AE%E5%BC%82%E6%97%A0%E6%B3%95%E5%BD%92%E5%9B%A0%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">📌</span><strong>冻结条件</strong><span>model/config/prompt/device/power manifest</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%8F%B1%EF%B8%8F%22%2C%22label%22%3A%22%E7%AB%AF%E5%88%B0%E7%AB%AF%E9%87%87%E6%A0%B7%22%2C%22data%22%3A%22request%20timestamps%20%C3%97%20repeated%20runs%22%2C%22action%22%3A%22%E6%94%B6%E9%9B%86%E5%8E%9F%E5%A7%8B%E5%BB%B6%E8%BF%9F%E3%80%81TTFT%E3%80%81ITL%20%E4%B8%8E%E5%90%9E%E5%90%90%E6%A0%B7%E6%9C%AC%22%2C%22insight%22%3A%22%E4%BF%9D%E7%95%99%E5%88%86%E5%B8%83%E6%89%8D%E8%83%BD%E7%9C%8B%E8%A7%81%E5%B0%BE%E9%83%A8%EF%BC%8C%E8%80%8C%E9%9D%9E%E5%8F%AA%E7%9C%8B%E5%B9%B3%E5%9D%87%22%7D"><span class="process-icon" aria-hidden="true">⏱️</span><strong>端到端采样</strong><span>request timestamps × repeated runs</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B1%22%2C%22label%22%3A%22%E9%98%B6%E6%AE%B5%E6%8B%86%E5%88%86%22%2C%22data%22%3A%22queue%20%7C%20preprocess%20%7C%20prefill%20%7C%20decode%20%7C%20network%22%2C%22action%22%3A%22%E7%94%A8%E5%90%8C%E4%B8%80%E5%8D%95%E8%B0%83%E6%97%B6%E9%92%9F%E6%A0%87%E8%AE%B0%E9%98%B6%E6%AE%B5%E8%BE%B9%E7%95%8C%22%2C%22insight%22%3A%22%E5%85%88%E6%89%BE%E5%88%B0%E6%97%B6%E9%97%B4%E8%8A%B1%E5%9C%A8%E5%93%AA%E9%87%8C%EF%BC%8C%E5%86%8D%E8%AE%A8%E8%AE%BA%E4%B8%BA%E4%BB%80%E4%B9%88%22%7D"><span class="process-icon" aria-hidden="true">🧱</span><strong>阶段拆分</strong><span>queue | preprocess | prefill | decode | network</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%95%B5%EF%B8%8F%22%2C%22label%22%3A%22%E6%8F%90%E5%87%BA%E5%81%87%E8%AE%BE%22%2C%22data%22%3A%22utilization%20%2B%20bandwidth%20%2B%20cache%20%2B%20thermal%20counters%22%2C%22action%22%3A%22%E6%8A%8A%E6%9C%80%E9%95%BF%E9%98%B6%E6%AE%B5%E5%85%B3%E8%81%94%E5%88%B0%E4%B8%80%E4%B8%AA%E5%8F%AF%E8%AF%81%E4%BC%AA%E7%93%B6%E9%A2%88%22%2C%22insight%22%3A%22%E4%BD%8E%E5%88%A9%E7%94%A8%E7%8E%87%E5%8F%AF%E8%83%BD%E6%84%8F%E5%91%B3%E7%9D%80%E7%AD%89%E5%BE%85%EF%BC%8C%E4%B8%8D%E7%AD%89%E4%BA%8E%E6%B2%A1%E6%9C%89%E7%93%B6%E9%A2%88%22%7D"><span class="process-icon" aria-hidden="true">🕵️</span><strong>提出假设</strong><span>utilization + bandwidth + cache + thermal counters</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%9B%EF%B8%8F%22%2C%22label%22%3A%22%E5%8D%95%E5%8F%98%E9%87%8F%E5%AE%9E%E9%AA%8C%22%2C%22data%22%3A%22one%20change%20%E2%86%92%20effect%20size%22%2C%22action%22%3A%22%E5%8F%AA%E6%94%B9%E5%8F%98%E7%BA%BF%E7%A8%8B%E3%80%81%E9%87%8F%E5%8C%96%E3%80%81context%20%E6%88%96%20copy%20%E4%B8%AD%E7%9A%84%E4%B8%80%E9%A1%B9%22%2C%22insight%22%3A%22%E6%96%B9%E5%90%91%E7%AC%A6%E5%90%88%E9%A2%84%E6%B5%8B%E4%B8%94%E9%87%8D%E5%A4%8D%E5%87%BA%E7%8E%B0%EF%BC%8C%E5%81%87%E8%AE%BE%E6%89%8D%E8%8E%B7%E5%BE%97%E6%94%AF%E6%8C%81%22%7D"><span class="process-icon" aria-hidden="true">🎛️</span><strong>单变量实验</strong><span>one change → effect size</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9C%85%22%2C%22label%22%3A%22%E5%9B%9E%E5%BD%92%E9%AA%8C%E6%94%B6%22%2C%22data%22%3A%22quality%20%2B%20p50%2Fp95%20%2B%20energy%20%2B%20memory%22%2C%22action%22%3A%22%E5%9C%A8%E9%95%BF%E7%A8%B3%E8%BF%90%E8%A1%8C%E5%92%8C%E8%BE%B9%E7%95%8C%E8%BE%93%E5%85%A5%E4%B8%8B%E5%A4%8D%E6%B5%8B%22%2C%22insight%22%3A%22%E7%AB%AF%E5%88%B0%E7%AB%AF%E3%80%81%E8%B4%A8%E9%87%8F%E4%B8%8E%E8%83%BD%E6%95%88%E5%90%8C%E6%97%B6%E8%BF%87%E7%BA%BF%E6%89%8D%E6%98%AF%E4%BA%A7%E5%93%81%E4%BC%98%E5%8C%96%22%7D"><span class="process-icon" aria-hidden="true">✅</span><strong>回归验收</strong><span>quality + p50/p95 + energy + memory</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>冻结条件 · model/config/prompt/device/power manifest</h3><p data-process-action>校验版本与输入，完成 warm-up</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>没有实验契约，后续差异无法归因</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>若单变量结果不支持假设，就回到“提出假设”选择下一项计数器；若优化只转移瓶颈，就回到“阶段拆分”重新排序热点。最终把新基线写回 manifest，并保留原始样本供版本二分。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Request → preprocess → prefill → decode×N → postprocess
+  | wall time | p50/p95 | bytes moved | joules/token | thermal state</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>time_to_first_token = prefill_end - request_start
 tokens_per_second = generated_tokens / decode_seconds
 joules_per_token = energy_j / generated_tokens</code></pre></section>
@@ -34,6 +81,9 @@ joules_per_token = energy_j / generated_tokens</code></pre></section>
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
+  </noscript>
   <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
   <main class="wrap day-layout">
     <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="active" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
@@ -14,15 +18,58 @@
       <div class="eyebrow">DAY 05</div>
       <h1>算子</h1>
       <p class="hero-sub">从数学定义走到可执行 kernel</p>
-      <p class="reading-time">建议阅读：约 10 分钟</p>
+      <p class="reading-time">建议阅读：约 18 分钟</p>
       <section><h2>学习目标</h2><div class="callout">理解算子语义、内存布局、kernel 选择和算子融合之间的关系。</div></section>
-      <section><h2>本章关键词</h2><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Kernel</th><td>针对具体硬件实现一个算子的低层计算代码。</td><td>像同一外设 API 的芯片专用驱动。</td></tr><tr><th scope="row">Layout</th><td>张量维度在内存中的排列方式，如 NCHW 或 NHWC。</td><td>像结构体字段和对齐规则。</td></tr><tr><th scope="row">Fusion</th><td>将多个连续算子合并为一次执行。</td><td>像把多个小 DMA 事务合并以减少中断和搬运。</td></tr><tr><th scope="row">Tiling</th><td>把大计算分块以适配寄存器或 cache。</td><td>像用分块 buffer 处理长数据流。</td></tr></tbody></table></section>
+      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">Kernel</th><td>针对具体硬件实现一个算子的低层计算代码。</td><td>像同一外设 API 的芯片专用驱动。</td></tr><tr><th scope="row">Layout</th><td>张量维度在内存中的排列方式，如 NCHW 或 NHWC。</td><td>像结构体字段和对齐规则。</td></tr><tr><th scope="row">Fusion</th><td>将多个连续算子合并为一次执行。</td><td>像把多个小 DMA 事务合并以减少中断和搬运。</td></tr><tr><th scope="row">Tiling</th><td>把大计算分块以适配寄存器或 cache。</td><td>像用分块 buffer 处理长数据流。</td></tr></tbody></table></div></section>
       <section><h2>承上：回顾与定位</h2><p>上一章得到的是带量化约束的图与张量。本章将图中的数学算子落到实际 kernel，理解为什么“同样的 FLOPs”也可能有不同的端侧表现。</p></section>
-      <section><h2>嵌入式类比</h2><p>算子是协议栈里的单个命令，kernel 是针对某种芯片的驱动实现；同一个命令可以有不同硬件后端。</p></section>
-      <section><h2>本章讲解</h2><h3>承上：回顾与定位</h3><p>上一章得到的是带量化约束的图与张量。本章将图中的数学算子落到实际 kernel，理解为什么“同样的 FLOPs”也可能有不同的端侧表现。</p><h3>从 ESP32 系统心智模型进入</h3><p>算子定义数学语义，kernel 定义某个 CPU、GPU 或 NPU 怎样访问内存并计算语义。你需要同时理解 Conv/GEMM 的公式、NHWC/NCHW 的布局，以及 cache、SIMD、tile 和融合的执行代价。 处理时不要把 AI 概念与已有嵌入式经验割裂：先确定生产者、消费者、buffer 所有权和失败后的可观测性，再讨论数学或框架。这样可以把抽象问题落回熟悉的任务、队列、DMA、cache 和协议边界。实际设计时请为每个边界写下一句不变量，例如“输入必须是何种 dtype”“谁负责释放帧”“失败时是否允许复用上一次结果”。这些不变量日后会成为单元测试、断言和现场日志的共同依据。</p><h3>核心机制：沿着数据和控制路径推演</h3><p>runtime 读取图后选择 backend；backend 为支持的节点选 kernel；kernel 以 tile 读取输入和权重、累加结果，再写回输出。优化器可把 Conv、Bias、ReLU 融合，避免中间张量反复落到慢内存。 阅读实现时建议像排查一条外设数据链一样逐点画出“数据从哪里来、在哪个阶段改写、由谁持有、何时释放”。任何无法回答的节点，都是需要补日志、断言或测试向量的位置。特别要区分配置期、初始化期和稳态运行期：配置错误多在启动时暴露，生命周期错误常在长时间运行或异常路径才出现，二者不能靠同一种测试覆盖。</p><h3>资源、时序与硬件边界</h3><p>分析慢路径时先数 copy 与同步，再数 MAC。若 NPU 只接管少量子图，CPU/NPU 之间的 layout transform 和 buffer copy 可能比计算本身更贵。 对 ESP32 而言，正确性必须先于吞吐：确认 stack、heap、DMA 能力和 watchdog 影响后，再用测量决定是否缩减输入、复用 buffer、量化，或将重任务移到 Edge Host。把每个优化看成一次资源交换：减少内存可能增加计算，减少延迟可能增加功耗，转移到主机可能增加网络依赖。先写出产品不可突破的约束，再选择交换方向。</p><h3>工程化验证：把直觉变成证据</h3><p>为本章建立最小可复现实验：固定输入、版本和配置，记录中间张量或阶段时间，并人为构造一个边界样本。将 PC 结果、转换后结果和设备结果并排比较；若不一致，先检查数据契约和资源生命周期，再调整模型。验证记录应包含成功标准和失败信号：例如误差容差、最大峰值内存、允许的首响应时间，以及发生超限时该看哪一段日志。这样同一实验可以在模型、固件或 SDK 更新后重复执行。</p><h3>从流程图到实现检查单</h3><p>把本章流程图逐边翻译成检查单。每条边至少回答三件事：传递的数据格式是什么，哪一侧拥有该数据，发生超时或错误时下一状态是什么。对 ESP32 工程师而言，这与审查 ISR 到任务队列、DMA 到应用 buffer 的方式完全一致。只有把“正常路径”与“异常路径”同时写下，模型推理才会成为可维护组件，而不是一次性演示。</p><h3>本章收束：可迁移的设计习惯</h3><p>本章真正需要带走的不是某个命令，而是把模型视为受资源、接口和故障策略约束的软件组件。下一章会直接复用本章的输入输出契约与测量方法，因此请把实验中的 shape、dtype、版本、内存与延迟数据写入工程记录。复盘时应能回答：本章消除了上一章的哪项不确定性，又为下一章提供了哪份可验证的输入。这条叙事链能防止课程知识变成互不相干的工具清单。</p></section>
-      <section><h2>流程图</h2><pre class="diagram">Graph: Conv → BN → ReLU
+      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">算子的历史有两条交织路线：一条发明能表达任务的网络结构，另一条把这些数学结构变成可高效执行的 kernel。卷积网络从层级感受野走到端到端训练后，GPU 原语库把优化实现与框架分开，编译器又把融合、布局和调度自动化。现代 runtime 的职责正位于数学图与异构硬件之间。</p><div class="timeline"><article class="timeline-item">
+    <div class="timeline-year">1980</div>
+    <div class="timeline-content"><h3>Neocognitron 展示层级局部感受野与位移鲁棒性</h3><p>Fukushima 的 Neocognitron 以层级结构处理视觉模式，并追求位置变化下的识别。它不是今天以反向传播训练的 Conv kernel，却把局部连接、特征层级和空间复用带入了卷积网络谱系。</p><a href="https://pubmed.ncbi.nlm.nih.gov/7370364/" target="_blank" rel="noopener noreferrer">Neocognitron 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">1998</div>
+    <div class="timeline-content"><h3>LeNet 把卷积、下采样与梯度训练连成应用系统</h3><p>LeCun 等人的文档识别工作系统化展示了卷积网络及端到端梯度学习。算子不再是孤立公式，而是与输入几何、权重共享和任务后处理共同构成可运行流水线。</p><a href="https://bottou.org/papers/lecun-98h" target="_blank" rel="noopener noreferrer">LeNet 文档识别原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2014</div>
+    <div class="timeline-content"><h3>cuDNN 将深度学习原语做成可复用高性能库</h3><p>cuDNN 提供面向 GPU 的卷积等优化原语，使框架不必随每代并行硬件重写全部 kernel。论文把深度学习算子库类比 BLAS，并展示算法选择、内存使用与硬件优化可以隐藏在稳定接口之后。</p><a href="https://arxiv.org/abs/1410.0759" target="_blank" rel="noopener noreferrer">cuDNN 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2018</div>
+    <div class="timeline-content"><h3>TVM 把图融合与低层调度纳入统一编译搜索</h3><p>TVM 同时处理高层算子融合、硬件原语映射与内存延迟隐藏，并用成本模型搜索低层优化。kernel 选择从厂商手写库扩展到可针对 CPU、GPU、FPGA 和加速器生成的调度空间。</p><a href="https://www.usenix.org/conference/osdi18/presentation/chen" target="_blank" rel="noopener noreferrer">TVM OSDI 原始论文 ↗</a></div>
+  </article><article class="timeline-item">
+    <div class="timeline-year">2020s</div>
+    <div class="timeline-content"><h3>Execution Provider 让同一图按能力切给异构后端</h3><p>ONNX Runtime 以 Execution Provider 接入不同硬件实现，并把支持的节点或子图分配给相应后端。现代部署因此不只问“有没有 NPU”，还要检查领取了哪些节点、边界搬运多少数据以及哪些路径回退 CPU。</p><a href="https://onnxruntime.ai/docs/execution-providers/" target="_blank" rel="noopener noreferrer">ONNX Runtime Execution Providers 官方文档 ↗</a></div>
+  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>从结构发明到 kernel 库，再到图编译与异构分区，核心问题始终是保持算子语义的同时减少无效搬运。端侧优化应从具体 shape、layout、量化参数和支持矩阵出发；峰值 TOPS 只有在子图足够完整、数据已位于正确内存时才可能兑现。</div></section>
+      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>同一份菜谱如何落到一间拥挤的专业厨房</h3><p>算子像菜谱中的“切丁、翻炒、收汁”，只规定输入、动作和成品；kernel 是某位厨师在特定灶台上的具体手法。食材按取用顺序摆盘是 layout，把切丁和腌制合在同一案板上是 fusion，把一大锅拆成刚好放进炒锅的小份则是 tiling。菜谱没变，出餐速度可以相差数倍。</p></div><div class="analogy-illustration" aria-label="同一份菜谱如何落到一间拥挤的专业厨房"><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">📖</span>
+    <strong>标准菜谱</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>算子名称、属性、输入输出和数值语义</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">👨‍🍳</span>
+    <strong>厨师与灶台</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>针对 CPU、GPU、NPU 的不同 kernel 实现</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🥬</span>
+    <strong>备菜托盘</strong>
+    <span class="analogy-arrow" aria-hidden="true">→</span>
+    <span>NHWC/NCHW、连续性、对齐和 buffer 所在内存</span>
+  </div><div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">🍳</span>
+    <strong>分锅快炒</strong>
+    <span class="analogy-arrow" aria-hidden="true">↔</span>
+    <span>tiling 让工作集适配寄存器或 cache</span>
+  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>厨房类比不能表达并行线程、向量指令和浮点舍入，也容易让人误以为融合总是有利；真实 fusion 会受量化尺度、分支复用和 backend 支持限制，数值等价与性能收益都必须用目标硬件验证。</p></div></section>
+      <section><h2>本章讲解</h2><h3>算子契约包含属性、边界与数值约定</h3><p>Conv 不只是一条求和公式，还包括 stride、padding、dilation、groups、权重维度顺序和输出 shape 规则；Softmax 还必须指定归一化 axis 与稳定计算方式。两个 runtime 都声称支持同名算子，也可能只覆盖部分 dtype 或属性组合。模型接入时应从真实节点导出契约表，并用非对称 shape 与边界输入验证。</p><h3>同一 Conv 可以对应多种算法与 workspace 交换</h3><p>直接卷积、im2col+GEMM、Winograd 或硬件专用路径具有不同适用区间。im2col 便于复用成熟矩阵乘 kernel，却可能展开出大 buffer；Winograd 可减少部分乘法，但对尺寸、数值精度和变换开销敏感。backend 的算法选择必须连同实际 shape、可用 workspace 和量化模式测量，不能只比较理论 MAC。</p><h3>Layout 决定相邻数据是谁，也决定向量单元吃得顺不顺</h3><p>NCHW 与 NHWC 改变通道和空间维在内存中的邻接关系；即使维度名称一致，stride 不连续也可能触发隐式 copy。某个 kernel 偏好通道连续，另一个加速器却要求块化布局，边界转换便会整张读写激活。profile 时应把 transpose、reorder 和 memcpy 当作正式节点计时，而非归入无法解释的框架开销。</p><h3>Tiling 的目标是让重复使用发生在最快的存储层</h3><p>GEMM 将 M、N、K 分块后，把小块输入和权重装入寄存器或 cache，多次 MAC 后才写回；tile 过大会溢出工作集，过小又增加循环与边界开销。SIMD 还要求对齐，并为尾部元素处理 mask 或标量路径。在 ESP32 上应测试真实地址、对齐和 DMA 来源，因为桌面数组的理想连续性不会自动出现。</p><h3>融合与加速器分区要用“少落地几次”来验收</h3><p>Conv、Bias、ReLU 融合可让中间值留在寄存器或片上 SRAM，但若某输出还被旁路节点消费，或相邻算子的量化尺度不兼容，融合可能受限。NPU 子图两侧同样会产生同步、布局变化和 copy。验收报告应列出融合前后节点、分区边界、搬运字节与端到端时间，避免用单个 kernel 加速比替代系统收益。</p></section>
+      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="Conv–BN–ReLU 如何落成一次分块执行">
+    <div class="process-heading"><div><h3>Conv–BN–ReLU 如何落成一次分块执行</h3><p>动画从抽象图逐层下钻到内存：先核对算子契约，再选择融合与布局，最后让 tile 在片上缓冲区中循环装载、计算和写回。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BE%22%2C%22label%22%3A%22%E5%B1%95%E5%BC%80%E7%AE%97%E5%AD%90%E5%A5%91%E7%BA%A6%22%2C%22data%22%3A%22Conv(stride%2Cpad%2Cgroups)%20%E2%86%92%20BN%20%E2%86%92%20ReLU%22%2C%22action%22%3A%22%E5%B1%9E%E6%80%A7%E5%8D%A1%E9%99%84%E7%9D%80%E5%88%B0%E8%8A%82%E7%82%B9%EF%BC%8C%E8%BE%93%E5%85%A5%E8%BE%93%E5%87%BA%20shape%20%E5%90%8C%E6%AD%A5%E5%8F%98%E5%8C%96%22%2C%22insight%22%3A%22%E5%90%8C%E5%90%8D%E7%AE%97%E5%AD%90%E5%8F%AA%E6%9C%89%E5%B1%9E%E6%80%A7%E3%80%81axis%20%E4%B8%8E%20dtype%20%E9%83%BD%E5%8C%B9%E9%85%8D%E6%89%8D%E7%AE%97%E8%AF%AD%E4%B9%89%E5%85%BC%E5%AE%B9%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🧾</span><strong>展开算子契约</strong><span>Conv(stride,pad,groups) → BN → ReLU</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%AC%22%2C%22label%22%3A%22%E5%88%A4%E6%96%AD%E5%8F%AF%E8%9E%8D%E5%90%88%E5%8C%BA%22%2C%22data%22%3A%22Conv%20%2B%20folded%20BN%20%2B%20activation%22%2C%22action%22%3A%22%E5%8F%AF%E8%9E%8D%E5%90%88%E8%8A%82%E7%82%B9%E6%94%B6%E6%8B%A2%E4%B8%BA%E4%B8%80%E4%B8%AA%E5%BD%A9%E8%89%B2%E5%AD%90%E5%9B%BE%EF%BC%8C%E6%97%81%E8%B7%AF%E6%B6%88%E8%B4%B9%E8%80%85%E4%BF%9D%E7%95%99%E8%BE%B9%E7%95%8C%22%2C%22insight%22%3A%22%E8%9E%8D%E5%90%88%E4%BE%9D%E8%B5%96%E5%9B%BE%E7%BB%93%E6%9E%84%E3%80%81%E9%87%8F%E5%8C%96%E5%B0%BA%E5%BA%A6%E4%B8%8E%20backend%20%E8%83%BD%E5%8A%9B%22%7D"><span class="process-icon" aria-hidden="true">🧬</span><strong>判断可融合区</strong><span>Conv + folded BN + activation</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B1%22%2C%22label%22%3A%22%E9%80%89%E6%8B%A9%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%22%2C%22data%22%3A%22NCHW%20%E2%87%84%20NHWC%20%2F%20blocked%22%2C%22action%22%3A%22%E5%BC%A0%E9%87%8F%E5%B0%8F%E6%96%B9%E6%A0%BC%E9%87%8D%E6%96%B0%E6%8E%92%E5%88%97%EF%BC%8C%E5%B9%B6%E6%98%BE%E7%A4%BA%E4%B8%80%E6%AC%A1%E8%BD%AC%E6%8D%A2%E5%AD%97%E8%8A%82%E6%95%B0%22%2C%22insight%22%3A%22%E5%B8%83%E5%B1%80%E8%83%BD%E5%B8%AE%E5%8A%A9%20kernel%EF%BC%8C%E4%B9%9F%E5%8F%AF%E8%83%BD%E5%9C%A8%E8%BE%B9%E7%95%8C%E5%88%B6%E9%80%A0%E5%AE%8C%E6%95%B4%E5%BC%A0%E9%87%8F%20copy%22%7D"><span class="process-icon" aria-hidden="true">🧱</span><strong>选择内存布局</strong><span>NCHW ⇄ NHWC / blocked</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E8%A3%85%E8%BD%BD%E4%B8%80%E4%B8%AA%20tile%22%2C%22data%22%3A%22input%20tile%20%2B%20weight%20tile%20%E2%86%92%20local%20SRAM%2Fcache%22%2C%22action%22%3A%22%E4%B8%80%E5%B0%8F%E5%9D%97%E6%95%B0%E6%8D%AE%E4%BB%8E%E6%85%A2%E5%86%85%E5%AD%98%E6%BB%91%E5%85%A5%E7%89%87%E4%B8%8A%E5%B7%A5%E4%BD%9C%E5%8C%BA%22%2C%22insight%22%3A%22tile%20%E5%B0%BA%E5%AF%B8%E5%86%B3%E5%AE%9A%E5%A4%8D%E7%94%A8%E7%8E%87%E3%80%81cache%20%E5%91%BD%E4%B8%AD%E4%B8%8E%20workspace%20%E5%B3%B0%E5%80%BC%22%7D"><span class="process-icon" aria-hidden="true">📥</span><strong>装载一个 tile</strong><span>input tile + weight tile → local SRAM/cache</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22%E4%B9%98%E5%8A%A0%E5%B9%B6%E5%B0%B1%E5%9C%B0%E6%BF%80%E6%B4%BB%22%2C%22data%22%3A%22acc%20%2B%3D%20A%C3%97B%EF%BC%9Bacc%3Dmax(acc%2C0)%22%2C%22action%22%3A%22SIMD%20lanes%20%E5%B9%B6%E8%A1%8C%E9%97%AA%E5%8A%A8%EF%BC%8C%E7%B4%AF%E5%8A%A0%E5%90%8E%E7%9B%B4%E6%8E%A5%E7%BB%8F%E8%BF%87%E6%BF%80%E6%B4%BB%E9%97%A8%22%2C%22insight%22%3A%22%E4%B8%AD%E9%97%B4%E7%BB%93%E6%9E%9C%E4%B8%8D%E8%90%BD%E5%88%B0%E6%85%A2%E5%86%85%E5%AD%98%E6%98%AF%E8%9E%8D%E5%90%88%E7%9A%84%E4%B8%BB%E8%A6%81%E6%94%B6%E7%9B%8A%22%7D"><span class="process-icon" aria-hidden="true">⚙️</span><strong>乘加并就地激活</strong><span>acc += A×B；acc=max(acc,0)</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A4%22%2C%22label%22%3A%22%E5%86%99%E5%9B%9E%E4%B8%8E%20profile%22%2C%22data%22%3A%22output%20tile%EF%BC%9Bbytes%2Ftime%2Ffallback%22%2C%22action%22%3A%22%E7%BB%93%E6%9E%9C%E5%8F%AA%E5%86%99%E5%9B%9E%E4%B8%80%E6%AC%A1%EF%BC%8C%E8%AE%A1%E6%95%B0%E5%99%A8%E7%B4%AF%E5%8A%A0%E6%90%AC%E8%BF%90%E9%87%8F%E5%92%8C%E8%80%97%E6%97%B6%22%2C%22insight%22%3A%22%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%AF%81%E6%8D%AE%E5%BF%85%E9%A1%BB%E5%8C%85%E5%90%AB%20copy%E3%80%81%E5%90%8C%E6%AD%A5%E5%92%8C%E6%9C%AA%E6%8E%A5%E7%AE%A1%E8%8A%82%E7%82%B9%22%7D"><span class="process-icon" aria-hidden="true">📤</span><strong>写回与 profile</strong><span>output tile；bytes/time/fallback</span></button></li></ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>展开算子契约 · Conv(stride,pad,groups) → BN → ReLU</h3><p data-process-action>属性卡附着到节点，输入输出 shape 同步变化</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>同名算子只有属性、axis 与 dtype 都匹配才算语义兼容</p></div></div>
+    <p class="process-loop"><strong>循环 / 返回条件：</strong>tile 沿输出空间循环直到完成；切换 layout、tile 大小或 backend 时，动画重置计数器并并排保留上一轮的字节数、workspace 与延迟。</p>
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Graph: Conv → BN → ReLU
 Optimizer: Conv+BN+ReLU fusion
-Kernel: tile → load → MAC → store</pre></section>
+Kernel: tile → load → MAC → store</pre></details></section>
       <section><h2>代码或命令示例</h2><pre class="code"><code>for (m_tile : M)
   for (n_tile : N)
     acc = 0
@@ -37,6 +84,9 @@ Kernel: tile → load → MAC → store</pre></section>
     </article>
   </main>
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
+  <script src="content/enrichment-01-05.js"></script>
+  <script src="content/enrichment-06-10.js"></script>
+  <script src="content/enrichment-11-15.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

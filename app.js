@@ -277,10 +277,65 @@ days.forEach((day, index) => {
     nextPreview: profile.next,
     lesson: longFormLesson(day, profile),
   });
+
+  const enrichment = globalThis.chapterEnrichment?.[day.n];
+  if (enrichment) {
+    const {analogy, ...details} = enrichment;
+    Object.assign(day, details);
+    day.analogyDetail = analogy;
+  }
 });
+
+const escapeMarkup = value => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+
 function nav(n){return `<div class="nav">${n>1?`<a class="button secondary" href="day${String(n-1).padStart(2,'0')}.html">← Day ${n-1}</a>`:'<span></span>'}${n<15?`<a class="button" href="day${String(n+1).padStart(2,'0')}.html">Day ${n+1} →</a>`:'<a class="button" href="index.html">回到首页</a>'}</div>`}
+
+function historyMarkup(day) {
+  if (!day.history) return '';
+  const milestones = day.history.milestones.map(item => `<article class="timeline-item">
+    <div class="timeline-year">${escapeMarkup(item.year)}</div>
+    <div class="timeline-content"><h3>${escapeMarkup(item.title)}</h3><p>${escapeMarkup(item.body)}</p><a href="${escapeMarkup(item.source.url)}" target="_blank" rel="noopener noreferrer">${escapeMarkup(item.source.label)} ↗</a></div>
+  </article>`).join('');
+  return `<section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">${escapeMarkup(day.history.intro)}</p><div class="timeline">${milestones}</div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>${escapeMarkup(day.history.bridge)}</div></section>`;
+}
+
+function analogyMarkup(day) {
+  const analogy = day.analogyDetail;
+  if (!analogy) return `<section><h2>嵌入式类比</h2><p>${escapeMarkup(day.analogy)}</p></section>`;
+  const illustration = analogy.illustration.map((item, index) => `<div class="analogy-piece">
+    <span class="analogy-icon" aria-hidden="true">${escapeMarkup(item.icon)}</span>
+    <strong>${escapeMarkup(item.label)}</strong>
+    <span class="analogy-arrow" aria-hidden="true">${index === analogy.illustration.length - 1 ? '↔' : '→'}</span>
+    <span>${escapeMarkup(item.mapsTo)}</span>
+  </div>`).join('');
+  return `<section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>${escapeMarkup(analogy.title)}</h3><p>${escapeMarkup(analogy.story)}</p></div><div class="analogy-illustration" aria-label="${escapeMarkup(analogy.title)}">${illustration}</div><p class="analogy-boundary"><strong>类比的边界：</strong>${escapeMarkup(analogy.boundary)}</p></div></section>`;
+}
+
+function processVisualMarkup(day) {
+  if (!day.visual) return `<section><h2>流程图</h2><pre class="diagram">${escapeMarkup(day.diagram)}</pre></section>`;
+  const loopNote = typeof day.visual.loop === 'string' ? `<p class="process-loop"><strong>循环 / 返回条件：</strong>${escapeMarkup(day.visual.loop)}</p>` : '';
+  const steps = day.visual.steps.map((step, index) => {
+    const payload = encodeURIComponent(JSON.stringify(step));
+    return `<li class="process-step${index === 0 ? ' is-active' : ''}" data-index="${index}"><button type="button" class="process-node" data-process-select data-payload="${escapeMarkup(payload)}"${index === 0 ? ' aria-current="step"' : ''}><span class="process-icon" aria-hidden="true">${escapeMarkup(step.icon)}</span><strong>${escapeMarkup(step.label)}</strong><span>${escapeMarkup(step.data)}</span></button></li>`;
+  }).join('');
+  const first = day.visual.steps[0];
+  return `<section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="${day.visual.loop === false ? 'false' : 'true'}" role="region" aria-label="${escapeMarkup(day.visual.title)}">
+    <div class="process-heading"><div><h3>${escapeMarkup(day.visual.title)}</h3><p>${escapeMarkup(day.visual.description)}</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
+    <ol class="process-track" style="--step-count:${day.visual.steps.length}">${steps}</ol>
+    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / ${day.visual.steps.length}</span><h3 data-process-title>${escapeMarkup(first.label)} · ${escapeMarkup(first.data)}</h3><p data-process-action>${escapeMarkup(first.action)}</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>${escapeMarkup(first.insight)}</p></div></div>
+    ${loopNote}
+    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:${100 / day.visual.steps.length}%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
+    <p class="sr-only" aria-live="polite" data-process-status></p>
+  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">${escapeMarkup(day.diagram)}</pre></details></section>`;
+}
+
 function quizMarkup(day){
-  return `<section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate>${day.quiz.map((item,index)=>`<fieldset class="question-card" data-question="${index}"><legend>${index+1}. ${item.prompt}</legend>${item.options.map((option,optionIndex)=>`<label class="quiz-option"><input type="radio" name="question-${index}" value="${optionIndex}"> <span>${option}</span></label>`).join('')}<div class="answer-explanation" hidden></div></fieldset>`).join('')}<p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>`;
+  return `<section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate>${day.quiz.map((item,index)=>`<fieldset class="question-card" data-question="${index}"><legend>${index+1}. ${escapeMarkup(item.prompt)}</legend>${item.options.map((option,optionIndex)=>`<label class="quiz-option"><input type="radio" name="question-${index}" value="${optionIndex}"> <span>${escapeMarkup(option)}</span></label>`).join('')}<div class="answer-explanation" hidden></div></fieldset>`).join('')}<p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>`;
 }
 function gradeQuiz(quiz, answers){
   const correct=quiz.map((question,index)=>answers[index]===question.answer);
@@ -289,11 +344,14 @@ function gradeQuiz(quiz, answers){
 function renderDay(n){
   const d=days[n-1];
   document.title=`Day ${String(n).padStart(2,'0')} · ${d.t}`;
-  document.querySelector('#app').innerHTML=`<header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header><main class="wrap day-layout"><aside class="toc panel"><span class="eyebrow">学习导航</span>${days.map(x=>`<a class="${x.n===n?'active':''}" href="day${String(x.n).padStart(2,'0')}.html">Day ${String(x.n).padStart(2,'0')} · ${x.t}</a>`).join('')}</aside><article class="content"><div class="eyebrow">DAY ${String(n).padStart(2,'0')}</div><h1>${d.t}</h1><p class="hero-sub">${d.s}</p><section><h2>学习目标</h2><div class="callout">${d.goal}</div></section><section><h2>核心概念</h2><ul>${d.concept.map(x=>`<li>${x}</li>`).join('')}</ul></section><section><h2>嵌入式类比</h2><p>${d.analogy}</p></section><section><h2>本章讲解</h2>${d.lesson.map(item=>`<h3>${item.title}</h3><p>${item.body}</p>`).join('')}</section><section><h2>示意图 / 可视化</h2><div class="diagram">${d.diagram}</div></section><section><h2>代码或命令示例</h2><pre class="code"><code>${d.code}</code></pre></section><section><h2>动手实验</h2><div class="callout">${d.lab}</div></section><section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>${d.pitfall}</div></section>${quizMarkup(d)}<section><h2>延伸阅读</h2><ul class="reference-list">${d.references.map(ref=>`<li><a href="${ref[1]}" target="_blank" rel="noopener noreferrer">${ref[0]}（官方/原始资料）</a></li>`).join('')}</ul></section><section><h2>预习</h2><p>${d.next?`下一天：<a href="day${String(n+1).padStart(2,'0')}.html">Day ${n+1} · ${d.next}</a>`:'整理一页项目架构图，记录模型、内存、延迟、功耗和异常降级策略。'}</p></section>${nav(n)}</article></main><footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>`;
+  document.querySelector('#app').innerHTML=`<header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header><main class="wrap day-layout"><aside class="toc panel"><span class="eyebrow">学习导航</span>${days.map(x=>`<a class="${x.n===n?'active':''}" href="day${String(x.n).padStart(2,'0')}.html">Day ${String(x.n).padStart(2,'0')} · ${escapeMarkup(x.t)}</a>`).join('')}</aside><article class="content" data-day="${n}"><div class="eyebrow">DAY ${String(n).padStart(2,'0')}</div><h1>${escapeMarkup(d.t)}</h1><p class="hero-sub">${escapeMarkup(d.s)}</p><p class="reading-time">建议阅读：约 ${d.readingMinutes} 分钟</p><section><h2>学习目标</h2><div class="callout">${escapeMarkup(d.goal)}</div></section><section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody>${d.keywords.map(item=>`<tr><th scope="row">${escapeMarkup(item.term)}</th><td>${escapeMarkup(item.definition)}</td><td>${escapeMarkup(item.espAnalogy)}</td></tr>`).join('')}</tbody></table></div></section><section><h2>承上：回顾与定位</h2><p>${escapeMarkup(d.recap)}</p></section>${historyMarkup(d)}${analogyMarkup(d)}<section><h2>本章讲解</h2>${d.lesson.map(item=>`<h3>${escapeMarkup(item.title)}</h3><p>${escapeMarkup(item.body)}</p>`).join('')}</section>${processVisualMarkup(d)}<section><h2>代码或命令示例</h2><pre class="code"><code>${escapeMarkup(d.code)}</code></pre></section><section><h2>动手实验</h2><div class="callout">${escapeMarkup(d.lab)}</div></section><section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>${escapeMarkup(d.pitfall)}</div></section>${quizMarkup(d)}<section><h2>延伸阅读</h2><ul class="reference-list">${d.references.map(ref=>`<li><a href="${escapeMarkup(ref[1])}" target="_blank" rel="noopener noreferrer">${escapeMarkup(ref[0])}（官方/原始资料）</a></li>`).join('')}</ul></section><section><h2>启下：下一章如何使用本章能力</h2><p>${escapeMarkup(d.nextPreview)}</p>${d.next?`<p>下一天：<a href="day${String(n+1).padStart(2,'0')}.html">Day ${n+1} · ${escapeMarkup(d.next)}</a></p>`:''}</section>${nav(n)}</article></main><footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>`;
   bindQuiz(d);
+  bindProcessVisuals();
+  revealActiveNavigation();
 }
 function bindQuiz(day){
   const form=document.querySelector('#quiz-form');
+  if(!form) return;
   const feedback=document.querySelector('#quiz-feedback');
   const retry=document.querySelector('#retry-quiz');
   form.addEventListener('submit', event=>{
@@ -314,7 +372,7 @@ function bindQuiz(day){
       card.classList.toggle('is-incorrect',!correct);
       const answer=card.querySelector('.answer-explanation');
       answer.hidden=false;
-      answer.innerHTML=`<strong>${correct?'回答正确。':'回答错误。'} 正确答案：${question.options[question.answer]}</strong><p>${question.explanation}</p>`;
+      answer.innerHTML=`<strong>${correct?'回答正确。':'回答错误。'} 正确答案：${escapeMarkup(question.options[question.answer])}</strong><p>${escapeMarkup(question.explanation)}</p>`;
     });
     feedback.textContent=`本章得分：${result.score} / ${day.quiz.length}。请阅读每题解析，再决定是否重做。`;
     form.querySelector('button[type="submit"]').hidden=true;
@@ -333,10 +391,129 @@ function bindQuiz(day){
     retry.hidden=true;
   });
 }
-function renderHome(){document.title='端侧 AI · 15 天工程路线';document.querySelector('#app').innerHTML=`<header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><span>离线静态学习网站</span></header><main class="wrap"><section class="hero"><div class="eyebrow">EMBEDDED AI FIELD GUIDE</div><h1>从神经网络到可交付的端侧 AI 系统</h1><p>为熟悉 ESP32、USB、网络协议栈的嵌入式工程师设计。每天一个主题，沿着“模型 → 表示 → Runtime → Kernel → 内存/带宽 → 硬件 → 产品”逐层收束。</p><a class="button" href="day01.html">从 Day 1 开始 →</a></section><section class="grid">${days.map(d=>`<a class="card" href="day${String(d.n).padStart(2,'0')}.html"><span class="tag">DAY ${String(d.n).padStart(2,'0')}</span><h3>${d.t}</h3><p>${d.s}</p></a>`).join('')}</section></main><footer><div class="wrap">15 天 · 15 个独立页面 · 无外部依赖 · 双击即可打开</div></footer>`}
+
+function bindProcessVisuals(){
+  document.querySelectorAll('[data-process-visual]').forEach(root=>{
+    const steps=[...root.querySelectorAll('.process-step')];
+    if(!steps.length || root.dataset.bound === 'true') return;
+    root.dataset.bound='true';
+    const payloads=steps.map(step=>JSON.parse(decodeURIComponent(step.querySelector('[data-payload]').dataset.payload)));
+    const counter=root.querySelector('[data-process-counter]');
+    const title=root.querySelector('[data-process-title]');
+    const action=root.querySelector('[data-process-action]');
+    const insight=root.querySelector('[data-process-insight]');
+    const progress=root.querySelector('[data-process-progress]');
+    const status=root.querySelector('[data-process-status]');
+    const toggle=root.querySelector('[data-process-toggle]');
+    const loop=root.dataset.loop!=='false';
+    const motionQuery=typeof matchMedia==='function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    let reduceMotion=motionQuery?.matches ?? false;
+    let index=0;
+    let timer=null;
+    let inView=typeof IntersectionObserver!=='function';
+    let autoPlaying=!reduceMotion;
+
+    const updateToggle=()=>{
+      if(reduceMotion){
+        toggle.textContent='系统已减少动态效果';
+        toggle.disabled=true;
+        return;
+      }
+      toggle.disabled=false;
+      const finished=!loop && index===steps.length-1;
+      toggle.textContent=autoPlaying?'暂停自动播放':finished?'从头播放':'继续自动播放';
+    };
+    const render=(nextIndex,announce=false)=>{
+      index=(nextIndex+steps.length)%steps.length;
+      steps.forEach((step,stepIndex)=>{
+        step.classList.toggle('is-active',stepIndex===index);
+        step.classList.toggle('is-complete',stepIndex<index);
+        const button=step.querySelector('[data-process-select]');
+        if(stepIndex===index) button.setAttribute('aria-current','step');
+        else button.removeAttribute('aria-current');
+      });
+      const payload=payloads[index];
+      counter.textContent=`步骤 ${index+1} / ${steps.length}`;
+      title.textContent=`${payload.label} · ${payload.data}`;
+      action.textContent=payload.action;
+      insight.textContent=payload.insight;
+      progress.style.width=`${((index+1)/steps.length)*100}%`;
+      if(announce) status.textContent=`已切换到步骤 ${index+1}：${payload.label}。${payload.action}`;
+      updateToggle();
+    };
+    const clearTimer=()=>{
+      if(timer!==null) window.clearInterval(timer);
+      timer=null;
+    };
+    const schedule=()=>{
+      clearTimer();
+      if(!autoPlaying || !inView) return;
+      timer=window.setInterval(()=>{
+        if(!loop && index===steps.length-1){
+          autoPlaying=false;
+          clearTimer();
+          updateToggle();
+          return;
+        }
+        render(index+1);
+      },3200);
+    };
+    const pauseForInspection=nextIndex=>{
+      autoPlaying=false;
+      clearTimer();
+      render(nextIndex,true);
+    };
+
+    steps.forEach((step,stepIndex)=>step.querySelector('[data-process-select]').addEventListener('click',()=>pauseForInspection(stepIndex)));
+    root.querySelector('[data-process-prev]').addEventListener('click',()=>pauseForInspection(index-1));
+    root.querySelector('[data-process-next]').addEventListener('click',()=>pauseForInspection(index+1));
+    toggle.addEventListener('click',()=>{
+      if(!autoPlaying && !loop && index===steps.length-1) render(0);
+      autoPlaying=!autoPlaying;
+      updateToggle();
+      schedule();
+    });
+
+    if(typeof IntersectionObserver==='function'){
+      const observer=new IntersectionObserver(entries=>{
+        inView=entries[0].isIntersecting;
+        schedule();
+      },{threshold:.2});
+      observer.observe(root);
+    }
+    const handleMotionPreference=event=>{
+      reduceMotion=event.matches;
+      if(reduceMotion){
+        autoPlaying=false;
+        clearTimer();
+      }
+      updateToggle();
+    };
+    if(motionQuery){
+      if(typeof motionQuery.addEventListener==='function') motionQuery.addEventListener('change',handleMotionPreference);
+      else if(typeof motionQuery.addListener==='function') motionQuery.addListener(handleMotionPreference);
+    }
+    const staticDiagram=root.nextElementSibling;
+    if(staticDiagram?.classList.contains('static-diagram')) staticDiagram.open=false;
+    render(0);
+    schedule();
+  });
+}
+
+function revealActiveNavigation(){
+  const navigation=document.querySelector('.toc');
+  const active=navigation?.querySelector('.active');
+  if(!active || navigation.scrollWidth<=navigation.clientWidth) return;
+  navigation.scrollLeft=Math.max(0,active.offsetLeft-(navigation.clientWidth-active.offsetWidth)/2);
+}
+
+function homeMarkup(){return `<header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><span>离线静态学习网站</span></header><main class="wrap"><section class="hero"><div class="eyebrow">EMBEDDED AI FIELD GUIDE</div><h1>从神经网络到可交付的端侧 AI 系统</h1><p>为熟悉 ESP32、USB、网络协议栈的嵌入式工程师设计。每天一个主题，沿着“模型 → 表示 → Runtime → Kernel → 内存/带宽 → 硬件 → 产品”逐层收束；每章用历史时间轴说明来路，用类比图解建立直觉，再让数据在可交互动画里真正跑一遍。</p><a class="button" href="day01.html">从 Day 1 开始 →</a></section><section class="grid">${days.map(d=>`<a class="card" href="day${String(d.n).padStart(2,'0')}.html"><span class="tag">DAY ${String(d.n).padStart(2,'0')}</span><h3>${escapeMarkup(d.t)}</h3><p>${escapeMarkup(d.s)}</p><span class="card-meta">约 ${d.readingMinutes} 分钟 · 历史 + 图解 + 动画</span></a>`).join('')}</section></main><footer><div class="wrap">15 天 · 15 个独立页面 · 无外部依赖 · 双击即可打开</div></footer>`}
+function renderHome(){document.title='端侧 AI · 15 天工程路线';document.querySelector('#app').innerHTML=homeMarkup()}
 const match=location.pathname.match(/day(\d{2})\.html$/i);
 if(match&&document.querySelector('#quiz-form')){
   bindQuiz(days[Number(match[1])-1]);
+  bindProcessVisuals();
+  revealActiveNavigation();
 }else if(match){
   renderDay(Number(match[1]));
 }else{
