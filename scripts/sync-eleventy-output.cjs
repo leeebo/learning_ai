@@ -3,7 +3,8 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const output = path.join(root, "_site");
-const dayFiles = Array.from({ length: 15 }, (_, index) => `day${String(index + 1).padStart(2, "0")}.html`);
+const { totalDays } = require("../src/_data/courseMeta.cjs");
+const dayFiles = Array.from({ length: totalDays }, (_, index) => `day${String(index + 1).padStart(2, "0")}.html`);
 const generatedFiles = [
   "index.html",
   "app.js",

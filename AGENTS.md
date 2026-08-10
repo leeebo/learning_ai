@@ -1,13 +1,16 @@
 # Repository maintenance guide
 
-This file applies to the whole repository. The site is a bilingual Eleventy 3 project that publishes a 15-day edge-AI course to GitHub Project Pages at `/learning_ai/`.
+This file applies to the whole repository. The site is a bilingual Eleventy 3 project that publishes a 17-day edge-AI course to GitHub Project Pages at `/learning_ai/`.
 
 ## Source of truth
 
 - Edit course content under `src/_data/course/`:
-  - `zh-CN.json` contains all Chinese chapters.
+  - `zh-CN.json` contains Chinese Day 1–15; `zh-16-17.cjs` contains Chinese Day 16–17.
   - `en-01-07.cjs` and `en-08-15.cjs` contain the English chapters and export arrays.
+  - `en-16-17.cjs` contains English Day 16–17.
+- Edit chapter count, ordered chapter numbers, and volatile-technology verification date in `src/_data/courseMeta.cjs`; loaders, synchronization, and tests must consume it instead of scattering numeric totals.
 - Edit shared UI copy in `src/_data/i18n.cjs`.
+- Edit localized per-chapter perfect-quiz rewards in `src/_data/courseRewards.cjs`; every chapter keeps three unique variants in each locale.
 - Edit page structure in `src/_includes/` and locale entry templates in `src/zh-CN/` and `src/en/`.
 - Edit browser behavior and styling in `src/assets/app.js` and `src/assets/styles.css`.
 - Treat root `index.html`, `dayNN.html`, `en/`, `app.js`, and `styles.css` as generated deployment artifacts. Never edit them directly.
@@ -31,19 +34,20 @@ npm run check
 
 - `zh-CN` is the default locale. Its public URLs stay at `/index.html` and `/dayNN.html` for backward compatibility.
 - English public URLs live at `/en/index.html` and `/en/dayNN.html`.
-- Keep the paired source templates under `src/zh-CN/` and `src/en/`; Eleventy's bundled `I18nPlugin` matches equivalent pages by their locale directories and identical entry filenames (`day01.njk` through `day15.njk`).
+- Keep the paired source templates under `src/zh-CN/` and `src/en/`; Eleventy's bundled `I18nPlugin` matches equivalent pages by their locale directories and identical entry filenames (`day01.njk` through `day17.njk`).
 - The repository is deployed below `/learning_ai/`. Route every internal URL through the configured Eleventy URL filters; do not hard-code domain-root `/en/...` links.
 - Every page must keep a normal anchor-based same-page language switch, the correct `<html lang>`, an absolute canonical URL, and reciprocal `hreflang` links including `x-default`.
 - Do not auto-redirect from browser language. Users and crawlers must be able to choose stable, cacheable URLs.
 
 ## Translation parity
 
-- Both locales must contain exactly Day 1 through Day 15 with the same top-level schema.
+- Both locales must contain exactly Day 1 through Day 17 with the same top-level schema for each chapter generation; Day 16–17 add the optional `infra` structure and dual-track history in both languages.
 - Preserve chapter numbers, reading-time bounds, array lengths, history source URLs, icons, reference URLs, and quiz answer indexes across translations.
 - Translate every user-facing string, including diagram labels, code comments, source labels, quiz explanations, animation steps, analogy boundaries, and next-chapter text.
 - Do not shorten translated lessons. Each chapter must retain its historical development, engineering analogy, process visualization, lab, pitfall, references, and three-question quiz.
 - When changing quiz options, verify that `answer` still points to the intended option in both locales.
 - Historical links should remain HTTPS links to official documentation or primary sources whenever possible.
+- Fast-moving framework, runtime, and hardware claims must include the shared `verifiedOn` date. Use papers, official documentation, or project repositories; do not present vendor benchmark numbers as workload-independent rankings.
 
 ## Templates, interaction, and accessibility
 
@@ -58,16 +62,16 @@ npm run check
 ## Adding another locale
 
 1. Add a complete course data module and UI dictionary entry.
-2. Add a locale directory with `index.njk`, `day01.njk` through `day15.njk`, and directory data matching the existing English structure.
+2. Add a locale directory with `index.njk`, `day01.njk` through `day17.njk`, and directory data matching the existing English structure.
 3. Extend the sync manifest so every generated locale file is deployed.
 4. Extend canonical, alternate-link, and language-switch coverage; update the sitemap too if one is added.
 5. Add parity and generated-page assertions to the test suite.
-6. Build and visually inspect at least one desktop page, one narrow mobile page, Day 1, and Day 15 in the new locale.
+6. Build and visually inspect at least one desktop page, one narrow mobile page, Day 1, Day 16, and Day 17 in the new locale.
 
 ## Definition of done
 
 - `npm run check` passes from a clean install.
 - Generated root files match `_site/` byte-for-byte.
-- Both locales contain 15 working chapter pages with no broken in-locale navigation.
+- Both locales contain 17 working chapter pages with no broken in-locale navigation.
 - Quiz grading, process controls, reduced-motion behavior, no-JavaScript reading, canonical links, and language switches are verified in the generated pages.
 - `git diff --check` reports no whitespace errors, and unrelated user changes remain untouched.

@@ -1618,7 +1618,7 @@ module.exports = [
       }
     ],
     "recap": "The previous chapter selected a framework and backend. This chapter builds an evidence chain for that choice, turning “it feels slow” into measurable request stages, resource counters, and power rather than one tokens/s number.",
-    "nextPreview": "The final chapter combines the model, runtime, device I/O, permissions, OTA, and acceptance criteria into a deployable edge-AI system.",
+    "nextPreview": "The next chapter first combines the model, runtime, device I/O, permissions, OTA, and acceptance criteria into a deployable edge system—a phase integration before large-scale and on-device LLM infrastructure.",
     "history": {
       "intro": "Performance analysis predates machine learning. It progressed from the insight that serial work limits local acceleration, to recognizing that compute and bandwidth jointly cap performance, and then to tail latency and standardized benchmarks for online systems. LLMs add phase-specific measures such as prefill, decode, streaming response, and energy per token. History repeatedly shows that a lone number without a workload, measurement conditions, and decomposition offers almost no engineering guidance.",
       "milestones": [
@@ -1768,7 +1768,7 @@ module.exports = [
       "How should the system fall back to deterministic logic when the model is unavailable?",
       "How can a performance regression be made reproducible?"
     ],
-    "next": null,
+    "next": "Large-Scale LLM Infrastructure: From Chips to Clusters",
     "lesson": [
       {
         "title": "Work backward from acceptance criteria to system boundaries",
@@ -1865,7 +1865,7 @@ module.exports = [
       }
     ],
     "recap": "The previous chapter produced reproducible performance evidence. This chapter combines 14 days of knowledge about models, formats, resources, runtimes, and hardware into a system design and validates its behavior under real-world fault paths.",
-    "nextPreview": "This concludes the course. For every future iteration, walk the path again from concrete product constraints: define safety and acceptance first, then choose the model and hardware instead of working backward from a fashionable model.",
+    "nextPreview": "The next chapter expands this single-system delivery ledger into large-scale LLM training and serving, tracing cost through chips, memory, interconnects, parallel strategies, the KV data plane, and SLOs.",
     "history": {
       "intro": "Edge-AI integration may look new, but its core comes from decades of distributed- and embedded-systems practice: correctness belongs at the endpoints that understand semantics, heavy computation can be offloaded to nearby resources, microcontrollers need specialized memory and runtime design, and AI risk spans the entire lifecycle. Only by combining these threads can we build a reliable architecture in which the ESP32 guards the physical boundary and an Edge Host supplies inference.",
       "milestones": [

@@ -18,11 +18,11 @@
 
     <section>
       <h2>{{ copy.keywords }}</h2>
-      <div class="table-scroll">
+      <div class="table-scroll responsive-cards">
         <table class="keyword-table">
           <thead><tr><th>{{ copy.keyword }}</th><th>{{ copy.explanation }}</th><th>{{ copy.espAnalogy }}</th></tr></thead>
           <tbody>
-            {% for item in day.keywords %}<tr><th scope="row">{{ item.term }}</th><td>{{ item.definition }}</td><td>{{ item.espAnalogy }}</td></tr>{% endfor %}
+            {% for item in day.keywords %}<tr><th scope="row" data-label="{{ copy.keyword }}">{{ item.term }}</th><td data-label="{{ copy.explanation }}">{{ item.definition }}</td><td data-label="{{ copy.espAnalogy }}">{{ item.espAnalogy }}</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
@@ -34,14 +34,32 @@
       <section class="history-section" id="history">
         <div class="section-heading"><span class="section-kicker">{{ copy.historyKicker }}</span><h2>{{ copy.historyTitle }}</h2></div>
         <p class="section-lead">{{ day.history.intro }}</p>
-        <div class="timeline">
-          {% for item in day.history.milestones %}
-            <article class="timeline-item">
-              <div class="timeline-year">{{ item.year }}</div>
-              <div class="timeline-content"><h3>{{ item.title }}</h3><p>{{ item.body }}</p><a href="{{ item.source.url }}" target="_blank" rel="noopener noreferrer">{{ item.source.label }} ↗</a></div>
-            </article>
-          {% endfor %}
-        </div>
+        {% if day.history.tracks %}
+          <div class="history-tracks">
+            {% for track in day.history.tracks %}
+              <section class="history-track" aria-labelledby="history-track-{{ day.n }}-{{ loop.index }}">
+                <h3 id="history-track-{{ day.n }}-{{ loop.index }}">{{ track.title }}</h3>
+                <div class="timeline">
+                  {% for item in track.milestones %}
+                    <article class="timeline-item">
+                      <div class="timeline-year">{{ item.year }}</div>
+                      <div class="timeline-content"><h4>{{ item.title }}</h4><p>{{ item.body }}</p><a href="{{ item.source.url }}" target="_blank" rel="noopener noreferrer">{{ item.source.label }} ↗</a></div>
+                    </article>
+                  {% endfor %}
+                </div>
+              </section>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="timeline">
+            {% for item in day.history.milestones %}
+              <article class="timeline-item">
+                <div class="timeline-year">{{ item.year }}</div>
+                <div class="timeline-content"><h3>{{ item.title }}</h3><p>{{ item.body }}</p><a href="{{ item.source.url }}" target="_blank" rel="noopener noreferrer">{{ item.source.label }} ↗</a></div>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
         <div class="history-bridge"><strong>{{ copy.historyBridge }}</strong> {{ day.history.bridge }}</div>
       </section>
     {% endif %}
@@ -72,6 +90,40 @@
       <h2>{{ copy.lessonTitle }}</h2>
       {% for item in day.lesson %}<h3>{{ item.title }}</h3><p>{{ item.body }}</p>{% endfor %}
     </section>
+
+    {% if day.infra %}
+      <section class="infra-section" id="infra">
+        <div class="section-heading"><span class="section-kicker">{{ copy.infraKicker }}</span><h2>{{ copy.infraTitle }}</h2></div>
+        <p class="verification-date"><strong>{{ copy.verifiedOn }}</strong> <time datetime="{{ day.infra.verifiedOn }}">{{ day.infra.verifiedOn }}</time></p>
+        <p class="section-lead">{{ day.infra.intro }}</p>
+        <div class="infra-layers">
+          {% for layer in day.infra.layers %}
+            <section class="infra-layer" aria-labelledby="infra-layer-{{ day.n }}-{{ loop.index }}">
+              <h3 id="infra-layer-{{ day.n }}-{{ loop.index }}">{{ layer.layer }}</h3>
+              <ul class="project-grid">
+                {% for project in layer.projects %}
+                  <li class="project-card">
+                    <h4><a href="{{ project.url }}" target="_blank" rel="noopener noreferrer">{{ project.name }} ↗</a></h4>
+                    <dl>
+                      <div><dt>{{ copy.projectProblem }}</dt><dd>{{ project.problem }}</dd></div>
+                      <div><dt>{{ copy.projectMechanism }}</dt><dd>{{ project.mechanism }}</dd></div>
+                      <div><dt>{{ copy.projectBoundary }}</dt><dd>{{ project.boundary }}</dd></div>
+                    </dl>
+                  </li>
+                {% endfor %}
+              </ul>
+            </section>
+          {% endfor %}
+        </div>
+        <h3>{{ copy.infraMatrixTitle }}</h3>
+        <div class="table-scroll responsive-cards">
+          <table class="infra-matrix">
+            <thead><tr><th>{{ copy.matrixSource }}</th><th>{{ copy.matrixLesson }}</th><th>{{ copy.matrixBoundary }}</th></tr></thead>
+            <tbody>{% for item in day.infra.matrix %}<tr><th scope="row" data-label="{{ copy.matrixSource }}">{{ item.source }}</th><td data-label="{{ copy.matrixLesson }}">{{ item.lesson }}</td><td data-label="{{ copy.matrixBoundary }}">{{ item.boundary }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
 
     {% if day.visual %}
       <section class="visual-section" id="process">
@@ -126,6 +178,10 @@
           </fieldset>
         {% endfor %}
         <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <div class="chapter-reward" data-chapter-reward data-reward-payload="{{ courseRewards[lang][day.n - 1] | encodePayload }}" role="status" aria-live="polite" tabindex="-1" hidden>
+          <span class="reward-burst" data-reward-icon aria-hidden="true"></span>
+          <div><span class="reward-kicker">{{ copy.rewardKicker }}</span><h3 data-reward-title></h3><p data-reward-message></p></div>
+        </div>
         <button class="button" type="submit">{{ copy.submitQuiz }}</button>
         <button class="button secondary retry-quiz" type="button" hidden>{{ copy.retryQuiz }}</button>
       </form>
