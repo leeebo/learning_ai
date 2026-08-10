@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 06 · Training and Deploying Non-LLM Edge Models</title>
+  <meta name="description" content="Put vision, audio, and sensor models onto a real device — Complete the loop from data, training, export, and quantization to deployment and validation, with an emphasis on small models commonly used on MCUs.">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/en/day06.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day06.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day06.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day06.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
+</head>
+<body data-ui="%7B%22siteTitle%22%3A%22Edge%20AI%20%C2%B7%20A%2015-Day%20Engineering%20Path%22%2C%22siteDescription%22%3A%22A%20bilingual%20edge%20AI%20course%20for%20embedded%20engineers%2C%20from%20neural%20networks%20and%20deployment%20to%20complete%20system%20validation.%22%2C%22offlineLabel%22%3A%22Offline-first%20static%20course%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22From%20Neural%20Networks%20to%20a%20Shippable%20Edge%20AI%20System%22%2C%22heroBody%22%3A%22Built%20for%20engineers%20who%20already%20know%20ESP32%2C%20USB%2C%20and%20networking%20stacks.%20Each%20day%20follows%20one%20layer%20of%20the%20path%E2%80%94model%20%E2%86%92%20representation%20%E2%86%92%20runtime%20%E2%86%92%20kernel%20%E2%86%92%20memory%20and%20bandwidth%20%E2%86%92%20hardware%20%E2%86%92%20product%E2%80%94then%20connects%20its%20history%2C%20an%20illustrated%20analogy%2C%20and%20an%20interactive%20data-flow%20walkthrough.%22%2C%22startCourse%22%3A%22Start%20with%20Day%201%20%E2%86%92%22%2C%22cardMeta%22%3A%22history%20%2B%20visual%20analogy%20%2B%20animation%22%2C%22minutes%22%3A%22min%22%2C%22languageSwitch%22%3A%22%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20Simplified%20Chinese%22%2C%22home%22%3A%22Course%20home%22%2C%22learningNav%22%3A%22COURSE%20NAVIGATION%22%2C%22suggestedReading%22%3A%22Suggested%20reading%3A%20about%22%2C%22learningGoal%22%3A%22Learning%20goal%22%2C%22keywords%22%3A%22Chapter%20keywords%22%2C%22keyword%22%3A%22Keyword%22%2C%22explanation%22%3A%22Explanation%22%2C%22espAnalogy%22%3A%22ESP32%20engineering%20analogy%22%2C%22recap%22%3A%22Bridge%20from%20the%20previous%20chapter%22%2C%22historyKicker%22%3A%22HOW%20WE%20GOT%20HERE%22%2C%22historyTitle%22%3A%22Historical%20development%22%2C%22historyBridge%22%3A%22Why%20it%20still%20matters%20today%3A%22%2C%22analogyKicker%22%3A%22BUILD%20INTUITION%20FROM%20A%20FAMILIAR%20SYSTEM%22%2C%22analogyTitle%22%3A%22Illustrated%20analogy%22%2C%22analogyFallback%22%3A%22Embedded-systems%20analogy%22%2C%22analogyBoundary%22%3A%22Where%20the%20analogy%20stops%3A%22%2C%22lessonTitle%22%3A%22Chapter%20walkthrough%22%2C%22processKicker%22%3A%22WATCH%20THE%20DATA%20MOVE%22%2C%22processTitle%22%3A%22Interactive%20process%22%2C%22pausePlayback%22%3A%22Pause%20autoplay%22%2C%22reducedMotion%22%3A%22Reduced%20motion%20is%20enabled%22%2C%22restartPlayback%22%3A%22Play%20from%20the%20start%22%2C%22resumePlayback%22%3A%22Resume%20autoplay%22%2C%22step%22%3A%22Step%22%2C%22observation%22%3A%22Watch%20for%22%2C%22loopCondition%22%3A%22Loop%20%2F%20return%20condition%3A%22%2C%22previousStep%22%3A%22%E2%86%90%20Previous%22%2C%22nextStep%22%3A%22Next%20%E2%86%92%22%2C%22switchedStep%22%3A%22Switched%20to%20step%22%2C%22staticOverview%22%3A%22View%20the%20complete%20static%20diagram%22%2C%22flowchart%22%3A%22Process%20diagram%22%2C%22codeExample%22%3A%22Code%20or%20command%20example%22%2C%22lab%22%3A%22Hands-on%20lab%22%2C%22pitfall%22%3A%22Engineering%20pitfall%22%2C%22avoidMisread%22%3A%22Avoid%20this%20mistake%3A%22%2C%22quizTitle%22%3A%22Knowledge%20check%22%2C%22quizIntro%22%3A%22Answer%20all%20three%20multiple-choice%20questions%2C%20then%20submit.%20Answers%20stay%20hidden%20until%20submission.%22%2C%22submitQuiz%22%3A%22Submit%20this%20quiz%22%2C%22retryQuiz%22%3A%22Try%20again%22%2C%22completeQuestion%22%3A%22Please%20answer%20question%22%2C%22questionSuffix%22%3A%22.%22%2C%22correct%22%3A%22Correct.%22%2C%22incorrect%22%3A%22Not%20quite.%22%2C%22correctAnswer%22%3A%22Correct%20answer%3A%22%2C%22quizScore%22%3A%22Chapter%20score%3A%22%2C%22quizAdvice%22%3A%22Read%20each%20explanation%20before%20deciding%20whether%20to%20retry.%22%2C%22references%22%3A%22Further%20reading%22%2C%22sourceSuffix%22%3A%22%20(official%20or%20primary%20source)%22%2C%22nextPreview%22%3A%22Bridge%20to%20the%20next%20chapter%22%2C%22nextDay%22%3A%22Next%3A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22Back%20to%20course%20home%22%2C%22footer%22%3A%22Offline-ready%20%C2%B7%20For%20engineers%20familiar%20with%20ESP32%2C%20USB%2C%20and%20networking%20stacks%22%2C%22homeFooter%22%3A%2215%20days%20%C2%B7%2015%20standalone%20pages%20%C2%B7%20Chinese%20and%20English%20%C2%B7%20zero%20runtime%20dependencies%22%2C%22noscriptHome%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20chapter%20directory%20still%20works%2C%20and%20every%20chapter%20includes%20an%20expanded%20process%20diagram.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptDay%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20history%2C%20analogy%2C%20lesson%2C%20and%20expanded%20process%20overview%20remain%20readable.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%7D">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">You are in static reading mode. The history, analogy, lesson, and expanded process overview remain readable. Enable JavaScript for animation and quiz scoring.</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">Edge AI · A 15-Day Engineering Path</div>
+    <div class="top-actions">
+      <a href="/learning_ai/en/">Course home</a>
+
+        <a class="language-switch" href="/learning_ai/day06.html" lang="zh-CN" hreflang="zh-CN" aria-label="Switch to Simplified Chinese">简体中文</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="COURSE NAVIGATION">
+    <span class="eyebrow">COURSE NAVIGATION</span>
+
+      <a class=""  href="/learning_ai/en/day01.html">Day 01 · Neural Network Fundamentals</a>
+
+      <a class=""  href="/learning_ai/en/day02.html">Day 02 · Training and Inference</a>
+
+      <a class=""  href="/learning_ai/en/day03.html">Day 03 · Model Formats</a>
+
+      <a class=""  href="/learning_ai/en/day04.html">Day 04 · Quantization</a>
+
+      <a class=""  href="/learning_ai/en/day05.html">Day 05 · Operators</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/en/day06.html">Day 06 · Training and Deploying Non-LLM Edge Models</a>
+
+      <a class=""  href="/learning_ai/en/day07.html">Day 07 · Memory, Bandwidth, MCU, and NPU</a>
+
+      <a class=""  href="/learning_ai/en/day08.html">Day 08 · On-Device Vision Models</a>
+
+      <a class=""  href="/learning_ai/en/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/en/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/en/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/en/day12.html">Day 12 · LLM Quantization and GGUF</a>
+
+      <a class=""  href="/learning_ai/en/day13.html">Day 13 · On-Device LLM Inference Frameworks</a>
+
+      <a class=""  href="/learning_ai/en/day14.html">Day 14 · Performance Analysis</a>
+
+      <a class=""  href="/learning_ai/en/day15.html">Day 15 · Integration: The Edge-AI Engineering Pipeline</a>
+
+  </aside>
+  <article class="content" data-day="6">
+    <div class="eyebrow">DAY 06</div>
+    <h1>Training and Deploying Non-LLM Edge Models</h1>
+    <p class="hero-sub">Put vision, audio, and sensor models onto a real device</p>
+    <p class="reading-time">Suggested reading: about 19 min</p>
+
+    <section>
+      <h2>Learning goal</h2>
+      <div class="callout">Complete the loop from data, training, export, and quantization to deployment and validation, with an emphasis on small models commonly used on MCUs.</div>
+    </section>
+
+    <section>
+      <h2>Chapter keywords</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>Keyword</th><th>Explanation</th><th>ESP32 engineering analogy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Representative data</th><td>A dataset covering real device operating conditions.</td><td>Like system-level tests spanning temperature, humidity, power, and load boundaries.</td></tr><tr><th scope="row">Tensor arena</th><td>A memory region preallocated for MCU inference inputs, outputs, and intermediate tensors.</td><td>Like a static workspace planned at startup.</td></tr><tr><th scope="row">Preprocessing</th><td>The steps that transform raw sensor data into model input.</td><td>Like framing, byte order, and validation in a protocol stack.</td></tr><tr><th scope="row">Confusion matrix</th><td>A table counting predicted classes against true classes.</td><td>Like counting false alarms and missed detections by fault category.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>Bridge from the previous chapter</h2><p>The previous chapter showed that operators and kernels ultimately execute the graph. This chapter places those pieces back into the complete product path to deliver a deployable vision, audio, or sensor model.</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">HOW WE GOT HERE</span><h2>Historical development</h2></div>
+        <p class="section-lead">Putting a small model on an MCU is not a scaled-down copy of desktop inference code. It followed a shared evolution toward architectures requiring less compute, kernels fitting hardware more closely, runtimes with fewer dependencies, and repeatable product validation—eventually forming today’s closed loop from data to firmware.</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1989</div>
+              <div class="timeline-content"><h3>Structured convolutional networks reached real tasks</h3><p>LeCun and colleagues applied local connectivity, weight sharing, and backpropagation to postal-code recognition. They showed that networks could process pixels directly while structural constraints reduced parameter and compute requirements.</p><a href="https://doi.org/10.1162/neco.1989.1.4.541" target="_blank" rel="noopener noreferrer">Original paper by LeCun and colleagues ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>MobileNet put the hardware budget into network design</h3><p>MobileNet used depthwise separable convolutions plus width and resolution multipliers to trade accuracy against latency explicitly. “Set the device budget before selecting a model” moved from an experienced habit to a tunable design method.</p><a href="https://arxiv.org/abs/1704.04861" target="_blank" rel="noopener noreferrer">Original MobileNet paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>Production ML began to emphasize system testing</h3><p>Google’s ML Test Score decomposed data, features, models, infrastructure, and monitoring into concrete test items, showing that offline metrics are only one part of production readiness.</p><a href="https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/" target="_blank" rel="noopener noreferrer">Original Google Research paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2018</div>
+              <div class="timeline-content"><h3>CMSIS-NN brought quantized models close to Cortex-M</h3><p>CMSIS-NN supplied optimized Cortex-M kernels for convolution, fully connected layers, and more, using techniques such as partial im2col to reduce both runtime and peak memory.</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">Original CMSIS-NN paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2020</div>
+              <div class="timeline-content"><h3>TFLite Micro established a microcontroller runtime pattern</h3><p>TFLite Micro targeted resource-constrained, fragmented platforms without virtual memory. A small interpreter and preplanned workspace allowed one model to enter many kinds of MCU.</p><a href="https://arxiv.org/abs/2010.08678" target="_blank" rel="noopener noreferrer">Original TFLite Micro paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">Present</div>
+              <div class="timeline-content"><h3>ESP-DL connects quantization, formats, memory planning, and analysis</h3><p>Current ESP-DL combines ESP-PPQ, the .espdl format, static memory planning, and on-device profiling in one toolchain for model conversion, loading, execution, and measurement.</p><a href="https://docs.espressif.com/projects/esp-dl/en/latest/introduction/readme.html" target="_blank" rel="noopener noreferrer">Official ESP-DL introduction ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>Why it still matters today:</strong> This history leaves a clear engineering conclusion: model architecture determines only how fast a system might run. The preprocessing contract, quantized export, kernel coverage, task scheduling, and board-level regression tests determine whether it truly becomes a product feature.</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">BUILD INTUITION FROM A FAMILIAR SYSTEM</span><h2>Illustrated analogy</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>A miniature factory turning fresh fruit into juice</h3><p>Fruit arriving from the orchard varies in size, ripeness, and dirt. The lab first defines acceptance samples and a washing recipe, then trains an “inspector.” The production line must cut and weigh fruit according to exactly the same recipe, and inspection results still pass through thresholds and review before the bottling valve actually opens.</p></div>
+          <div class="analogy-illustration" aria-label="A miniature factory turning fresh fruit into juice">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🧺</span>
+                <strong>Fruit crates and retained samples</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Real-device collection, labeling rules, and train/validation/test splits</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🚿</span>
+                <strong>Washing and cutting recipe</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>The preprocessing contract: sampling, resize, normalization, quantized input, and more</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔬</span>
+                <strong>Miniature inspector</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>The quantized model, device kernels, and tensor arena</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🚦</span>
+                <strong>Bottling release light</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>Thresholds, debounce, fallback, and business events</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>Where the analogy stops:</strong> The analogy explains a closed loop and shared contracts, but a model is not a fixed-rule inspection machine: it outputs probabilities or scores that depend on the data distribution. When a new field condition was absent from training data, a perfectly matched recipe still cannot guarantee correctness; drift monitoring, rejection, and a safety state machine remain necessary.</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>Chapter walkthrough</h2>
+      <h3>Work backward from the product event to the data, not forward from a convenient dataset</h3><p>First write down the event the device must publish, tolerable false negatives and false positives, the response deadline, and what happens when no decision is possible. Use those requirements to define sampling windows and labels. Split training data by device or collection batch so adjacent portions of one continuous signal cannot leak into both training and test sets. Negative classes need more than “quiet background”; include confusing actions, noise, and sensor faults. Preserve firmware version, sample rate, and environment metadata on every sample so regressions can locate data drift.</p><h3>Turn preprocessing into a verifiable binary contract</h3><p>The PC training pipeline and firmware must agree item by item on sample rate, channel order, crop window, interpolation, color space, normalization constants, rounding, and saturation. Do not compare only the final class. Select golden samples and calculate summaries and spot-check elements at three boundaries: raw buffer, preprocessed float tensor, and quantized integer tensor. If the deployment tool expects int8 input, confirm the direction of scale and zero-point so already-quantized data is not quantized again.</p><h3>Treat export and conversion as a compiler chain, not Save As</h3><p>A training checkpoint first switches to inference semantics and exports a graph with a fixed I/O contract. The converter then folds constants, replaces operators, quantizes, and produces a target format. Every stage may change layout or values, so pin tool versions, save operator lists, I/O names, and quantization parameters, and compare the same inputs stage by stage. Successful conversion proves only that a file can be produced; the target can still fail from a missing kernel, float fallback, or an out-of-range shape.</p><h3>Make inference a firmware task governed by scheduling constraints</h3><p>The device must schedule sensor producers, DMA, preprocessing, inference, and event consumers together. Use bounded queues with an explicit full-queue policy: dropping old frames is usually more appropriate for real-time work than waiting forever. If inference occupies the CPU for too long, partition it, reduce frequency, or service the watchdog—but never use watchdog feeding to hide a deadlock. Allocate arenas, the model, and I/O buffers during initialization where possible, avoid fragmentation in the steady-state path, and make every error branch return its frame and publish an observable degraded state.</p><h3>Complete deployment acceptance with four layers of evidence</h3><p>Compare the source framework, exported model, target runtime, and physical board in sequence, using fixed golden vectors and full replays of raw captures. Results should include at least a confusion matrix, per-class threshold curves, p50/p95 latency, peak arena use, long-running tests, and abnormal inputs. At the business layer, verify hysteresis, consecutive-hit counts, and cooldowns so scores near a threshold do not become an event storm. Rerun the same checklist after every model or SDK update to separate accuracy regressions from system regressions.</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">WATCH THE DATA MOVE</span><h2>Interactive process</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="How one sample becomes a device event">
+          <div class="process-heading">
+            <div><h3>How one sample becomes a device event</h3><p>The player illuminates each data form and responsibility boundary, then returns field failures to the dataset at the end.</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>Pause autoplay</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%99%EF%B8%8F%22%2C%22label%22%3A%22Collect%20and%20label%22%2C%22data%22%3A%22raw%20window%20%2B%20label%20%2B%20metadata%22%2C%22action%22%3A%22Record%20raw%20samples%20by%20device%20and%20scenario%2C%20then%20freeze%20labeling%20rules%22%2C%22insight%22%3A%22The%20source%20data%20defines%20the%20world%20the%20model%20can%20recognize%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">🎙️</span><strong>Collect and label</strong><span>raw window + label + metadata</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BD%22%2C%22label%22%3A%22Equivalent%20preprocessing%22%2C%22data%22%3A%22tensor%5Bshape%2C%20dtype%2C%20range%5D%22%2C%22action%22%3A%22Apply%20identical%20crop%2C%20scale%2C%20and%20quantization%20rules%20on%20PC%20and%20firmware%22%2C%22insight%22%3A%22The%20input%20contract%20matters%20more%20than%20API%20names%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧽</span><strong>Equivalent preprocessing</strong><span>tensor[shape, dtype, range]</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A0%22%2C%22label%22%3A%22Train%20and%20export%22%2C%22data%22%3A%22checkpoint%20%E2%86%92%20graph%20%E2%86%92%20quantized%20model%22%2C%22action%22%3A%22Fix%20inference%20mode%20and%20compare%20outputs%20at%20every%20stage%22%2C%22insight%22%3A%22Every%20conversion%20is%20a%20potential%20semantic%20boundary%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧠</span><strong>Train and export</strong><span>checkpoint → graph → quantized model</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9F%22%2C%22label%22%3A%22Execute%20on%20the%20board%22%2C%22data%22%3A%22arena%20%2B%20kernels%20%2B%20latency%22%2C%22action%22%3A%22Load%20the%20model%2C%20schedule%20kernels%2C%20and%20record%20memory%20and%20stage%20timing%22%2C%22insight%22%3A%22Being%20loadable%20does%20not%20mean%20being%20stable%20in%20steady%20state%22%7D">
+                  <span class="process-icon" aria-hidden="true">📟</span><strong>Execute on the board</strong><span>arena + kernels + latency</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A8%22%2C%22label%22%3A%22Decide%20the%20event%22%2C%22data%22%3A%22score%20%E2%86%92%20threshold%20%E2%86%92%20state%22%2C%22action%22%3A%22Apply%20hysteresis%2C%20debounce%2C%20and%20fallback%20before%20driving%20a%20physical%20action%22%2C%22insight%22%3A%22A%20model%20score%20is%20not%20a%20final%20control%20command%22%7D">
+                  <span class="process-icon" aria-hidden="true">🚨</span><strong>Decide the event</strong><span>score → threshold → state</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22Return%20field%20evidence%22%2C%22data%22%3A%22false%20positive%20%2F%20false%20negative%22%2C%22action%22%3A%22Save%20false%20detections%2C%20misses%2C%20and%20raw%20context%20for%20the%20next%20data%20review%22%2C%22insight%22%3A%22The%20closed%20loop%20turns%20a%20demonstration%20into%20a%20maintainable%20system%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔁</span><strong>Return field evidence</strong><span>false positive / false negative</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>Step 1 / 6</span><h3 data-process-title>Collect and label · raw window + label + metadata</h3><p data-process-action>Record raw samples by device and scenario, then freeze labeling rules</p></div>
+            <div class="process-insight"><span>Watch for</span><p data-process-insight>The source data defines the world the model can recognize</p></div>
+          </div>
+          <p class="process-loop"><strong>Loop / return condition:</strong> After human review, field samples reenter “Collect and label,” while the old test set remains frozen to determine whether the new version actually improves.</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← Previous</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>Next →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>View the complete static diagram</summary><pre class="diagram">Sensor → DMA/RingBuffer → Preprocess → Inference → Postprocess → Event/Actuator</pre></details>
+      </section>
+
+
+    <section><h2>Code or command example</h2><pre class="code"><code>idf.py build flash monitor
+# On-device concerns: arena, tensor arena, input normalization, inference latency
+ESP_LOGI(TAG, &quot;latency=%d ms&quot;, elapsed_ms);</code></pre></section>
+    <section><h2>Hands-on lab</h2><div class="callout">Choose IMU, audio, or images and build a 2–4 class classifier. Compare input normalization, latency, and confusion matrices between a PC and an ESP32.</div></section>
+    <section><h2>Engineering pitfall</h2><div class="pitfall"><strong>Avoid this mistake:</strong> A common cause of sudden accuracy loss is feeding float images on the PC while firmware incorrectly supplies RGB565 or omits normalization.</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-6">
+      <h2 id="quiz-title-6">Knowledge check</h2>
+      <p>Answer all three multiple-choice questions, then submit. Answers stay hidden until submission.</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22When%20on-device%20accuracy%20is%20substantially%20lower%20than%20PC%20accuracy%2C%20what%20should%20you%20compare%20first%3F%22%2C%22options%22%3A%5B%22The%20webpage%20CSS%22%2C%22Preprocessing%3A%20color%2C%20resize%2C%20normalization%2C%20and%20quantization%22%2C%22The%20model%20file%20modification%20time%22%2C%22The%20Wi-Fi%20SSID%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22Identical%20weights%20give%20different%20results%20under%20different%20input%20distributions.%20Align%20preprocessing%20item%20by%20item%20with%20saved%20test%20vectors.%22%7D%2C%7B%22prompt%22%3A%22What%20does%20an%20insufficient%20tensor%20arena%20usually%20mean%3F%22%2C%22options%22%3A%5B%22The%20model%20must%20have%20overfit%20during%20training%22%2C%22Inputs%2C%20outputs%2C%20or%20intermediate%20tensors%20cannot%20be%20fully%20allocated%22%2C%22The%20Flash%20partition%20table%20was%20deleted%22%2C%22The%20network%20API%20returned%20404%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22LiteRT%20Micro%20places%20tensors%20in%20a%20preallocated%20arena.%20Shortage%20appears%20during%20AllocateTensors%20or%20around%20execution%20and%20is%20a%20peak-memory%20budgeting%20problem.%22%7D%2C%7B%22prompt%22%3A%22When%20should%20a%20general-purpose%20LLM%20run%20on%20a%20Linux%20Edge%20Host%3F%22%2C%22options%22%3A%5B%22Whenever%20the%20ESP32%20has%20GPIO%22%2C%22When%20model%20weights%20and%20KV%20cache%20exceed%20MCU%20RAM%20or%20compute%20budgets%22%2C%22Whenever%20a%20temperature%20sensor%20exists%22%2C%22Whenever%20USB%20is%20used%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22The%20ESP32%20can%20keep%20acquisition%2C%20protocols%2C%20and%20safety%20control%2C%20while%20general-purpose%20LLM%20weights%20and%20KV%20cache%20usually%20require%20a%20Linux%20host%20or%20a%20suitable%20accelerator.%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. When on-device accuracy is substantially lower than PC accuracy, what should you compare first?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>The webpage CSS</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>Preprocessing: color, resize, normalization, and quantization</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>The model file modification time</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>The Wi-Fi SSID</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. What does an insufficient tensor arena usually mean?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>The model must have overfit during training</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>Inputs, outputs, or intermediate tensors cannot be fully allocated</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>The Flash partition table was deleted</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>The network API returned 404</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. When should a general-purpose LLM run on a Linux Edge Host?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>Whenever the ESP32 has GPIO</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>When model weights and KV cache exceed MCU RAM or compute budgets</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>Whenever a temperature sensor exists</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>Whenever USB is used</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">Submit this quiz</button>
+        <button class="button secondary retry-quiz" type="button" hidden>Try again</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Further reading</h2>
+      <ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html" target="_blank" rel="noopener noreferrer">Getting Started with ESP-DL (official or primary source)</a></li><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html" target="_blank" rel="noopener noreferrer">ESP-DL Model Loading, Testing, and Profiling (official or primary source)</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers (official or primary source)</a></li></ul>
+    </section>
+
+    <section>
+      <h2>Bridge to the next chapter</h2>
+      <p>The next chapter explains why merely getting a model to run is not enough: Flash, SRAM, PSRAM, bandwidth, and DMA constraints determine whether it can run reliably over time.</p>
+      <p>Next: <a href="/learning_ai/en/day07.html">Day 7 · Memory and Bandwidth</a></p>
+    </section>
+
+    <nav class="nav" aria-label="COURSE NAVIGATION">
+      <a class="button secondary" href="/learning_ai/en/day05.html">← Day 5</a>
+      <a class="button" href="/learning_ai/en/day07.html">Day 7 →</a>
+    </nav>
+  </article>
+</main>
+
+
+  <footer><div class="wrap">Offline-ready · For engineers familiar with ESP32, USB, and networking stacks</div></footer>
+  <script src="/learning_ai/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 01 · Neural Network Fundamentals</title>
+  <meta name="description" content="Build intuition from tensors, layers, and loss functions — Understand how a neural network turns input tensors into optimizable predictions, and learn to follow one forward and backward pass.">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/en/day01.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day01.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day01.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day01.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
+</head>
+<body data-ui="%7B%22siteTitle%22%3A%22Edge%20AI%20%C2%B7%20A%2015-Day%20Engineering%20Path%22%2C%22siteDescription%22%3A%22A%20bilingual%20edge%20AI%20course%20for%20embedded%20engineers%2C%20from%20neural%20networks%20and%20deployment%20to%20complete%20system%20validation.%22%2C%22offlineLabel%22%3A%22Offline-first%20static%20course%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22From%20Neural%20Networks%20to%20a%20Shippable%20Edge%20AI%20System%22%2C%22heroBody%22%3A%22Built%20for%20engineers%20who%20already%20know%20ESP32%2C%20USB%2C%20and%20networking%20stacks.%20Each%20day%20follows%20one%20layer%20of%20the%20path%E2%80%94model%20%E2%86%92%20representation%20%E2%86%92%20runtime%20%E2%86%92%20kernel%20%E2%86%92%20memory%20and%20bandwidth%20%E2%86%92%20hardware%20%E2%86%92%20product%E2%80%94then%20connects%20its%20history%2C%20an%20illustrated%20analogy%2C%20and%20an%20interactive%20data-flow%20walkthrough.%22%2C%22startCourse%22%3A%22Start%20with%20Day%201%20%E2%86%92%22%2C%22cardMeta%22%3A%22history%20%2B%20visual%20analogy%20%2B%20animation%22%2C%22minutes%22%3A%22min%22%2C%22languageSwitch%22%3A%22%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20Simplified%20Chinese%22%2C%22home%22%3A%22Course%20home%22%2C%22learningNav%22%3A%22COURSE%20NAVIGATION%22%2C%22suggestedReading%22%3A%22Suggested%20reading%3A%20about%22%2C%22learningGoal%22%3A%22Learning%20goal%22%2C%22keywords%22%3A%22Chapter%20keywords%22%2C%22keyword%22%3A%22Keyword%22%2C%22explanation%22%3A%22Explanation%22%2C%22espAnalogy%22%3A%22ESP32%20engineering%20analogy%22%2C%22recap%22%3A%22Bridge%20from%20the%20previous%20chapter%22%2C%22historyKicker%22%3A%22HOW%20WE%20GOT%20HERE%22%2C%22historyTitle%22%3A%22Historical%20development%22%2C%22historyBridge%22%3A%22Why%20it%20still%20matters%20today%3A%22%2C%22analogyKicker%22%3A%22BUILD%20INTUITION%20FROM%20A%20FAMILIAR%20SYSTEM%22%2C%22analogyTitle%22%3A%22Illustrated%20analogy%22%2C%22analogyFallback%22%3A%22Embedded-systems%20analogy%22%2C%22analogyBoundary%22%3A%22Where%20the%20analogy%20stops%3A%22%2C%22lessonTitle%22%3A%22Chapter%20walkthrough%22%2C%22processKicker%22%3A%22WATCH%20THE%20DATA%20MOVE%22%2C%22processTitle%22%3A%22Interactive%20process%22%2C%22pausePlayback%22%3A%22Pause%20autoplay%22%2C%22reducedMotion%22%3A%22Reduced%20motion%20is%20enabled%22%2C%22restartPlayback%22%3A%22Play%20from%20the%20start%22%2C%22resumePlayback%22%3A%22Resume%20autoplay%22%2C%22step%22%3A%22Step%22%2C%22observation%22%3A%22Watch%20for%22%2C%22loopCondition%22%3A%22Loop%20%2F%20return%20condition%3A%22%2C%22previousStep%22%3A%22%E2%86%90%20Previous%22%2C%22nextStep%22%3A%22Next%20%E2%86%92%22%2C%22switchedStep%22%3A%22Switched%20to%20step%22%2C%22staticOverview%22%3A%22View%20the%20complete%20static%20diagram%22%2C%22flowchart%22%3A%22Process%20diagram%22%2C%22codeExample%22%3A%22Code%20or%20command%20example%22%2C%22lab%22%3A%22Hands-on%20lab%22%2C%22pitfall%22%3A%22Engineering%20pitfall%22%2C%22avoidMisread%22%3A%22Avoid%20this%20mistake%3A%22%2C%22quizTitle%22%3A%22Knowledge%20check%22%2C%22quizIntro%22%3A%22Answer%20all%20three%20multiple-choice%20questions%2C%20then%20submit.%20Answers%20stay%20hidden%20until%20submission.%22%2C%22submitQuiz%22%3A%22Submit%20this%20quiz%22%2C%22retryQuiz%22%3A%22Try%20again%22%2C%22completeQuestion%22%3A%22Please%20answer%20question%22%2C%22questionSuffix%22%3A%22.%22%2C%22correct%22%3A%22Correct.%22%2C%22incorrect%22%3A%22Not%20quite.%22%2C%22correctAnswer%22%3A%22Correct%20answer%3A%22%2C%22quizScore%22%3A%22Chapter%20score%3A%22%2C%22quizAdvice%22%3A%22Read%20each%20explanation%20before%20deciding%20whether%20to%20retry.%22%2C%22references%22%3A%22Further%20reading%22%2C%22sourceSuffix%22%3A%22%20(official%20or%20primary%20source)%22%2C%22nextPreview%22%3A%22Bridge%20to%20the%20next%20chapter%22%2C%22nextDay%22%3A%22Next%3A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22Back%20to%20course%20home%22%2C%22footer%22%3A%22Offline-ready%20%C2%B7%20For%20engineers%20familiar%20with%20ESP32%2C%20USB%2C%20and%20networking%20stacks%22%2C%22homeFooter%22%3A%2215%20days%20%C2%B7%2015%20standalone%20pages%20%C2%B7%20Chinese%20and%20English%20%C2%B7%20zero%20runtime%20dependencies%22%2C%22noscriptHome%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20chapter%20directory%20still%20works%2C%20and%20every%20chapter%20includes%20an%20expanded%20process%20diagram.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptDay%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20history%2C%20analogy%2C%20lesson%2C%20and%20expanded%20process%20overview%20remain%20readable.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%7D">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">You are in static reading mode. The history, analogy, lesson, and expanded process overview remain readable. Enable JavaScript for animation and quiz scoring.</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">Edge AI · A 15-Day Engineering Path</div>
+    <div class="top-actions">
+      <a href="/learning_ai/en/">Course home</a>
+
+        <a class="language-switch" href="/learning_ai/day01.html" lang="zh-CN" hreflang="zh-CN" aria-label="Switch to Simplified Chinese">简体中文</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="COURSE NAVIGATION">
+    <span class="eyebrow">COURSE NAVIGATION</span>
+
+      <a class="active" aria-current="page" href="/learning_ai/en/day01.html">Day 01 · Neural Network Fundamentals</a>
+
+      <a class=""  href="/learning_ai/en/day02.html">Day 02 · Training and Inference</a>
+
+      <a class=""  href="/learning_ai/en/day03.html">Day 03 · Model Formats</a>
+
+      <a class=""  href="/learning_ai/en/day04.html">Day 04 · Quantization</a>
+
+      <a class=""  href="/learning_ai/en/day05.html">Day 05 · Operators</a>
+
+      <a class=""  href="/learning_ai/en/day06.html">Day 06 · Training and Deploying Non-LLM Edge Models</a>
+
+      <a class=""  href="/learning_ai/en/day07.html">Day 07 · Memory, Bandwidth, MCU, and NPU</a>
+
+      <a class=""  href="/learning_ai/en/day08.html">Day 08 · On-Device Vision Models</a>
+
+      <a class=""  href="/learning_ai/en/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/en/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/en/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/en/day12.html">Day 12 · LLM Quantization and GGUF</a>
+
+      <a class=""  href="/learning_ai/en/day13.html">Day 13 · On-Device LLM Inference Frameworks</a>
+
+      <a class=""  href="/learning_ai/en/day14.html">Day 14 · Performance Analysis</a>
+
+      <a class=""  href="/learning_ai/en/day15.html">Day 15 · Integration: The Edge-AI Engineering Pipeline</a>
+
+  </aside>
+  <article class="content" data-day="1">
+    <div class="eyebrow">DAY 01</div>
+    <h1>Neural Network Fundamentals</h1>
+    <p class="hero-sub">Build intuition from tensors, layers, and loss functions</p>
+    <p class="reading-time">Suggested reading: about 18 min</p>
+
+    <section>
+      <h2>Learning goal</h2>
+      <div class="callout">Understand how a neural network turns input tensors into optimizable predictions, and learn to follow one forward and backward pass.</div>
+    </section>
+
+    <section>
+      <h2>Chapter keywords</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>Keyword</th><th>Explanation</th><th>ESP32 engineering analogy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Tensor</th><td>A multidimensional numeric block with a shape and data type—the common representation for model inputs, weights, and intermediate results.</td><td>Like a DMA buffer annotated with sample count, channel count, and bit width.</td></tr><tr><th scope="row">Shape</th><td>The length and meaning of each dimension, such as batch, channel, height, and width in NCHW.</td><td>Like the field layout of a protocol frame: the bytes remain when the order is wrong, but their meaning is corrupted.</td></tr><tr><th scope="row">Activation function</th><td>A nonlinearity applied after a linear transform that lets multilayer networks express complex boundaries.</td><td>Like a conditional branch in a state machine that cannot simply be folded away.</td></tr><tr><th scope="row">MAC</th><td>One multiply–accumulate operation, commonly used for a rough estimate of compute.</td><td>Like the number of iterations in an inner DSP loop, still subject to the cost of fetching data.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>Bridge from the previous chapter</h2><p>This is the starting point of the course. You already know the ESP32 path in which a peripheral produces data, DMA moves it, and a task consumes it. This chapter abstracts that path into neural-network inputs, layers, and outputs, establishing a shared language for the training and deployment discussions ahead.</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">HOW WE GOT HERE</span><h2>Historical development</h2></div>
+        <p class="section-lead">Neural networks did not suddenly appear in the age of “large models.” They followed a long path from logical neurons and trainable linear classifiers, through credit assignment in multilayer networks, to large-scale representation learning on GPUs. The tensors, operators, automatic differentiation, and deployment graphs used in edge engineering today are layered interfaces accumulated along that path.</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1943</div>
+              <div class="timeline-content"><h3>The neuron was first written as a computable logical unit</h3><p>McCulloch and Pitts described neural activity with threshold units and connection networks, showing that simple units could be composed into logical behavior. Their work had no modern training algorithm, but it established the computational view that complex functions can emerge from many uniform, connected units.</p><a href="https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf" target="_blank" rel="noopener noreferrer">Original paper by McCulloch and Pitts ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">1958</div>
+              <div class="timeline-content"><h3>The perceptron turned “connections” into weights corrected by examples</h3><p>Rosenblatt’s perceptron introduced a mechanism for adjusting connection weights from classification errors, moving neural networks from hand-crafted logical structures toward data-driven learning. It mainly addressed linearly separable problems, but made “model parameters are the result of training” a central idea for later networks.</p><a href="https://doi.org/10.1037/h0042519" target="_blank" rel="noopener noreferrer">Original perceptron paper by Rosenblatt ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">1986</div>
+              <div class="timeline-content"><h3>Backpropagation gave hidden layers computable error signals</h3><p>Rumelhart, Hinton, and Williams demonstrated how error backpropagation calculates derivatives layer by layer and adjusts weights. Hidden units no longer needed hand-assigned meanings; they could form internal representations for a task, giving multilayer nonlinear networks a practical, unified training method.</p><a href="https://www.nature.com/articles/323533a0" target="_blank" rel="noopener noreferrer">Original Nature backpropagation paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2012</div>
+              <div class="timeline-content"><h3>AlexNet carried deep representation learning into the big-data and GPU era</h3><p>AlexNet trained a deep convolutional network on a large image dataset and used GPUs for dense tensor computation. The breakthrough came not only from its architecture, but from data, parallel computing, and regularization arriving together. Parameter count, MACs, memory, and throughput consequently became parts of one engineering budget.</p><a href="https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks" target="_blank" rel="noopener noreferrer">Original AlexNet paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2019</div>
+              <div class="timeline-content"><h3>Imperative tensor programs and automatic differentiation became everyday tools</h3><p>The PyTorch paper summarized a combination of an imperative front end, dynamic graphs, and a high-performance tensor backend. Researchers could write control flow like ordinary programs while the system recorded operations and calculated gradients. Today’s need to confirm dynamic paths before export follows directly from that flexibility.</p><a href="https://papers.neurips.cc/paper/2019/hash/bdbca288fee7f92f2bfa9f7012727740-Abstract.html" target="_blank" rel="noopener noreferrer">Original PyTorch systems paper ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>Why it still matters today:</strong> History leaves a practical lesson: network capability comes from composable nonlinear units, learning comes from a traceable error chain, and performance comes from mapping tensor programs effectively onto hardware. When reading a model for edge deployment, follow three threads at once: how values transform, how gradients once shaped the weights, and how buffers remain live during deployment.</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">BUILD INTUITION FROM A FAMILIAR SYSTEM</span><h2>Illustrated analogy</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>A bank of mixing consoles that tunes itself from sound-check notes</h3><p>Imagine a band’s multitrack recording entering several rows of mixing consoles. Each row mixes channels according to knob positions, then passes them through noise gates that admit only certain signals. At the end, an engineer compares the mix with a reference recording and sends correction notes—“too loud here, too weak there”—backward along the signal path. After repeated sound checks, the knob positions are the learned weights.</p></div>
+          <div class="analogy-illustration" aria-label="A bank of mixing consoles that tunes itself from sound-check notes">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🎚️</span>
+                <strong>Rows of knobs</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Weights and biases determine how much each input contributes to the next layer</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🚪</span>
+                <strong>Noise gates</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Activation functions introduce nonlinearity and change the expressible boundaries</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🎧</span>
+                <strong>Reference monitor</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>The loss function condenses prediction-versus-target differences into an optimizable error</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📝</span>
+                <strong>Notes sent backward</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>The chain rule apportions output error to every parameter</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>Where the analogy stops:</strong> This analogy only helps explain signal transformation and error feedback. A real network “knob” participates in high-dimensional batched operations, and a gradient is a precise composition of local derivatives rather than a subjective opinion. The analogy also cannot represent parameter sharing, convolution layouts, or coupling introduced by numerical precision.</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>Chapter walkthrough</h2>
+      <h3>Read strides and axis semantics, not just shape</h3><p>The same 3,072 numbers mean entirely different things in [1,3,32,32] and [1,32,32,3]; even with the same shape, a transposed view may be non-contiguous. Layers normalize, convolve, or reduce along agreed axes, while broadcasting can make a wrong shape “run successfully.” When reading a network, label every axis with N/C/H/W, units, and dtype, and print strides at boundaries so that executability is never mistaken for semantic correctness.</p><h3>Nonlinearity changes the decision boundaries that can be composed</h3><p>An affine layer only rotates, scales, and translates; multiple affine maps can still be folded into one matrix multiplication. Activations such as ReLU divide the input space into regions governed by different linear relationships, so stacking layers genuinely increases expressive power. In engineering work, also inspect activation ranges: large dead regions may signal shifted inputs or poor initialization, while excessively large values may saturate during low-precision deployment.</p><h3>The loss is the objective interface; gradients are the layer-by-layer credit ledger</h3><p>A loss function specifies which discrepancies deserve a penalty; the chain rule then propagates the sensitivity of total error to each intermediate value, one layer at a time. A zero gradient does not necessarily mean learning is complete—it may come from saturated activations, a detached computation graph, or numerical underflow. An exploding gradient can likewise make one update overshoot the useful region. Training experiments should record loss, gradient norms, and parameter-update magnitudes rather than watching final accuracy alone.</p><h3>Parameters, MACs, and peak activations answer three different questions</h3><p>Parameter count roughly estimates weight storage; MAC count roughly estimates multiply–accumulate work; activation lifetimes determine how large the runtime workbench must be. A convolution may have few weights yet produce a huge feature map, while an elementwise operator has almost no parameters but still reads and writes an entire tensor. For an edge-device budget, draw live intervals in execution order and add workspace, alignment padding, and I/O buffers to the peak.</p><h3>Use finite differences and intermediate tensors to verify that the math is right</h3><p>For a tiny network, freeze weights and inputs and save each layer output, the loss, and analytical gradients. Then perturb one parameter by a small positive and negative ε and approximate its derivative from the two loss values. A mismatch often comes from a transpose, batch reduction, in-place mutation, or an activation boundary. Deployment does not need backpropagation, but these golden tensors remain valuable for checking that export, quantization, and kernels preserve forward semantics.</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">WATCH THE DATA MOVE</span><h2>Interactive process</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="One training pulse: how data becomes a weight update">
+          <div class="process-heading">
+            <div><h3>One training pulse: how data becomes a weight update</h3><p>Each step in the player illuminates a tensor and its owner. Signals flow to the right in the first half, gradients travel back to the left in the second, and the weight scale moves slightly at the end.</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>Pause autoplay</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22Load%20samples%22%2C%22data%22%3A%22x%3A%5BB%2C2%5D%2C%20y%3A%5BB%2C1%5D%22%2C%22action%22%3A%22Highlight%20the%20batch%20axis%20and%20send%20the%20input%20into%20the%20first%20layer%22%2C%22insight%22%3A%22Shape%2C%20dtype%2C%20and%20axis%20semantics%20must%20be%20fixed%20before%20later%20computations%20can%20share%20a%20contract%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">📥</span><strong>Load samples</strong><span>x:[B,2], y:[B,1]</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%AE%22%2C%22label%22%3A%22Affine%20transform%22%2C%22data%22%3A%22z%20%3D%20xW%E1%B5%80%20%2B%20b%22%2C%22action%22%3A%22Connections%20flow%20into%20each%20output%20unit%20with%20thickness%20proportional%20to%20weight%22%2C%22insight%22%3A%22W%20controls%20the%20mixing%20direction%20and%20b%20shifts%20the%20boundary%3B%20this%20step%20is%20still%20linear%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧮</span><strong>Affine transform</strong><span>z = xWᵀ + b</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%A1%22%2C%22label%22%3A%22Apply%20activation%22%2C%22data%22%3A%22a%20%3D%20ReLU(z)%22%2C%22action%22%3A%22Negative-valued%20nodes%20go%20dark%20while%20positive%20nodes%20keep%20their%20brightness%22%2C%22insight%22%3A%22Nonlinearity%20prevents%20a%20stack%20of%20layers%20from%20collapsing%20into%20a%20single%20matrix%22%7D">
+                  <span class="process-icon" aria-hidden="true">⚡</span><strong>Apply activation</strong><span>a = ReLU(z)</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%AF%22%2C%22label%22%3A%22Calculate%20loss%22%2C%22data%22%3A%22L%20%3D%20mean((%C5%B7-y)%C2%B2)%22%2C%22action%22%3A%22An%20error%20ruler%20appears%20between%20each%20prediction%20and%20target%22%2C%22insight%22%3A%22A%20scalar%20loss%20turns%20a%20task%20objective%20into%20a%20differentiable%20optimization%20interface%22%7D">
+                  <span class="process-icon" aria-hidden="true">🎯</span><strong>Calculate loss</strong><span>L = mean((ŷ-y)²)</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%86%A9%EF%B8%8F%22%2C%22label%22%3A%22Backpropagate%20gradients%22%2C%22data%22%3A%22%E2%88%82L%2F%E2%88%82W%20%3D%20%E2%88%82L%2F%E2%88%82%C5%B7%20%C2%B7%20%E2%80%A6%22%2C%22action%22%3A%22Error%20signals%20travel%20backward%20over%20the%20recorded%20operation%20edges%22%2C%22insight%22%3A%22The%20chain%20rule%20assigns%20credit%3B%20each%20gradient%20shape%20must%20match%20its%20parameter%22%7D">
+                  <span class="process-icon" aria-hidden="true">↩️</span><strong>Backpropagate gradients</strong><span>∂L/∂W = ∂L/∂ŷ · …</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A7%22%2C%22label%22%3A%22Update%20parameters%22%2C%22data%22%3A%22W%20%E2%86%90%20W%20%E2%88%92%20%CE%B7%E2%88%87W%22%2C%22action%22%3A%22The%20control%20moves%20one%20small%20notch%20and%20the%20next%20prediction%20refreshes%22%2C%22insight%22%3A%22The%20learning%20rate%20sets%20the%20step%20size%3B%20a%20new%20forward%20pass%20must%20verify%20the%20update%20direction%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔧</span><strong>Update parameters</strong><span>W ← W − η∇W</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>Step 1 / 6</span><h3 data-process-title>Load samples · x:[B,2], y:[B,1]</h3><p data-process-action>Highlight the batch axis and send the input into the first layer</p></div>
+            <div class="process-insight"><span>Watch for</span><p data-process-insight>Shape, dtype, and axis semantics must be fixed before later computations can share a contract</p></div>
+          </div>
+          <p class="process-loop"><strong>Loop / return condition:</strong> The updated weights receive the next batch. The animation returns to “Load samples” while preserving a gradually descending loss trace as state across iterations.</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← Previous</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>Next →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>View the complete static diagram</summary><pre class="diagram">Input x
+  │ Linear(Wx+b)
+  ▼
+Activation f(·) ──► Prediction ŷ ──► Loss(ŷ,y)
+  ▲                                      │
+  └──────── Gradient backprop ◄──────────┘</pre></details>
+      </section>
+
+
+    <section><h2>Code or command example</h2><pre class="code"><code>y = x @ W.T + b
+y = relu(y)
+loss = mean((y - target) ** 2)
+loss.backward()</code></pre></section>
+    <section><h2>Hands-on lab</h2><div class="callout">Using a 2→3→1 MLP, calculate every layer shape, the parameter count, and one MSE by hand; then verify the gradient direction with any framework.</div></section>
+    <section><h2>Engineering pitfall</h2><div class="pitfall"><strong>Avoid this mistake:</strong> Comparing parameter counts alone ignores activation tensors and workspace. On an MCU, a crash is often caused by peak RAM at the instant of inference, not by the size of the weight file in Flash.</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-1">
+      <h2 id="quiz-title-1">Knowledge check</h2>
+      <p>Answer all three multiple-choice questions, then submit. Answers stay hidden until submission.</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22Why%20can%20two%20linear%20layers%20be%20merged%20when%20there%20is%20no%20activation%20between%20them%3F%22%2C%22options%22%3A%5B%22Every%20layer%20normalizes%20automatically%22%2C%22The%20composition%20of%20linear%20mappings%20is%20still%20a%20linear%20mapping%22%2C%22Weights%20disappear%20during%20inference%22%2C%22The%20MAC%20count%20must%20be%20zero%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22Without%20a%20nonlinearity%2C%20W%E2%82%82(W%E2%82%81x%2Bb%E2%82%81)%2Bb%E2%82%82%20can%20be%20rearranged%20into%20a%20new%20W%20and%20b%3B%20adding%20depth%20has%20not%20added%20any%20nonlinear%20decision%20boundary.%22%7D%2C%7B%22prompt%22%3A%22For%20an%20input%20shape%20of%20%5B1%2C%203%2C%2032%2C%2032%5D%2C%20what%20should%20you%20confirm%20first%3F%22%2C%22options%22%3A%5B%22Only%20the%20total%20byte%20count%22%2C%22Whether%20channel%20position%20and%20dtype%20match%20the%20model%20contract%22%2C%22Change%20the%20batch%20to%2032%20first%22%2C%22Upload%20it%20to%20the%20NPU%20first%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22Axis%20semantics%20and%20dtype%20are%20part%20of%20the%20model%20I%2FO%20contract.%20An%20NCHW%2FNHWC%20or%20int8%2Ffloat%20mismatch%20may%20run%20while%20producing%20consistently%20wrong%20results.%22%7D%2C%7B%22prompt%22%3A%22Which%20rough%20metric%20is%20more%20directly%20related%20to%20edge%20inference%20latency%3F%22%2C%22options%22%3A%5B%22Length%20of%20the%20model%20filename%22%2C%22Parameter%20count%22%2C%22MACs%20together%20with%20data%20movement%22%2C%22Number%20of%20training%20epochs%22%5D%2C%22answer%22%3A2%2C%22explanation%22%3A%22Parameter%20count%20mainly%20affects%20weight%20storage.%20MACs%20describe%20computation%2C%20but%20activation%20traffic%2C%20caches%2C%20and%20bandwidth%20must%20also%20be%20considered%20to%20explain%20real%20latency.%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. Why can two linear layers be merged when there is no activation between them?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>Every layer normalizes automatically</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>The composition of linear mappings is still a linear mapping</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>Weights disappear during inference</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>The MAC count must be zero</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. For an input shape of [1, 3, 32, 32], what should you confirm first?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>Only the total byte count</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>Whether channel position and dtype match the model contract</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>Change the batch to 32 first</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>Upload it to the NPU first</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. Which rough metric is more directly related to edge inference latency?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>Length of the model filename</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>Parameter count</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>MACs together with data movement</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>Number of training epochs</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">Submit this quiz</button>
+        <button class="button secondary retry-quiz" type="button" hidden>Try again</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Further reading</h2>
+      <ul class="reference-list"><li><a href="https://docs.pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html" target="_blank" rel="noopener noreferrer">PyTorch ONNX Export (official or primary source)</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers (official or primary source)</a></li></ul>
+    </section>
+
+    <section>
+      <h2>Bridge to the next chapter</h2>
+      <p>The next chapter separates today’s forward computation into training-time and inference-time concerns: which state belongs in the lab, and which state can be flashed to a target as stable firmware.</p>
+      <p>Next: <a href="/learning_ai/en/day02.html">Day 2 · Training and Inference</a></p>
+    </section>
+
+    <nav class="nav" aria-label="COURSE NAVIGATION">
+      <span></span>
+      <a class="button" href="/learning_ai/en/day02.html">Day 2 →</a>
+    </nav>
+  </article>
+</main>
+
+
+  <footer><div class="wrap">Offline-ready · For engineers familiar with ESP32, USB, and networking stacks</div></footer>
+  <script src="/learning_ai/app.js" defer></script>
+</body>
+</html>

@@ -4,91 +4,299 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Day 01 · 神经网络基础</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="从张量、层与损失函数建立直觉 — 理解神经网络如何把输入张量变成可优化的预测，并能读懂一次前向与反向传播。">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/day01.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day01.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day01.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day01.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
 </head>
-<body>
+<body data-ui="%7B%22siteTitle%22%3A%22%E7%AB%AF%E4%BE%A7%20AI%20%C2%B7%2015%20%E5%A4%A9%E5%B7%A5%E7%A8%8B%E8%B7%AF%E7%BA%BF%22%2C%22siteDescription%22%3A%22%E9%9D%A2%E5%90%91%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E5%8F%8C%E8%AF%AD%E8%AF%BE%E7%A8%8B%EF%BC%9A%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E3%80%81%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%88%B0%E5%AE%8C%E6%95%B4%E7%B3%BB%E7%BB%9F%E9%AA%8C%E6%94%B6%E3%80%82%22%2C%22offlineLabel%22%3A%22%E7%A6%BB%E7%BA%BF%E9%9D%99%E6%80%81%E5%AD%A6%E4%B9%A0%E7%BD%91%E7%AB%99%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E5%88%B0%E5%8F%AF%E4%BA%A4%E4%BB%98%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E7%B3%BB%E7%BB%9F%22%2C%22heroBody%22%3A%22%E4%B8%BA%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%E3%80%81%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E8%AE%BE%E8%AE%A1%E3%80%82%E6%AF%8F%E5%A4%A9%E4%B8%80%E4%B8%AA%E4%B8%BB%E9%A2%98%EF%BC%8C%E6%B2%BF%E7%9D%80%E2%80%9C%E6%A8%A1%E5%9E%8B%20%E2%86%92%20%E8%A1%A8%E7%A4%BA%20%E2%86%92%20Runtime%20%E2%86%92%20Kernel%20%E2%86%92%20%E5%86%85%E5%AD%98%2F%E5%B8%A6%E5%AE%BD%20%E2%86%92%20%E7%A1%AC%E4%BB%B6%20%E2%86%92%20%E4%BA%A7%E5%93%81%E2%80%9D%E9%80%90%E5%B1%82%E6%94%B6%E6%9D%9F%EF%BC%9B%E6%AF%8F%E7%AB%A0%E7%94%A8%E5%8E%86%E5%8F%B2%E6%97%B6%E9%97%B4%E8%BD%B4%E8%AF%B4%E6%98%8E%E6%9D%A5%E8%B7%AF%EF%BC%8C%E7%94%A8%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%EF%BC%8C%E5%86%8D%E8%AE%A9%E6%95%B0%E6%8D%AE%E5%9C%A8%E5%8F%AF%E4%BA%A4%E4%BA%92%E5%8A%A8%E7%94%BB%E9%87%8C%E7%9C%9F%E6%AD%A3%E8%B7%91%E4%B8%80%E9%81%8D%E3%80%82%22%2C%22startCourse%22%3A%22%E4%BB%8E%20Day%201%20%E5%BC%80%E5%A7%8B%20%E2%86%92%22%2C%22cardMeta%22%3A%22%E5%8E%86%E5%8F%B2%20%2B%20%E5%9B%BE%E8%A7%A3%20%2B%20%E5%8A%A8%E7%94%BB%22%2C%22minutes%22%3A%22%E5%88%86%E9%92%9F%22%2C%22languageSwitch%22%3A%22English%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20English%22%2C%22home%22%3A%22%E7%9B%AE%E5%BD%95%E9%A6%96%E9%A1%B5%22%2C%22learningNav%22%3A%22%E5%AD%A6%E4%B9%A0%E5%AF%BC%E8%88%AA%22%2C%22suggestedReading%22%3A%22%E5%BB%BA%E8%AE%AE%E9%98%85%E8%AF%BB%EF%BC%9A%E7%BA%A6%22%2C%22learningGoal%22%3A%22%E5%AD%A6%E4%B9%A0%E7%9B%AE%E6%A0%87%22%2C%22keywords%22%3A%22%E6%9C%AC%E7%AB%A0%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22keyword%22%3A%22%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22explanation%22%3A%22%E8%A7%A3%E9%87%8A%22%2C%22espAnalogy%22%3A%22ESP32%20%E5%B7%A5%E7%A8%8B%E7%B1%BB%E6%AF%94%22%2C%22recap%22%3A%22%E6%89%BF%E4%B8%8A%EF%BC%9A%E5%9B%9E%E9%A1%BE%E4%B8%8E%E5%AE%9A%E4%BD%8D%22%2C%22historyKicker%22%3A%22%E4%BB%8E%E6%BA%90%E5%A4%B4%E7%9C%8B%E4%BB%8A%E5%A4%A9%22%2C%22historyTitle%22%3A%22%E5%8E%86%E5%8F%B2%E5%8F%91%E5%B1%95%E8%84%89%E7%BB%9C%22%2C%22historyBridge%22%3A%22%E4%BB%8A%E5%A4%A9%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BB%8D%E7%84%B6%E9%87%8D%E8%A6%81%EF%BC%9A%22%2C%22analogyKicker%22%3A%22%E5%80%9F%E7%86%9F%E6%82%89%E7%9A%84%E7%B3%BB%E7%BB%9F%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%22%2C%22analogyTitle%22%3A%22%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%22%2C%22analogyFallback%22%3A%22%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B1%BB%E6%AF%94%22%2C%22analogyBoundary%22%3A%22%E7%B1%BB%E6%AF%94%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%9A%22%2C%22lessonTitle%22%3A%22%E6%9C%AC%E7%AB%A0%E8%AE%B2%E8%A7%A3%22%2C%22processKicker%22%3A%22%E8%AE%A9%E6%95%B0%E6%8D%AE%E7%9C%9F%E6%AD%A3%E8%B7%91%E8%B5%B7%E6%9D%A5%22%2C%22processTitle%22%3A%22%E5%8A%A8%E6%80%81%E8%BF%87%E7%A8%8B%E6%BC%94%E7%A4%BA%22%2C%22pausePlayback%22%3A%22%E6%9A%82%E5%81%9C%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22reducedMotion%22%3A%22%E7%B3%BB%E7%BB%9F%E5%B7%B2%E5%87%8F%E5%B0%91%E5%8A%A8%E6%80%81%E6%95%88%E6%9E%9C%22%2C%22restartPlayback%22%3A%22%E4%BB%8E%E5%A4%B4%E6%92%AD%E6%94%BE%22%2C%22resumePlayback%22%3A%22%E7%BB%A7%E7%BB%AD%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22step%22%3A%22%E6%AD%A5%E9%AA%A4%22%2C%22observation%22%3A%22%E8%A7%82%E5%AF%9F%E7%82%B9%22%2C%22loopCondition%22%3A%22%E5%BE%AA%E7%8E%AF%20%2F%20%E8%BF%94%E5%9B%9E%E6%9D%A1%E4%BB%B6%EF%BC%9A%22%2C%22previousStep%22%3A%22%E2%86%90%20%E4%B8%8A%E4%B8%80%E6%AD%A5%22%2C%22nextStep%22%3A%22%E4%B8%8B%E4%B8%80%E6%AD%A5%20%E2%86%92%22%2C%22switchedStep%22%3A%22%E5%B7%B2%E5%88%87%E6%8D%A2%E5%88%B0%E6%AD%A5%E9%AA%A4%22%2C%22staticOverview%22%3A%22%E6%9F%A5%E7%9C%8B%E9%9D%99%E6%80%81%E5%85%A8%E6%99%AF%E5%9B%BE%22%2C%22flowchart%22%3A%22%E6%B5%81%E7%A8%8B%E5%9B%BE%22%2C%22codeExample%22%3A%22%E4%BB%A3%E7%A0%81%E6%88%96%E5%91%BD%E4%BB%A4%E7%A4%BA%E4%BE%8B%22%2C%22lab%22%3A%22%E5%8A%A8%E6%89%8B%E5%AE%9E%E9%AA%8C%22%2C%22pitfall%22%3A%22%E5%B7%A5%E7%A8%8B%E9%99%B7%E9%98%B1%22%2C%22avoidMisread%22%3A%22%E9%81%BF%E5%85%8D%E8%AF%AF%E5%88%A4%EF%BC%9A%22%2C%22quizTitle%22%3A%22%E6%A0%B8%E5%BF%83%E6%B5%8B%E8%AF%95%22%2C%22quizIntro%22%3A%22%E5%AE%8C%E6%88%90%203%20%E9%81%93%E5%8D%95%E9%80%89%E9%A2%98%E5%90%8E%E6%8F%90%E4%BA%A4%EF%BC%9B%E6%8F%90%E4%BA%A4%E5%89%8D%E4%B8%8D%E4%BC%9A%E6%98%BE%E7%A4%BA%E7%AD%94%E6%A1%88%E3%80%82%22%2C%22submitQuiz%22%3A%22%E6%8F%90%E4%BA%A4%E6%9C%AC%E7%AB%A0%E6%B5%8B%E8%AF%95%22%2C%22retryQuiz%22%3A%22%E9%87%8D%E6%96%B0%E4%BD%9C%E7%AD%94%22%2C%22completeQuestion%22%3A%22%E8%AF%B7%E5%85%88%E5%AE%8C%E6%88%90%E7%AC%AC%22%2C%22questionSuffix%22%3A%22%E9%A2%98%E3%80%82%22%2C%22correct%22%3A%22%E5%9B%9E%E7%AD%94%E6%AD%A3%E7%A1%AE%E3%80%82%22%2C%22incorrect%22%3A%22%E5%9B%9E%E7%AD%94%E9%94%99%E8%AF%AF%E3%80%82%22%2C%22correctAnswer%22%3A%22%E6%AD%A3%E7%A1%AE%E7%AD%94%E6%A1%88%EF%BC%9A%22%2C%22quizScore%22%3A%22%E6%9C%AC%E7%AB%A0%E5%BE%97%E5%88%86%EF%BC%9A%22%2C%22quizAdvice%22%3A%22%E8%AF%B7%E9%98%85%E8%AF%BB%E6%AF%8F%E9%A2%98%E8%A7%A3%E6%9E%90%EF%BC%8C%E5%86%8D%E5%86%B3%E5%AE%9A%E6%98%AF%E5%90%A6%E9%87%8D%E5%81%9A%E3%80%82%22%2C%22references%22%3A%22%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB%22%2C%22sourceSuffix%22%3A%22%EF%BC%88%E5%AE%98%E6%96%B9%2F%E5%8E%9F%E5%A7%8B%E8%B5%84%E6%96%99%EF%BC%89%22%2C%22nextPreview%22%3A%22%E5%90%AF%E4%B8%8B%EF%BC%9A%E4%B8%8B%E4%B8%80%E7%AB%A0%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E6%9C%AC%E7%AB%A0%E8%83%BD%E5%8A%9B%22%2C%22nextDay%22%3A%22%E4%B8%8B%E4%B8%80%E5%A4%A9%EF%BC%9A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22%E5%9B%9E%E5%88%B0%E9%A6%96%E9%A1%B5%22%2C%22footer%22%3A%22%E7%A6%BB%E7%BA%BF%E5%8F%AF%E7%94%A8%20%C2%B7%20%E9%9D%A2%E5%90%91%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%20%E4%B8%8E%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%22%2C%22homeFooter%22%3A%2215%20%E5%A4%A9%20%C2%B7%2015%20%E4%B8%AA%E7%8B%AC%E7%AB%8B%E9%A1%B5%E9%9D%A2%20%C2%B7%20%E4%B8%AD%E8%8B%B1%E5%8F%8C%E8%AF%AD%20%C2%B7%20%E6%97%A0%E8%BF%90%E8%A1%8C%E6%97%B6%E4%BE%9D%E8%B5%96%22%2C%22noscriptHome%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9B%E7%AB%A0%E8%8A%82%E7%9B%AE%E5%BD%95%E4%BB%8D%E5%8F%AF%E4%BD%BF%E7%94%A8%EF%BC%8C%E8%BF%9B%E5%85%A5%E7%AB%A0%E8%8A%82%E5%90%8E%E5%8F%AF%E9%98%85%E8%AF%BB%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E3%80%82%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%2C%22noscriptDay%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9A%E5%8E%86%E5%8F%B2%E3%80%81%E7%B1%BB%E6%AF%94%E3%80%81%E6%AD%A3%E6%96%87%E4%B8%8E%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E4%BB%8D%E5%8F%AF%E9%98%85%E8%AF%BB%EF%BC%9B%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%7D">
   <noscript>
     <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
     <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
   </noscript>
-  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
-  <main class="wrap day-layout">
-    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="active" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
-    <article class="content" data-day="1">
-      <div class="eyebrow">DAY 01</div>
-      <h1>神经网络基础</h1>
-      <p class="hero-sub">从张量、层与损失函数建立直觉</p>
-      <p class="reading-time">建议阅读：约 18 分钟</p>
-      <section><h2>学习目标</h2><div class="callout">理解神经网络如何把输入张量变成可优化的预测，并能读懂一次前向与反向传播。</div></section>
-      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">张量</th><td>带形状与数据类型的多维数值块，是模型输入、权重和中间结果的统一表示。</td><td>像注明采样数、通道数和位宽的 DMA buffer。</td></tr><tr><th scope="row">Shape</th><td>描述各维长度及其语义，例如 NCHW 的 batch、通道、高和宽。</td><td>像协议帧的字段布局，顺序错了数据仍存在但含义全错。</td></tr><tr><th scope="row">激活函数</th><td>在线性变换后加入非线性，使多层网络能表达复杂边界。</td><td>像状态机中的条件分支，不能被简单合并。</td></tr><tr><th scope="row">MAC</th><td>一次乘加运算；常用于粗略估算计算量。</td><td>像内层 DSP 循环的工作次数，还需结合取数成本。</td></tr></tbody></table></div></section>
-      <section><h2>承上：回顾与定位</h2><p>这是课程起点。你已经熟悉 ESP32 中“外设产生数据、DMA 搬运数据、任务消费数据”的链路；本章把这条链路抽象为神经网络的输入、层和输出，为后续讨论训练与部署建立共同语言。</p></section>
-      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">神经网络并不是突然从“大模型”时代出现的。它经历了从逻辑化神经元、可学习的线性分类器，到多层网络的信用分配，再到 GPU 上的大规模表示学习这一条长线。今天在端侧工程里看到的张量、算子、自动微分和部署图，正是这条历史逐步沉淀出的分层接口。</p><div class="timeline"><article class="timeline-item">
-    <div class="timeline-year">1943</div>
-    <div class="timeline-content"><h3>神经元第一次被写成可计算的逻辑单元</h3><p>McCulloch 与 Pitts 用阈值化单元和连接网络描述神经活动，证明一组简单单元可以组合出逻辑行为。它没有现代训练算法，却奠定了“复杂功能可由大量统一小单元连接而成”的计算视角。</p><a href="https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf" target="_blank" rel="noopener noreferrer">McCulloch 与 Pitts 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">1958</div>
-    <div class="timeline-content"><h3>感知机把“连接”变成可由样本修正的权重</h3><p>Rosenblatt 的感知机引入依据分类误差调整连接权重的机制，使神经网络从手工逻辑结构走向数据驱动学习。它主要解决线性可分问题，也让“模型参数是训练结果”成为后来网络的核心观念。</p><a href="https://doi.org/10.1037/h0042519" target="_blank" rel="noopener noreferrer">Rosenblatt 感知机原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">1986</div>
-    <div class="timeline-content"><h3>反向传播让隐藏层收到可计算的误差信号</h3><p>Rumelhart、Hinton 与 Williams 展示了误差反向传播如何逐层计算导数并调整权重。隐藏单元不再依赖人工指定含义，而能为任务形成内部表示；这让多层非线性网络拥有了实用的统一训练方法。</p><a href="https://www.nature.com/articles/323533a0" target="_blank" rel="noopener noreferrer">Nature 反向传播原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2012</div>
-    <div class="timeline-content"><h3>AlexNet 把深层表示学习推入大数据与 GPU 时代</h3><p>AlexNet 在大规模图像数据上训练深卷积网络，并用 GPU 承担密集张量计算。突破不只来自网络结构，还来自数据、并行计算和正则化共同到位；从此参数量、MAC、显存与吞吐成为同一套工程预算。</p><a href="https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks" target="_blank" rel="noopener noreferrer">AlexNet 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2019</div>
-    <div class="timeline-content"><h3>命令式张量程序与自动微分成为日常工具</h3><p>PyTorch 论文总结了命令式前端、动态图与高性能张量后端的组合。研究者可以像普通程序一样写控制流，同时由系统记录运算关系并求梯度；今天导出前先确认动态图路径，也源自这种灵活性。</p><a href="https://papers.neurips.cc/paper/2019/hash/bdbca288fee7f92f2bfa9f7012727740-Abstract.html" target="_blank" rel="noopener noreferrer">PyTorch 系统原始论文 ↗</a></div>
-  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>历史留下的工程启示是：网络能力来自可组合的非线性单元，学习来自可追踪的误差链，而性能来自张量程序对硬件的有效映射。端侧阅读一个模型时，应同时沿“数值如何变换”“梯度曾如何塑造权重”“部署时 buffer 如何存活”三条线检查。</div></section>
-      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>一座会根据试音记录自动调节的连锁调音台</h3><p>想象一支乐队的多轨录音进入几排调音台。每排先按旋钮比例混合声道，再经过只允许某些信号通过的噪声门；末端监听员把成品与参考录音比较，并把“哪里偏响、哪里偏弱”的修正便签沿线路反向传回。重复试音后，旋钮位置就是学到的权重。</p></div><div class="analogy-illustration" aria-label="一座会根据试音记录自动调节的连锁调音台"><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🎚️</span>
-    <strong>成排旋钮</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>权重与偏置决定各输入对下一层的贡献</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🚪</span>
-    <strong>噪声门</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>激活函数加入非线性并改变可表达的边界</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🎧</span>
-    <strong>参考监听</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>损失函数把预测与目标压缩成可优化的误差</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">📝</span>
-    <strong>反向便签</strong>
-    <span class="analogy-arrow" aria-hidden="true">↔</span>
-    <span>链式法则把输出误差分摊到每个参数</span>
-  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>这个类比只帮助理解信号变换与误差反馈。真实网络的一个“旋钮”会参与高维批量运算，梯度是局部导数的精确组合而不是主观意见；类比也无法表示参数共享、卷积布局和数值精度造成的耦合。</p></div></section>
-      <section><h2>本章讲解</h2><h3>Shape 之外还要读 stride 与轴语义</h3><p>同样是 3072 个数，[1,3,32,32] 与 [1,32,32,3] 的物理含义完全不同；即使 shape 相同，转置后的 view 也可能不连续。层通常按约定的轴做归一化、卷积或归约，广播又可能让错误 shape “合法运行”。读网络时应给每一轴标注 N/C/H/W、单位和 dtype，并在边界打印 stride，避免把可执行误当作语义正确。</p><h3>非线性真正改变的是可组合的决策边界</h3><p>仿射层只做旋转、缩放和平移，多层仿射映射仍可折成一次矩阵乘法。ReLU 等激活把输入空间切成多个区域，不同区域使用不同线性关系，于是层叠才会增长表达能力。工程上还要关注激活的输出范围：大面积恒为零可能意味着输入偏移或坏初始化，过大数值则可能在低精度部署时饱和。</p><h3>损失是目标接口，梯度是逐层信用账本</h3><p>损失函数规定什么差异值得惩罚；链式法则再把总误差对每个中间量的敏感度逐层相乘。梯度为零不等于已经学好，可能是饱和激活、断开的计算图或数值下溢；梯度爆大也会使一次更新越过有效区域。训练实验应同时记录 loss、梯度范数与参数更新量，而不是只盯最终准确率。</p><h3>参数、MAC 与峰值激活回答三种不同问题</h3><p>参数量近似回答权重需要多少存储，MAC 粗略回答进行了多少乘加，激活生命周期才决定运行时工作台有多大。卷积的权重可很少，却可能产生巨大的特征图；逐元素算子几乎没有参数，仍会完整读写张量。端侧预算应按执行顺序画出存活区间，再把 workspace、对齐填充和 I/O buffer 加入峰值。</p><h3>用有限差分和中间张量验证“会算”</h3><p>为一个极小网络固定权重与输入，保存每层输出、损失和解析梯度；再让单个参数增加与减少一个很小的 ε，用两次损失差近似导数。两者不符时，常见原因是转置、批量归约、原地修改或激活边界。部署侧不需要反向传播，但这份 golden tensor 可继续验证导出、量化和 kernel 是否保持前向语义。</p></section>
-      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一拍训练脉冲：数据如何变成一次权重更新">
-    <div class="process-heading"><div><h3>一拍训练脉冲：数据如何变成一次权重更新</h3><p>播放器每前进一步就点亮一个张量及其所有者；前半程信号向右流，后半程梯度向左回传，最后权重刻度发生细小移动。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
-    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E8%A3%85%E8%BD%BD%E6%A0%B7%E6%9C%AC%22%2C%22data%22%3A%22x%3A%5BB%2C2%5D%EF%BC%8Cy%3A%5BB%2C1%5D%22%2C%22action%22%3A%22%E9%AB%98%E4%BA%AE%20batch%20%E8%BD%B4%EF%BC%8C%E5%B9%B6%E6%8A%8A%E8%BE%93%E5%85%A5%E9%80%81%E5%85%A5%E7%AC%AC%E4%B8%80%E5%B1%82%22%2C%22insight%22%3A%22%E5%85%88%E7%A1%AE%E5%AE%9A%20shape%E3%80%81dtype%20%E4%B8%8E%E8%BD%B4%E8%AF%AD%E4%B9%89%EF%BC%8C%E5%90%8E%E7%BB%AD%E8%AE%A1%E7%AE%97%E6%89%8D%E6%9C%89%E5%85%B1%E5%90%8C%E5%A5%91%E7%BA%A6%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">📥</span><strong>装载样本</strong><span>x:[B,2]，y:[B,1]</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%AE%22%2C%22label%22%3A%22%E4%BB%BF%E5%B0%84%E5%8F%98%E6%8D%A2%22%2C%22data%22%3A%22z%20%3D%20xW%E1%B5%80%20%2B%20b%22%2C%22action%22%3A%22%E8%BF%9E%E7%BA%BF%E6%8C%89%E6%9D%83%E9%87%8D%E7%B2%97%E7%BB%86%E6%B1%87%E5%85%A5%E6%AF%8F%E4%B8%AA%E8%BE%93%E5%87%BA%E5%8D%95%E5%85%83%22%2C%22insight%22%3A%22W%20%E5%86%B3%E5%AE%9A%E6%B7%B7%E5%90%88%E6%96%B9%E5%90%91%EF%BC%8Cb%20%E5%B9%B3%E7%A7%BB%E8%BE%B9%E7%95%8C%EF%BC%9B%E6%AD%A4%E6%AD%A5%E4%BB%8D%E6%98%AF%E7%BA%BF%E6%80%A7%E7%9A%84%22%7D"><span class="process-icon" aria-hidden="true">🧮</span><strong>仿射变换</strong><span>z = xWᵀ + b</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%A1%22%2C%22label%22%3A%22%E9%80%9A%E8%BF%87%E6%BF%80%E6%B4%BB%22%2C%22data%22%3A%22a%20%3D%20ReLU(z)%22%2C%22action%22%3A%22%E8%B4%9F%E5%80%BC%E8%8A%82%E7%82%B9%E7%86%84%E7%81%AD%EF%BC%8C%E6%AD%A3%E5%80%BC%E8%8A%82%E7%82%B9%E4%BF%9D%E6%8C%81%E4%BA%AE%E5%BA%A6%22%2C%22insight%22%3A%22%E9%9D%9E%E7%BA%BF%E6%80%A7%E8%AE%A9%E5%A4%9A%E5%B1%82%E7%BB%84%E5%90%88%E6%97%A0%E6%B3%95%E8%A2%AB%E6%8A%98%E6%88%90%E5%8D%95%E4%B8%80%E7%9F%A9%E9%98%B5%22%7D"><span class="process-icon" aria-hidden="true">⚡</span><strong>通过激活</strong><span>a = ReLU(z)</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%AF%22%2C%22label%22%3A%22%E8%AE%A1%E7%AE%97%E6%8D%9F%E5%A4%B1%22%2C%22data%22%3A%22L%20%3D%20mean((%C5%B7-y)%C2%B2)%22%2C%22action%22%3A%22%E9%A2%84%E6%B5%8B%E7%82%B9%E4%B8%8E%E7%9B%AE%E6%A0%87%E7%82%B9%E4%B9%8B%E9%97%B4%E5%87%BA%E7%8E%B0%E8%AF%AF%E5%B7%AE%E5%B0%BA%22%2C%22insight%22%3A%22%E6%A0%87%E9%87%8F%E6%8D%9F%E5%A4%B1%E6%8A%8A%E4%BB%BB%E5%8A%A1%E7%9B%AE%E6%A0%87%E5%8F%98%E6%88%90%E5%8F%AF%E6%B1%82%E5%AF%BC%E7%9A%84%E4%BC%98%E5%8C%96%E6%8E%A5%E5%8F%A3%22%7D"><span class="process-icon" aria-hidden="true">🎯</span><strong>计算损失</strong><span>L = mean((ŷ-y)²)</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%86%A9%EF%B8%8F%22%2C%22label%22%3A%22%E5%8F%8D%E4%BC%A0%E6%A2%AF%E5%BA%A6%22%2C%22data%22%3A%22%E2%88%82L%2F%E2%88%82W%20%3D%20%E2%88%82L%2F%E2%88%82%C5%B7%20%C2%B7%20%E2%80%A6%22%2C%22action%22%3A%22%E8%AF%AF%E5%B7%AE%E4%BF%A1%E5%8F%B7%E6%B2%BF%E5%B7%B2%E8%AE%B0%E5%BD%95%E7%9A%84%E8%BF%90%E7%AE%97%E8%BE%B9%E5%8F%8D%E5%90%91%E4%BC%A0%E6%92%AD%22%2C%22insight%22%3A%22%E9%93%BE%E5%BC%8F%E6%B3%95%E5%88%99%E5%88%86%E9%85%8D%E8%B4%A3%E4%BB%BB%EF%BC%9Bshape%20%E5%BF%85%E9%A1%BB%E4%B8%8E%E5%AF%B9%E5%BA%94%E5%8F%82%E6%95%B0%E4%B8%80%E8%87%B4%22%7D"><span class="process-icon" aria-hidden="true">↩️</span><strong>反传梯度</strong><span>∂L/∂W = ∂L/∂ŷ · …</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A7%22%2C%22label%22%3A%22%E6%9B%B4%E6%96%B0%E5%8F%82%E6%95%B0%22%2C%22data%22%3A%22W%20%E2%86%90%20W%20%E2%88%92%20%CE%B7%E2%88%87W%22%2C%22action%22%3A%22%E6%97%8B%E9%92%AE%E7%A7%BB%E5%8A%A8%E4%B8%80%E5%B0%8F%E6%A0%BC%E5%B9%B6%E5%88%B7%E6%96%B0%E4%B8%8B%E4%B8%80%E8%BD%AE%E9%A2%84%E6%B5%8B%22%2C%22insight%22%3A%22%E5%AD%A6%E4%B9%A0%E7%8E%87%E5%86%B3%E5%AE%9A%E6%AD%A5%E9%95%BF%EF%BC%8C%E6%9B%B4%E6%96%B0%E5%90%8E%E5%BF%85%E9%A1%BB%E7%94%A8%E6%96%B0%E5%89%8D%E5%90%91%E7%BB%93%E6%9E%9C%E9%AA%8C%E8%AF%81%E6%96%B9%E5%90%91%22%7D"><span class="process-icon" aria-hidden="true">🔧</span><strong>更新参数</strong><span>W ← W − η∇W</span></button></li></ol>
-    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>装载样本 · x:[B,2]，y:[B,1]</h3><p data-process-action>高亮 batch 轴，并把输入送入第一层</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>先确定 shape、dtype 与轴语义，后续计算才有共同契约</p></div></div>
-    <p class="process-loop"><strong>循环 / 返回条件：</strong>更新后的权重重新接收下一批样本；动画回到装载样本，并保留一条逐步下降的 loss 轨迹作为跨轮次状态。</p>
-    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
-    <p class="sr-only" aria-live="polite" data-process-status></p>
-  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">输入 x
+  <header class="top">
+    <div class="brand">端侧 AI · 15 天工程路线</div>
+    <div class="top-actions">
+      <a href="/learning_ai/">目录首页</a>
+
+        <a class="language-switch" href="/learning_ai/en/day01.html" lang="en" hreflang="en" aria-label="Switch to English">English</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="学习导航">
+    <span class="eyebrow">学习导航</span>
+
+      <a class="active" aria-current="page" href="/learning_ai/day01.html">Day 01 · 神经网络基础</a>
+
+      <a class=""  href="/learning_ai/day02.html">Day 02 · 训练与推理</a>
+
+      <a class=""  href="/learning_ai/day03.html">Day 03 · 模型格式</a>
+
+      <a class=""  href="/learning_ai/day04.html">Day 04 · 量化</a>
+
+      <a class=""  href="/learning_ai/day05.html">Day 05 · 算子</a>
+
+      <a class=""  href="/learning_ai/day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a>
+
+      <a class=""  href="/learning_ai/day07.html">Day 07 · 内存、带宽、MCU/NPU</a>
+
+      <a class=""  href="/learning_ai/day08.html">Day 08 · 端侧视觉模型</a>
+
+      <a class=""  href="/learning_ai/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/day12.html">Day 12 · LLM 量化与 GGUF</a>
+
+      <a class=""  href="/learning_ai/day13.html">Day 13 · 端侧 LLM 推理框架</a>
+
+      <a class=""  href="/learning_ai/day14.html">Day 14 · 性能分析</a>
+
+      <a class=""  href="/learning_ai/day15.html">Day 15 · 整合：端侧 AI 工程链路</a>
+
+  </aside>
+  <article class="content" data-day="1">
+    <div class="eyebrow">DAY 01</div>
+    <h1>神经网络基础</h1>
+    <p class="hero-sub">从张量、层与损失函数建立直觉</p>
+    <p class="reading-time">建议阅读：约 18 分钟</p>
+
+    <section>
+      <h2>学习目标</h2>
+      <div class="callout">理解神经网络如何把输入张量变成可优化的预测，并能读懂一次前向与反向传播。</div>
+    </section>
+
+    <section>
+      <h2>本章关键词</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">张量</th><td>带形状与数据类型的多维数值块，是模型输入、权重和中间结果的统一表示。</td><td>像注明采样数、通道数和位宽的 DMA buffer。</td></tr><tr><th scope="row">Shape</th><td>描述各维长度及其语义，例如 NCHW 的 batch、通道、高和宽。</td><td>像协议帧的字段布局，顺序错了数据仍存在但含义全错。</td></tr><tr><th scope="row">激活函数</th><td>在线性变换后加入非线性，使多层网络能表达复杂边界。</td><td>像状态机中的条件分支，不能被简单合并。</td></tr><tr><th scope="row">MAC</th><td>一次乘加运算；常用于粗略估算计算量。</td><td>像内层 DSP 循环的工作次数，还需结合取数成本。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>承上：回顾与定位</h2><p>这是课程起点。你已经熟悉 ESP32 中“外设产生数据、DMA 搬运数据、任务消费数据”的链路；本章把这条链路抽象为神经网络的输入、层和输出，为后续讨论训练与部署建立共同语言。</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div>
+        <p class="section-lead">神经网络并不是突然从“大模型”时代出现的。它经历了从逻辑化神经元、可学习的线性分类器，到多层网络的信用分配，再到 GPU 上的大规模表示学习这一条长线。今天在端侧工程里看到的张量、算子、自动微分和部署图，正是这条历史逐步沉淀出的分层接口。</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1943</div>
+              <div class="timeline-content"><h3>神经元第一次被写成可计算的逻辑单元</h3><p>McCulloch 与 Pitts 用阈值化单元和连接网络描述神经活动，证明一组简单单元可以组合出逻辑行为。它没有现代训练算法，却奠定了“复杂功能可由大量统一小单元连接而成”的计算视角。</p><a href="https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf" target="_blank" rel="noopener noreferrer">McCulloch 与 Pitts 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">1958</div>
+              <div class="timeline-content"><h3>感知机把“连接”变成可由样本修正的权重</h3><p>Rosenblatt 的感知机引入依据分类误差调整连接权重的机制，使神经网络从手工逻辑结构走向数据驱动学习。它主要解决线性可分问题，也让“模型参数是训练结果”成为后来网络的核心观念。</p><a href="https://doi.org/10.1037/h0042519" target="_blank" rel="noopener noreferrer">Rosenblatt 感知机原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">1986</div>
+              <div class="timeline-content"><h3>反向传播让隐藏层收到可计算的误差信号</h3><p>Rumelhart、Hinton 与 Williams 展示了误差反向传播如何逐层计算导数并调整权重。隐藏单元不再依赖人工指定含义，而能为任务形成内部表示；这让多层非线性网络拥有了实用的统一训练方法。</p><a href="https://www.nature.com/articles/323533a0" target="_blank" rel="noopener noreferrer">Nature 反向传播原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2012</div>
+              <div class="timeline-content"><h3>AlexNet 把深层表示学习推入大数据与 GPU 时代</h3><p>AlexNet 在大规模图像数据上训练深卷积网络，并用 GPU 承担密集张量计算。突破不只来自网络结构，还来自数据、并行计算和正则化共同到位；从此参数量、MAC、显存与吞吐成为同一套工程预算。</p><a href="https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks" target="_blank" rel="noopener noreferrer">AlexNet 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2019</div>
+              <div class="timeline-content"><h3>命令式张量程序与自动微分成为日常工具</h3><p>PyTorch 论文总结了命令式前端、动态图与高性能张量后端的组合。研究者可以像普通程序一样写控制流，同时由系统记录运算关系并求梯度；今天导出前先确认动态图路径，也源自这种灵活性。</p><a href="https://papers.neurips.cc/paper/2019/hash/bdbca288fee7f92f2bfa9f7012727740-Abstract.html" target="_blank" rel="noopener noreferrer">PyTorch 系统原始论文 ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>今天为什么仍然重要：</strong> 历史留下的工程启示是：网络能力来自可组合的非线性单元，学习来自可追踪的误差链，而性能来自张量程序对硬件的有效映射。端侧阅读一个模型时，应同时沿“数值如何变换”“梯度曾如何塑造权重”“部署时 buffer 如何存活”三条线检查。</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>一座会根据试音记录自动调节的连锁调音台</h3><p>想象一支乐队的多轨录音进入几排调音台。每排先按旋钮比例混合声道，再经过只允许某些信号通过的噪声门；末端监听员把成品与参考录音比较，并把“哪里偏响、哪里偏弱”的修正便签沿线路反向传回。重复试音后，旋钮位置就是学到的权重。</p></div>
+          <div class="analogy-illustration" aria-label="一座会根据试音记录自动调节的连锁调音台">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🎚️</span>
+                <strong>成排旋钮</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>权重与偏置决定各输入对下一层的贡献</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🚪</span>
+                <strong>噪声门</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>激活函数加入非线性并改变可表达的边界</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🎧</span>
+                <strong>参考监听</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>损失函数把预测与目标压缩成可优化的误差</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📝</span>
+                <strong>反向便签</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>链式法则把输出误差分摊到每个参数</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>类比的边界：</strong> 这个类比只帮助理解信号变换与误差反馈。真实网络的一个“旋钮”会参与高维批量运算，梯度是局部导数的精确组合而不是主观意见；类比也无法表示参数共享、卷积布局和数值精度造成的耦合。</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>本章讲解</h2>
+      <h3>Shape 之外还要读 stride 与轴语义</h3><p>同样是 3072 个数，[1,3,32,32] 与 [1,32,32,3] 的物理含义完全不同；即使 shape 相同，转置后的 view 也可能不连续。层通常按约定的轴做归一化、卷积或归约，广播又可能让错误 shape “合法运行”。读网络时应给每一轴标注 N/C/H/W、单位和 dtype，并在边界打印 stride，避免把可执行误当作语义正确。</p><h3>非线性真正改变的是可组合的决策边界</h3><p>仿射层只做旋转、缩放和平移，多层仿射映射仍可折成一次矩阵乘法。ReLU 等激活把输入空间切成多个区域，不同区域使用不同线性关系，于是层叠才会增长表达能力。工程上还要关注激活的输出范围：大面积恒为零可能意味着输入偏移或坏初始化，过大数值则可能在低精度部署时饱和。</p><h3>损失是目标接口，梯度是逐层信用账本</h3><p>损失函数规定什么差异值得惩罚；链式法则再把总误差对每个中间量的敏感度逐层相乘。梯度为零不等于已经学好，可能是饱和激活、断开的计算图或数值下溢；梯度爆大也会使一次更新越过有效区域。训练实验应同时记录 loss、梯度范数与参数更新量，而不是只盯最终准确率。</p><h3>参数、MAC 与峰值激活回答三种不同问题</h3><p>参数量近似回答权重需要多少存储，MAC 粗略回答进行了多少乘加，激活生命周期才决定运行时工作台有多大。卷积的权重可很少，却可能产生巨大的特征图；逐元素算子几乎没有参数，仍会完整读写张量。端侧预算应按执行顺序画出存活区间，再把 workspace、对齐填充和 I/O buffer 加入峰值。</p><h3>用有限差分和中间张量验证“会算”</h3><p>为一个极小网络固定权重与输入，保存每层输出、损失和解析梯度；再让单个参数增加与减少一个很小的 ε，用两次损失差近似导数。两者不符时，常见原因是转置、批量归约、原地修改或激活边界。部署侧不需要反向传播，但这份 golden tensor 可继续验证导出、量化和 kernel 是否保持前向语义。</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一拍训练脉冲：数据如何变成一次权重更新">
+          <div class="process-heading">
+            <div><h3>一拍训练脉冲：数据如何变成一次权重更新</h3><p>播放器每前进一步就点亮一个张量及其所有者；前半程信号向右流，后半程梯度向左回传，最后权重刻度发生细小移动。</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E8%A3%85%E8%BD%BD%E6%A0%B7%E6%9C%AC%22%2C%22data%22%3A%22x%3A%5BB%2C2%5D%EF%BC%8Cy%3A%5BB%2C1%5D%22%2C%22action%22%3A%22%E9%AB%98%E4%BA%AE%20batch%20%E8%BD%B4%EF%BC%8C%E5%B9%B6%E6%8A%8A%E8%BE%93%E5%85%A5%E9%80%81%E5%85%A5%E7%AC%AC%E4%B8%80%E5%B1%82%22%2C%22insight%22%3A%22%E5%85%88%E7%A1%AE%E5%AE%9A%20shape%E3%80%81dtype%20%E4%B8%8E%E8%BD%B4%E8%AF%AD%E4%B9%89%EF%BC%8C%E5%90%8E%E7%BB%AD%E8%AE%A1%E7%AE%97%E6%89%8D%E6%9C%89%E5%85%B1%E5%90%8C%E5%A5%91%E7%BA%A6%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">📥</span><strong>装载样本</strong><span>x:[B,2]，y:[B,1]</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%AE%22%2C%22label%22%3A%22%E4%BB%BF%E5%B0%84%E5%8F%98%E6%8D%A2%22%2C%22data%22%3A%22z%20%3D%20xW%E1%B5%80%20%2B%20b%22%2C%22action%22%3A%22%E8%BF%9E%E7%BA%BF%E6%8C%89%E6%9D%83%E9%87%8D%E7%B2%97%E7%BB%86%E6%B1%87%E5%85%A5%E6%AF%8F%E4%B8%AA%E8%BE%93%E5%87%BA%E5%8D%95%E5%85%83%22%2C%22insight%22%3A%22W%20%E5%86%B3%E5%AE%9A%E6%B7%B7%E5%90%88%E6%96%B9%E5%90%91%EF%BC%8Cb%20%E5%B9%B3%E7%A7%BB%E8%BE%B9%E7%95%8C%EF%BC%9B%E6%AD%A4%E6%AD%A5%E4%BB%8D%E6%98%AF%E7%BA%BF%E6%80%A7%E7%9A%84%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧮</span><strong>仿射变换</strong><span>z = xWᵀ + b</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%A1%22%2C%22label%22%3A%22%E9%80%9A%E8%BF%87%E6%BF%80%E6%B4%BB%22%2C%22data%22%3A%22a%20%3D%20ReLU(z)%22%2C%22action%22%3A%22%E8%B4%9F%E5%80%BC%E8%8A%82%E7%82%B9%E7%86%84%E7%81%AD%EF%BC%8C%E6%AD%A3%E5%80%BC%E8%8A%82%E7%82%B9%E4%BF%9D%E6%8C%81%E4%BA%AE%E5%BA%A6%22%2C%22insight%22%3A%22%E9%9D%9E%E7%BA%BF%E6%80%A7%E8%AE%A9%E5%A4%9A%E5%B1%82%E7%BB%84%E5%90%88%E6%97%A0%E6%B3%95%E8%A2%AB%E6%8A%98%E6%88%90%E5%8D%95%E4%B8%80%E7%9F%A9%E9%98%B5%22%7D">
+                  <span class="process-icon" aria-hidden="true">⚡</span><strong>通过激活</strong><span>a = ReLU(z)</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%AF%22%2C%22label%22%3A%22%E8%AE%A1%E7%AE%97%E6%8D%9F%E5%A4%B1%22%2C%22data%22%3A%22L%20%3D%20mean((%C5%B7-y)%C2%B2)%22%2C%22action%22%3A%22%E9%A2%84%E6%B5%8B%E7%82%B9%E4%B8%8E%E7%9B%AE%E6%A0%87%E7%82%B9%E4%B9%8B%E9%97%B4%E5%87%BA%E7%8E%B0%E8%AF%AF%E5%B7%AE%E5%B0%BA%22%2C%22insight%22%3A%22%E6%A0%87%E9%87%8F%E6%8D%9F%E5%A4%B1%E6%8A%8A%E4%BB%BB%E5%8A%A1%E7%9B%AE%E6%A0%87%E5%8F%98%E6%88%90%E5%8F%AF%E6%B1%82%E5%AF%BC%E7%9A%84%E4%BC%98%E5%8C%96%E6%8E%A5%E5%8F%A3%22%7D">
+                  <span class="process-icon" aria-hidden="true">🎯</span><strong>计算损失</strong><span>L = mean((ŷ-y)²)</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%86%A9%EF%B8%8F%22%2C%22label%22%3A%22%E5%8F%8D%E4%BC%A0%E6%A2%AF%E5%BA%A6%22%2C%22data%22%3A%22%E2%88%82L%2F%E2%88%82W%20%3D%20%E2%88%82L%2F%E2%88%82%C5%B7%20%C2%B7%20%E2%80%A6%22%2C%22action%22%3A%22%E8%AF%AF%E5%B7%AE%E4%BF%A1%E5%8F%B7%E6%B2%BF%E5%B7%B2%E8%AE%B0%E5%BD%95%E7%9A%84%E8%BF%90%E7%AE%97%E8%BE%B9%E5%8F%8D%E5%90%91%E4%BC%A0%E6%92%AD%22%2C%22insight%22%3A%22%E9%93%BE%E5%BC%8F%E6%B3%95%E5%88%99%E5%88%86%E9%85%8D%E8%B4%A3%E4%BB%BB%EF%BC%9Bshape%20%E5%BF%85%E9%A1%BB%E4%B8%8E%E5%AF%B9%E5%BA%94%E5%8F%82%E6%95%B0%E4%B8%80%E8%87%B4%22%7D">
+                  <span class="process-icon" aria-hidden="true">↩️</span><strong>反传梯度</strong><span>∂L/∂W = ∂L/∂ŷ · …</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A7%22%2C%22label%22%3A%22%E6%9B%B4%E6%96%B0%E5%8F%82%E6%95%B0%22%2C%22data%22%3A%22W%20%E2%86%90%20W%20%E2%88%92%20%CE%B7%E2%88%87W%22%2C%22action%22%3A%22%E6%97%8B%E9%92%AE%E7%A7%BB%E5%8A%A8%E4%B8%80%E5%B0%8F%E6%A0%BC%E5%B9%B6%E5%88%B7%E6%96%B0%E4%B8%8B%E4%B8%80%E8%BD%AE%E9%A2%84%E6%B5%8B%22%2C%22insight%22%3A%22%E5%AD%A6%E4%B9%A0%E7%8E%87%E5%86%B3%E5%AE%9A%E6%AD%A5%E9%95%BF%EF%BC%8C%E6%9B%B4%E6%96%B0%E5%90%8E%E5%BF%85%E9%A1%BB%E7%94%A8%E6%96%B0%E5%89%8D%E5%90%91%E7%BB%93%E6%9E%9C%E9%AA%8C%E8%AF%81%E6%96%B9%E5%90%91%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔧</span><strong>更新参数</strong><span>W ← W − η∇W</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>装载样本 · x:[B,2]，y:[B,1]</h3><p data-process-action>高亮 batch 轴，并把输入送入第一层</p></div>
+            <div class="process-insight"><span>观察点</span><p data-process-insight>先确定 shape、dtype 与轴语义，后续计算才有共同契约</p></div>
+          </div>
+          <p class="process-loop"><strong>循环 / 返回条件：</strong> 更新后的权重重新接收下一批样本；动画回到装载样本，并保留一条逐步下降的 loss 轨迹作为跨轮次状态。</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← 上一步</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>下一步 →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">输入 x
   │ Linear(Wx+b)
   ▼
 激活 f(·) ──► 预测 ŷ ──► Loss(ŷ,y)
   ▲                         │
-  └────── 梯度反传 ◄─────────┘</pre></details></section>
-      <section><h2>代码或命令示例</h2><pre class="code"><code>y = x @ W.T + b
+  └────── 梯度反传 ◄─────────┘</pre></details>
+      </section>
+
+
+    <section><h2>代码或命令示例</h2><pre class="code"><code>y = x @ W.T + b
 y = relu(y)
 loss = mean((y - target) ** 2)
 loss.backward()</code></pre></section>
-      <section><h2>动手实验</h2><div class="callout">用一个 2→3→1 的 MLP，手算每层形状、参数量和一次 MSE；再用任意框架验证梯度方向。</div></section>
-      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>只比较参数量会漏掉激活张量和工作区。MCU 上让系统崩溃的往往是推理瞬间的峰值 RAM，而不是 Flash 中权重文件的大小。</div></section>
-      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. 为什么两个线性层之间没有激活函数时可合并？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>每层都会自动归一化</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>线性映射的复合仍是线性映射</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>权重会在推理时消失</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>MAC 数必然为零</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 输入 shape 为 [1, 3, 32, 32] 最先应该确认什么？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>只确认总字节数</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>通道位置和 dtype 是否与模型契约一致</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>先把 batch 改成 32</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>先把它上传到 NPU</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 对端侧延迟更直接的粗略计算指标是什么？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>模型文件名长度</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>参数量</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>MACs 与数据搬运量</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>训练 epoch 数</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
-      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html" target="_blank" rel="noopener noreferrer">PyTorch ONNX 导出（官方/原始资料）</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers（官方/原始资料）</a></li></ul></section>
-      <section><h2>启下：下一章如何使用本章能力</h2><p>下一章将把本章的前向计算拆出训练期与推理期：哪些状态属于实验室，哪些状态可以像稳定固件一样烧录到目标设备。</p><p>下一天：<a href="day02.html">Day 2 · 训练与推理</a></p></section>
-      <div class="nav"><span></span><a class="button" href="day02.html">Day 2 →</a></div>
-    </article>
-  </main>
+    <section><h2>动手实验</h2><div class="callout">用一个 2→3→1 的 MLP，手算每层形状、参数量和一次 MSE；再用任意框架验证梯度方向。</div></section>
+    <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong> 只比较参数量会漏掉激活张量和工作区。MCU 上让系统崩溃的往往是推理瞬间的峰值 RAM，而不是 Flash 中权重文件的大小。</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-1">
+      <h2 id="quiz-title-1">核心测试</h2>
+      <p>完成 3 道单选题后提交；提交前不会显示答案。</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%A4%E4%B8%AA%E7%BA%BF%E6%80%A7%E5%B1%82%E4%B9%8B%E9%97%B4%E6%B2%A1%E6%9C%89%E6%BF%80%E6%B4%BB%E5%87%BD%E6%95%B0%E6%97%B6%E5%8F%AF%E5%90%88%E5%B9%B6%EF%BC%9F%22%2C%22options%22%3A%5B%22%E6%AF%8F%E5%B1%82%E9%83%BD%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%BD%92%E4%B8%80%E5%8C%96%22%2C%22%E7%BA%BF%E6%80%A7%E6%98%A0%E5%B0%84%E7%9A%84%E5%A4%8D%E5%90%88%E4%BB%8D%E6%98%AF%E7%BA%BF%E6%80%A7%E6%98%A0%E5%B0%84%22%2C%22%E6%9D%83%E9%87%8D%E4%BC%9A%E5%9C%A8%E6%8E%A8%E7%90%86%E6%97%B6%E6%B6%88%E5%A4%B1%22%2C%22MAC%20%E6%95%B0%E5%BF%85%E7%84%B6%E4%B8%BA%E9%9B%B6%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E6%B2%A1%E6%9C%89%E9%9D%9E%E7%BA%BF%E6%80%A7%E6%97%B6%EF%BC%8CW%E2%82%82(W%E2%82%81x%2Bb%E2%82%81)%2Bb%E2%82%82%20%E5%8F%AF%E6%95%B4%E7%90%86%E6%88%90%E4%B8%80%E4%B8%AA%E6%96%B0%E7%9A%84%20W%20%E5%92%8C%20b%EF%BC%9B%E5%A2%9E%E5%8A%A0%E5%B1%82%E6%95%B0%E5%B9%B6%E6%B2%A1%E6%9C%89%E5%A2%9E%E5%8A%A0%E5%8F%AF%E8%A1%A8%E8%BE%BE%E7%9A%84%E9%9D%9E%E7%BA%BF%E6%80%A7%E8%BE%B9%E7%95%8C%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22%E8%BE%93%E5%85%A5%20shape%20%E4%B8%BA%20%5B1%2C%203%2C%2032%2C%2032%5D%20%E6%9C%80%E5%85%88%E5%BA%94%E8%AF%A5%E7%A1%AE%E8%AE%A4%E4%BB%80%E4%B9%88%EF%BC%9F%22%2C%22options%22%3A%5B%22%E5%8F%AA%E7%A1%AE%E8%AE%A4%E6%80%BB%E5%AD%97%E8%8A%82%E6%95%B0%22%2C%22%E9%80%9A%E9%81%93%E4%BD%8D%E7%BD%AE%E5%92%8C%20dtype%20%E6%98%AF%E5%90%A6%E4%B8%8E%E6%A8%A1%E5%9E%8B%E5%A5%91%E7%BA%A6%E4%B8%80%E8%87%B4%22%2C%22%E5%85%88%E6%8A%8A%20batch%20%E6%94%B9%E6%88%90%2032%22%2C%22%E5%85%88%E6%8A%8A%E5%AE%83%E4%B8%8A%E4%BC%A0%E5%88%B0%20NPU%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22shape%20%E7%9A%84%E7%BB%B4%E5%BA%A6%E8%AF%AD%E4%B9%89%E5%92%8C%20dtype%20%E6%98%AF%E6%A8%A1%E5%9E%8B%20I%2FO%20%E5%A5%91%E7%BA%A6%E7%9A%84%E4%B8%80%E9%83%A8%E5%88%86%E3%80%82NCHW%2FNHWC%20%E6%88%96%20int8%2Ffloat%20%E4%B8%8D%E5%8C%B9%E9%85%8D%E6%97%B6%EF%BC%8C%E6%A8%A1%E5%9E%8B%E5%8F%AF%E8%BF%90%E8%A1%8C%E5%8D%B4%E4%BC%9A%E7%A8%B3%E5%AE%9A%E5%9C%B0%E4%BA%A7%E7%94%9F%E9%94%99%E8%AF%AF%E7%BB%93%E6%9E%9C%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22%E5%AF%B9%E7%AB%AF%E4%BE%A7%E5%BB%B6%E8%BF%9F%E6%9B%B4%E7%9B%B4%E6%8E%A5%E7%9A%84%E7%B2%97%E7%95%A5%E8%AE%A1%E7%AE%97%E6%8C%87%E6%A0%87%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F%22%2C%22options%22%3A%5B%22%E6%A8%A1%E5%9E%8B%E6%96%87%E4%BB%B6%E5%90%8D%E9%95%BF%E5%BA%A6%22%2C%22%E5%8F%82%E6%95%B0%E9%87%8F%22%2C%22MACs%20%E4%B8%8E%E6%95%B0%E6%8D%AE%E6%90%AC%E8%BF%90%E9%87%8F%22%2C%22%E8%AE%AD%E7%BB%83%20epoch%20%E6%95%B0%22%5D%2C%22answer%22%3A2%2C%22explanation%22%3A%22%E5%8F%82%E6%95%B0%E9%87%8F%E4%B8%BB%E8%A6%81%E5%BD%B1%E5%93%8D%E6%9D%83%E9%87%8D%E5%AD%98%E5%82%A8%EF%BC%9BMACs%20%E6%8F%8F%E8%BF%B0%E8%AE%A1%E7%AE%97%E9%87%8F%EF%BC%8C%E4%BD%86%E8%BF%98%E5%BF%85%E9%A1%BB%E7%BB%93%E5%90%88%E6%BF%80%E6%B4%BB%E8%AF%BB%E5%86%99%E3%80%81%E7%BC%93%E5%AD%98%E4%B8%8E%E5%B8%A6%E5%AE%BD%EF%BC%8C%E6%89%8D%E8%83%BD%E8%A7%A3%E9%87%8A%E7%9C%9F%E5%AE%9E%E5%BB%B6%E8%BF%9F%E3%80%82%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. 为什么两个线性层之间没有激活函数时可合并？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>每层都会自动归一化</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>线性映射的复合仍是线性映射</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>权重会在推理时消失</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>MAC 数必然为零</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. 输入 shape 为 [1, 3, 32, 32] 最先应该确认什么？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>只确认总字节数</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>通道位置和 dtype 是否与模型契约一致</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>先把 batch 改成 32</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>先把它上传到 NPU</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. 对端侧延迟更直接的粗略计算指标是什么？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>模型文件名长度</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>参数量</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>MACs 与数据搬运量</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>训练 epoch 数</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">提交本章测试</button>
+        <button class="button secondary retry-quiz" type="button" hidden>重新作答</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>延伸阅读</h2>
+      <ul class="reference-list"><li><a href="https://docs.pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html" target="_blank" rel="noopener noreferrer">PyTorch ONNX 导出（官方/原始资料）</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers（官方/原始资料）</a></li></ul>
+    </section>
+
+    <section>
+      <h2>启下：下一章如何使用本章能力</h2>
+      <p>下一章将把本章的前向计算拆出训练期与推理期：哪些状态属于实验室，哪些状态可以像稳定固件一样烧录到目标设备。</p>
+      <p>下一天： <a href="/learning_ai/day02.html">Day 2 · 训练与推理</a></p>
+    </section>
+
+    <nav class="nav" aria-label="学习导航">
+      <span></span>
+      <a class="button" href="/learning_ai/day02.html">Day 2 →</a>
+    </nav>
+  </article>
+</main>
+
+
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
-  <script src="content/enrichment-01-05.js"></script>
-  <script src="content/enrichment-06-10.js"></script>
-  <script src="content/enrichment-11-15.js"></script>
-  <script src="app.js"></script>
+  <script src="/learning_ai/app.js" defer></script>
 </body>
 </html>

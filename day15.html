@@ -4,88 +4,296 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Day 15 · 整合：端侧 AI 工程链路</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="把 14 天知识收束成可交付项目 — 完成从数据与模型到设备、主机、性能和产品约束的系统设计。">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/day15.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day15.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day15.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day15.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
 </head>
-<body>
+<body data-ui="%7B%22siteTitle%22%3A%22%E7%AB%AF%E4%BE%A7%20AI%20%C2%B7%2015%20%E5%A4%A9%E5%B7%A5%E7%A8%8B%E8%B7%AF%E7%BA%BF%22%2C%22siteDescription%22%3A%22%E9%9D%A2%E5%90%91%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E5%8F%8C%E8%AF%AD%E8%AF%BE%E7%A8%8B%EF%BC%9A%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E3%80%81%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%88%B0%E5%AE%8C%E6%95%B4%E7%B3%BB%E7%BB%9F%E9%AA%8C%E6%94%B6%E3%80%82%22%2C%22offlineLabel%22%3A%22%E7%A6%BB%E7%BA%BF%E9%9D%99%E6%80%81%E5%AD%A6%E4%B9%A0%E7%BD%91%E7%AB%99%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E5%88%B0%E5%8F%AF%E4%BA%A4%E4%BB%98%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E7%B3%BB%E7%BB%9F%22%2C%22heroBody%22%3A%22%E4%B8%BA%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%E3%80%81%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E8%AE%BE%E8%AE%A1%E3%80%82%E6%AF%8F%E5%A4%A9%E4%B8%80%E4%B8%AA%E4%B8%BB%E9%A2%98%EF%BC%8C%E6%B2%BF%E7%9D%80%E2%80%9C%E6%A8%A1%E5%9E%8B%20%E2%86%92%20%E8%A1%A8%E7%A4%BA%20%E2%86%92%20Runtime%20%E2%86%92%20Kernel%20%E2%86%92%20%E5%86%85%E5%AD%98%2F%E5%B8%A6%E5%AE%BD%20%E2%86%92%20%E7%A1%AC%E4%BB%B6%20%E2%86%92%20%E4%BA%A7%E5%93%81%E2%80%9D%E9%80%90%E5%B1%82%E6%94%B6%E6%9D%9F%EF%BC%9B%E6%AF%8F%E7%AB%A0%E7%94%A8%E5%8E%86%E5%8F%B2%E6%97%B6%E9%97%B4%E8%BD%B4%E8%AF%B4%E6%98%8E%E6%9D%A5%E8%B7%AF%EF%BC%8C%E7%94%A8%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%EF%BC%8C%E5%86%8D%E8%AE%A9%E6%95%B0%E6%8D%AE%E5%9C%A8%E5%8F%AF%E4%BA%A4%E4%BA%92%E5%8A%A8%E7%94%BB%E9%87%8C%E7%9C%9F%E6%AD%A3%E8%B7%91%E4%B8%80%E9%81%8D%E3%80%82%22%2C%22startCourse%22%3A%22%E4%BB%8E%20Day%201%20%E5%BC%80%E5%A7%8B%20%E2%86%92%22%2C%22cardMeta%22%3A%22%E5%8E%86%E5%8F%B2%20%2B%20%E5%9B%BE%E8%A7%A3%20%2B%20%E5%8A%A8%E7%94%BB%22%2C%22minutes%22%3A%22%E5%88%86%E9%92%9F%22%2C%22languageSwitch%22%3A%22English%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20English%22%2C%22home%22%3A%22%E7%9B%AE%E5%BD%95%E9%A6%96%E9%A1%B5%22%2C%22learningNav%22%3A%22%E5%AD%A6%E4%B9%A0%E5%AF%BC%E8%88%AA%22%2C%22suggestedReading%22%3A%22%E5%BB%BA%E8%AE%AE%E9%98%85%E8%AF%BB%EF%BC%9A%E7%BA%A6%22%2C%22learningGoal%22%3A%22%E5%AD%A6%E4%B9%A0%E7%9B%AE%E6%A0%87%22%2C%22keywords%22%3A%22%E6%9C%AC%E7%AB%A0%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22keyword%22%3A%22%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22explanation%22%3A%22%E8%A7%A3%E9%87%8A%22%2C%22espAnalogy%22%3A%22ESP32%20%E5%B7%A5%E7%A8%8B%E7%B1%BB%E6%AF%94%22%2C%22recap%22%3A%22%E6%89%BF%E4%B8%8A%EF%BC%9A%E5%9B%9E%E9%A1%BE%E4%B8%8E%E5%AE%9A%E4%BD%8D%22%2C%22historyKicker%22%3A%22%E4%BB%8E%E6%BA%90%E5%A4%B4%E7%9C%8B%E4%BB%8A%E5%A4%A9%22%2C%22historyTitle%22%3A%22%E5%8E%86%E5%8F%B2%E5%8F%91%E5%B1%95%E8%84%89%E7%BB%9C%22%2C%22historyBridge%22%3A%22%E4%BB%8A%E5%A4%A9%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BB%8D%E7%84%B6%E9%87%8D%E8%A6%81%EF%BC%9A%22%2C%22analogyKicker%22%3A%22%E5%80%9F%E7%86%9F%E6%82%89%E7%9A%84%E7%B3%BB%E7%BB%9F%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%22%2C%22analogyTitle%22%3A%22%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%22%2C%22analogyFallback%22%3A%22%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B1%BB%E6%AF%94%22%2C%22analogyBoundary%22%3A%22%E7%B1%BB%E6%AF%94%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%9A%22%2C%22lessonTitle%22%3A%22%E6%9C%AC%E7%AB%A0%E8%AE%B2%E8%A7%A3%22%2C%22processKicker%22%3A%22%E8%AE%A9%E6%95%B0%E6%8D%AE%E7%9C%9F%E6%AD%A3%E8%B7%91%E8%B5%B7%E6%9D%A5%22%2C%22processTitle%22%3A%22%E5%8A%A8%E6%80%81%E8%BF%87%E7%A8%8B%E6%BC%94%E7%A4%BA%22%2C%22pausePlayback%22%3A%22%E6%9A%82%E5%81%9C%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22reducedMotion%22%3A%22%E7%B3%BB%E7%BB%9F%E5%B7%B2%E5%87%8F%E5%B0%91%E5%8A%A8%E6%80%81%E6%95%88%E6%9E%9C%22%2C%22restartPlayback%22%3A%22%E4%BB%8E%E5%A4%B4%E6%92%AD%E6%94%BE%22%2C%22resumePlayback%22%3A%22%E7%BB%A7%E7%BB%AD%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22step%22%3A%22%E6%AD%A5%E9%AA%A4%22%2C%22observation%22%3A%22%E8%A7%82%E5%AF%9F%E7%82%B9%22%2C%22loopCondition%22%3A%22%E5%BE%AA%E7%8E%AF%20%2F%20%E8%BF%94%E5%9B%9E%E6%9D%A1%E4%BB%B6%EF%BC%9A%22%2C%22previousStep%22%3A%22%E2%86%90%20%E4%B8%8A%E4%B8%80%E6%AD%A5%22%2C%22nextStep%22%3A%22%E4%B8%8B%E4%B8%80%E6%AD%A5%20%E2%86%92%22%2C%22switchedStep%22%3A%22%E5%B7%B2%E5%88%87%E6%8D%A2%E5%88%B0%E6%AD%A5%E9%AA%A4%22%2C%22staticOverview%22%3A%22%E6%9F%A5%E7%9C%8B%E9%9D%99%E6%80%81%E5%85%A8%E6%99%AF%E5%9B%BE%22%2C%22flowchart%22%3A%22%E6%B5%81%E7%A8%8B%E5%9B%BE%22%2C%22codeExample%22%3A%22%E4%BB%A3%E7%A0%81%E6%88%96%E5%91%BD%E4%BB%A4%E7%A4%BA%E4%BE%8B%22%2C%22lab%22%3A%22%E5%8A%A8%E6%89%8B%E5%AE%9E%E9%AA%8C%22%2C%22pitfall%22%3A%22%E5%B7%A5%E7%A8%8B%E9%99%B7%E9%98%B1%22%2C%22avoidMisread%22%3A%22%E9%81%BF%E5%85%8D%E8%AF%AF%E5%88%A4%EF%BC%9A%22%2C%22quizTitle%22%3A%22%E6%A0%B8%E5%BF%83%E6%B5%8B%E8%AF%95%22%2C%22quizIntro%22%3A%22%E5%AE%8C%E6%88%90%203%20%E9%81%93%E5%8D%95%E9%80%89%E9%A2%98%E5%90%8E%E6%8F%90%E4%BA%A4%EF%BC%9B%E6%8F%90%E4%BA%A4%E5%89%8D%E4%B8%8D%E4%BC%9A%E6%98%BE%E7%A4%BA%E7%AD%94%E6%A1%88%E3%80%82%22%2C%22submitQuiz%22%3A%22%E6%8F%90%E4%BA%A4%E6%9C%AC%E7%AB%A0%E6%B5%8B%E8%AF%95%22%2C%22retryQuiz%22%3A%22%E9%87%8D%E6%96%B0%E4%BD%9C%E7%AD%94%22%2C%22completeQuestion%22%3A%22%E8%AF%B7%E5%85%88%E5%AE%8C%E6%88%90%E7%AC%AC%22%2C%22questionSuffix%22%3A%22%E9%A2%98%E3%80%82%22%2C%22correct%22%3A%22%E5%9B%9E%E7%AD%94%E6%AD%A3%E7%A1%AE%E3%80%82%22%2C%22incorrect%22%3A%22%E5%9B%9E%E7%AD%94%E9%94%99%E8%AF%AF%E3%80%82%22%2C%22correctAnswer%22%3A%22%E6%AD%A3%E7%A1%AE%E7%AD%94%E6%A1%88%EF%BC%9A%22%2C%22quizScore%22%3A%22%E6%9C%AC%E7%AB%A0%E5%BE%97%E5%88%86%EF%BC%9A%22%2C%22quizAdvice%22%3A%22%E8%AF%B7%E9%98%85%E8%AF%BB%E6%AF%8F%E9%A2%98%E8%A7%A3%E6%9E%90%EF%BC%8C%E5%86%8D%E5%86%B3%E5%AE%9A%E6%98%AF%E5%90%A6%E9%87%8D%E5%81%9A%E3%80%82%22%2C%22references%22%3A%22%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB%22%2C%22sourceSuffix%22%3A%22%EF%BC%88%E5%AE%98%E6%96%B9%2F%E5%8E%9F%E5%A7%8B%E8%B5%84%E6%96%99%EF%BC%89%22%2C%22nextPreview%22%3A%22%E5%90%AF%E4%B8%8B%EF%BC%9A%E4%B8%8B%E4%B8%80%E7%AB%A0%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E6%9C%AC%E7%AB%A0%E8%83%BD%E5%8A%9B%22%2C%22nextDay%22%3A%22%E4%B8%8B%E4%B8%80%E5%A4%A9%EF%BC%9A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22%E5%9B%9E%E5%88%B0%E9%A6%96%E9%A1%B5%22%2C%22footer%22%3A%22%E7%A6%BB%E7%BA%BF%E5%8F%AF%E7%94%A8%20%C2%B7%20%E9%9D%A2%E5%90%91%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%20%E4%B8%8E%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%22%2C%22homeFooter%22%3A%2215%20%E5%A4%A9%20%C2%B7%2015%20%E4%B8%AA%E7%8B%AC%E7%AB%8B%E9%A1%B5%E9%9D%A2%20%C2%B7%20%E4%B8%AD%E8%8B%B1%E5%8F%8C%E8%AF%AD%20%C2%B7%20%E6%97%A0%E8%BF%90%E8%A1%8C%E6%97%B6%E4%BE%9D%E8%B5%96%22%2C%22noscriptHome%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9B%E7%AB%A0%E8%8A%82%E7%9B%AE%E5%BD%95%E4%BB%8D%E5%8F%AF%E4%BD%BF%E7%94%A8%EF%BC%8C%E8%BF%9B%E5%85%A5%E7%AB%A0%E8%8A%82%E5%90%8E%E5%8F%AF%E9%98%85%E8%AF%BB%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E3%80%82%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%2C%22noscriptDay%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9A%E5%8E%86%E5%8F%B2%E3%80%81%E7%B1%BB%E6%AF%94%E3%80%81%E6%AD%A3%E6%96%87%E4%B8%8E%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E4%BB%8D%E5%8F%AF%E9%98%85%E8%AF%BB%EF%BC%9B%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%7D">
   <noscript>
     <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
     <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
   </noscript>
-  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
-  <main class="wrap day-layout">
-    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="active" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
-    <article class="content" data-day="15">
-      <div class="eyebrow">DAY 15</div>
-      <h1>整合：端侧 AI 工程链路</h1>
-      <p class="hero-sub">把 14 天知识收束成可交付项目</p>
-      <p class="reading-time">建议阅读：约 20 分钟</p>
-      <section><h2>学习目标</h2><div class="callout">完成从数据与模型到设备、主机、性能和产品约束的系统设计。</div></section>
-      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">安全边界</th><td>必须由确定性组件强制执行的权限和范围限制。</td><td>像 GPIO/电机驱动前的硬件互锁与状态机。</td></tr><tr><th scope="row">降级</th><td>依赖不可用时切换到安全且有限的功能。</td><td>像 Wi-Fi 断开后保留本地控制逻辑。</td></tr><tr><th scope="row">OTA</th><td>远程更新固件或模型的交付机制。</td><td>像版本化的固件分区与回滚流程。</td></tr><tr><th scope="row">验收报告</th><td>记录功能、性能、能耗和故障测试条件的证据。</td><td>像量产前的整机测试和可追溯记录。</td></tr></tbody></table></div></section>
-      <section><h2>承上：回顾与定位</h2><p>上一章给出了可复现的性能证据。本章把前 14 天的模型、格式、资源、runtime 与硬件知识组合为系统设计，并用故障路径验证它能在真实现场工作。</p></section>
-      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">端侧 AI 整合看似新颖，核心却来自几十年的分布式与嵌入式系统经验：正确性要放在真正理解语义的端点，重计算可以卸载到近端资源，微控制器需要专门的内存与 runtime 设计，AI 风险必须覆盖整个生命周期。把这些脉络拼起来，才能形成“ESP32 守住物理边界、Edge Host 提供推理能力”的可靠架构。</p><div class="timeline"><article class="timeline-item">
-    <div class="timeline-year">1984</div>
-    <div class="timeline-content"><h3>端到端原则明确关键正确性应由端点保证</h3><p>Saltzer、Reed 与 Clark 论证，一些功能即使在通信子系统中实现，最终仍需由真正掌握应用语义的端点检查。映射到 AI 控制链：传输层能保证帧完整，却不能判断“开阀 90%”是否在当前设备状态下安全。</p><a href="https://groups.csail.mit.edu/ana/Publications/PubPDFs/End-to-End%20Arguments%20in%20System%20Design.pdf" target="_blank" rel="noopener noreferrer">End-to-End Arguments 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2009</div>
-    <div class="timeline-content"><h3>Cloudlet 描绘近端资源主机的卸载模式</h3><p>Cloudlet 工作提出让资源受限移动设备通过低时延局域链路使用附近、资源丰富的计算节点，避开远端 WAN 的抖动与故障。今天 ESP32 加 Linux Edge Host 的分工延续这一思想：实时 I/O 留在端点，重推理放到一跳可达主机。</p><a href="https://elijah.cs.cmu.edu/DOCS/satya-ieeepvc-cloudlets-2009.pdf" target="_blank" rel="noopener noreferrer">Cloudlet 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2020</div>
-    <div class="timeline-content"><h3>TinyML Runtime 让微控制器成为模型执行端</h3><p>TensorFlow Lite Micro 的设计针对小内存、有限依赖和多类 MCU，展示模型解释器、静态内存规划与平台 kernel 如何进入固件。模型从云 API 变为设备模块，也让传感器前处理、arena、任务调度和确定性降级进入同一验收范围。</p><a href="https://arxiv.org/abs/2010.08678" target="_blank" rel="noopener noreferrer">TensorFlow Lite Micro 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2023</div>
-    <div class="timeline-content"><h3>NIST AI RMF 将 AI 风险纳入全生命周期管理</h3><p>AI RMF 1.0 用 Govern、Map、Measure、Manage 组织风险管理，强调系统情境、测量与持续治理。对端侧产品而言，准确率只是证据之一；权限、隐私、韧性、监控、供应链和退役路径也必须在设计与验收阶段有负责人。</p><a href="https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10" target="_blank" rel="noopener noreferrer">NIST AI RMF 1.0 官方发布 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">至今</div>
-    <div class="timeline-content"><h3>安全启动、签名 OTA 与回滚成为现场闭环</h3><p>ESP-IDF 的 OTA 状态与回滚机制允许新镜像首启自检后再标记有效，并可结合 Secure Boot 与 anti-rollback。模型、固件和配置都在变化时，发布链必须拥有签名、兼容矩阵、健康检查和可恢复版本，而不是只传一个新文件。</p><a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html" target="_blank" rel="noopener noreferrer">ESP-IDF OTA 官方文档 ↗</a></div>
-  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>这些里程碑共同给出终章架构：生成模型只提供概率性建议，端点状态机拥有最终权限；重计算可以在近端主机完成，但超时与断连必须降级；所有模型、协议和固件版本都要可度量、可追溯、可回滚。最终交付物不只是 demo，而是一套需求、接口、证据与故障恢复闭环。</div></section>
-      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>把整套端侧 AI 想成机场塔台与飞机的协作</h3><p>Edge Host 上的 LLM 像塔台顾问：看得广、算得多，可以把自然语言意图整理成结构化航路建议；ESP32 像飞机上的飞控，直接读取传感器并掌握执行器。塔台发来的“下降到某高度”必须带航班号、序号和参数，飞控仍会检查高度包线、油量与当前模式。通信中断时，飞机不会失去基本控制，而会进入预先验证的本地程序。更新新模型或固件，则像更换航图：签名、版本兼容和回滚缺一不可。</p></div><div class="analogy-illustration" aria-label="把整套端侧 AI 想成机场塔台与飞机的协作"><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🗼</span>
-    <strong>塔台顾问</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>Edge Host 上的 LLM、检索与重计算服务</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">✈️</span>
-    <strong>机载飞控</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>ESP32 传感器、状态机、白名单与执行器互锁</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">📻</span>
-    <strong>标准通话</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>带版本、序号、校验、超时和幂等语义的消息协议</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🗺️</span>
-    <strong>签名航图</strong>
-    <span class="analogy-arrow" aria-hidden="true">↔</span>
-    <span>模型、配置、固件的版本化 OTA 与可回滚发布</span>
-  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>真实航空系统有严格认证与确定性程序，而 LLM 本身无法达到飞控安全等级；类比绝不意味着模型可以参与硬实时闭环。它只说明职责分离与最终授权位置。任何可能伤人、损坏设备或违反法规的动作，都应由经过验证的确定性逻辑和必要的人类审批控制。</p></div></section>
-      <section><h2>本章讲解</h2><h3>从验收指标反推系统边界</h3><p>先写产品必须满足的事件、端到端时延、离线时长、误报漏报、安全状态、功耗和成本，再决定模型放在 MCU、Edge Host 或云。若断网后仍须毫秒级停机，判断与执行就不能依赖主机 LLM；若任务需要大上下文，可把解释放主机，但设备保留阈值规则。每项需求都映射到一个责任组件和可测信号，避免架构图只有箭头没有承诺。</p><h3>把 Host 消息定义为提案而非指令</h3><p>消息应使用有版本的结构化 schema，包含 device_id、request_id、sequence、deadline、action、typed params 和认证信息。ESP32 收到后验证来源、版本、去重、时效、动作白名单、参数范围与当前状态，全部通过才转成内部事件。自然语言永远不直接驱动 GPIO。对重复帧、乱序、重放、半包和未知字段做协议测试，并让拒绝原因可审计。</p><h3>正常路径与降级路径必须共享状态机</h3><p>为在线、主机慢、链路断、模型失败、传感器异常和执行器故障定义显式状态与转换；不要在异常回调里临时拼补动作。超时后取消主机请求并丢弃迟到回复，设备切回本地阈值或安全保持模式；重连需重新握手和同步序号。通过断网、重启、包丢失、Host 满载与 watchdog 复位做故障注入，确认每条路径都能回到已知状态。</p><h3>模型、固件、协议和配置作为一组发布</h3><p>模型更新可能改变 tokenizer、模板、输出 schema 与资源需求，因此不能脱离固件兼容矩阵单独替换。发布清单应记录四类版本、哈希、最低硬件、内存预算、迁移步骤与回滚目标；下载后先验签，新槽首次启动运行自检，观测期通过才标记有效。灰度阶段同时监控拒绝率、TTFT、崩溃和设备安全事件，异常时可恢复上一组已知组合。</p><h3>用端到端追踪完成可交付证据闭环</h3><p>让 ESP32 事件、协议帧、Host 请求、模型版本、tool proposal 与最终执行共享 correlation_id，并使用各自单调时钟记录阶段时间。验收报告包含功能样本、性能分布、能耗、离线与越权测试、OTA 回滚和长期稳定性；日志需去除敏感原文并设置保留策略。最终应能从一次异常执行追到原始传感器证据、所有策略判断和发布版本。</p></section>
-      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="从传感器事件到安全动作的端到端闭环">
-    <div class="process-heading"><div><h3>从传感器事件到安全动作的端到端闭环</h3><p>动画同时展示上行数据、主机推理、下行提案与设备端授权；最后一步把结果反馈为下一轮可观测状态。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
-    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8C%A1%EF%B8%8F%22%2C%22label%22%3A%22%E9%87%87%E9%9B%86%E6%88%90%E5%B8%A7%22%2C%22data%22%3A%22sensor%20%2B%20timestamp%20%2B%20device%20state%20%2B%20sequence%22%2C%22action%22%3A%22ESP32%20%E6%A0%A1%E5%87%86%E3%80%81%E8%8C%83%E5%9B%B4%E6%A3%80%E6%9F%A5%E5%B9%B6%E7%BC%96%E7%A0%81%E7%89%88%E6%9C%AC%E5%8C%96%E6%B6%88%E6%81%AF%22%2C%22insight%22%3A%22%E5%8E%9F%E5%A7%8B%E7%8E%B0%E5%AE%9E%E5%85%88%E7%BB%8F%E8%BF%87%E7%A1%AE%E5%AE%9A%E6%80%A7%E5%A5%91%E7%BA%A6%EF%BC%8C%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E6%8B%BC%E8%BF%9B%20prompt%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🌡️</span><strong>采集成帧</strong><span>sensor + timestamp + device state + sequence</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A4%22%2C%22label%22%3A%22%E5%8F%AF%E9%9D%A0%E4%B8%8A%E8%A1%8C%22%2C%22data%22%3A%22authenticated%20frame%20%2B%20correlation_id%22%2C%22action%22%3A%22%E6%A0%A1%E9%AA%8C%E3%80%81%E5%8E%BB%E9%87%8D%E3%80%81%E8%B6%85%E6%97%B6%E9%87%8D%E8%AF%95%E5%B9%B6%E9%80%81%E8%BE%BE%20Edge%20Host%22%2C%22insight%22%3A%22%E4%BC%A0%E8%BE%93%E5%8F%AF%E9%9D%A0%E6%80%A7%E4%B8%8D%E7%AD%89%E4%BA%8E%E4%B8%9A%E5%8A%A1%E8%AF%AD%E4%B9%89%E6%AD%A3%E7%A1%AE%22%7D"><span class="process-icon" aria-hidden="true">📤</span><strong>可靠上行</strong><span>authenticated frame + correlation_id</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A0%22%2C%22label%22%3A%22%E4%B8%BB%E6%9C%BA%E6%8E%A8%E7%90%86%22%2C%22data%22%3A%22structured%20context%20%E2%86%92%20model%2Ftool%20proposal%22%2C%22action%22%3A%22%E6%89%A7%E8%A1%8C%E9%A2%84%E5%A4%84%E7%90%86%E3%80%81runtime%20%E6%8E%A8%E7%90%86%E4%B8%8E%20schema%20%E7%BA%A6%E6%9D%9F%22%2C%22insight%22%3A%22%E6%A8%A1%E5%9E%8B%E8%BE%93%E5%87%BA%E6%98%AF%E5%B8%A6%E4%B8%8D%E7%A1%AE%E5%AE%9A%E6%80%A7%E7%9A%84%E5%80%99%E9%80%89%EF%BC%8C%E4%B8%8D%E6%8B%A5%E6%9C%89%E6%89%A7%E8%A1%8C%E6%9D%83%22%7D"><span class="process-icon" aria-hidden="true">🧠</span><strong>主机推理</strong><span>structured context → model/tool proposal</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E6%8F%90%E6%A1%88%E4%B8%8B%E8%A1%8C%22%2C%22data%22%3A%22action%20%2B%20typed%20params%20%2B%20deadline%20%2B%20request_id%22%2C%22action%22%3A%22%E7%AD%BE%E5%90%8D%E6%88%96%E8%AE%A4%E8%AF%81%E5%90%8E%E8%BF%94%E5%9B%9E%E8%AE%BE%E5%A4%87%EF%BC%8C%E5%B9%B6%E5%85%B3%E8%81%94%E5%8E%9F%E8%AF%B7%E6%B1%82%22%2C%22insight%22%3A%22%E8%BF%9F%E5%88%B0%E3%80%81%E9%87%8D%E5%A4%8D%E6%88%96%E6%97%A0%E6%B3%95%E5%85%B3%E8%81%94%E7%9A%84%E5%9B%9E%E5%A4%8D%E5%BF%85%E9%A1%BB%E6%8B%92%E7%BB%9D%22%7D"><span class="process-icon" aria-hidden="true">📥</span><strong>提案下行</strong><span>action + typed params + deadline + request_id</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9B%A1%EF%B8%8F%22%2C%22label%22%3A%22%E6%9C%AC%E5%9C%B0%E6%8E%88%E6%9D%83%22%2C%22data%22%3A%22proposal%20%2B%20live%20state%20%2B%20safety%20policy%22%2C%22action%22%3A%22ESP32%20%E6%A3%80%E6%9F%A5%E7%99%BD%E5%90%8D%E5%8D%95%E3%80%81%E8%8C%83%E5%9B%B4%E3%80%81%E4%BA%92%E9%94%81%E4%B8%8E%E5%B9%82%E7%AD%89%E6%9D%A1%E4%BB%B6%22%2C%22insight%22%3A%22%E6%9C%80%E7%BB%88%E5%AE%89%E5%85%A8%E5%88%A4%E6%96%AD%E6%94%BE%E5%9C%A8%E6%9C%80%E7%90%86%E8%A7%A3%E7%89%A9%E7%90%86%E7%8A%B6%E6%80%81%E7%9A%84%E7%AB%AF%E7%82%B9%22%7D"><span class="process-icon" aria-hidden="true">🛡️</span><strong>本地授权</strong><span>proposal + live state + safety policy</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22%E6%89%A7%E8%A1%8C%E4%B8%8E%E5%9B%9E%E8%AF%81%22%2C%22data%22%3A%22actuator%20result%20%2B%20status%20%2B%20trace%22%2C%22action%22%3A%22%E6%89%A7%E8%A1%8C%E7%A1%AE%E5%AE%9A%E6%80%A7%E5%8A%A8%E4%BD%9C%E3%80%81%E8%AE%B0%E5%BD%95%E7%BB%93%E6%9E%9C%E5%B9%B6%E4%B8%8A%E6%8A%A5%E5%81%A5%E5%BA%B7%E7%8A%B6%E6%80%81%22%2C%22insight%22%3A%22%E9%97%AD%E7%8E%AF%E8%AF%81%E6%8D%AE%E7%94%A8%E4%BA%8E%E7%9B%91%E6%8E%A7%E3%80%81%E5%9B%9E%E5%BD%92%E5%92%8C%E4%B8%8B%E4%B8%80%E8%BD%AE%E5%86%B3%E7%AD%96%22%7D"><span class="process-icon" aria-hidden="true">⚙️</span><strong>执行与回证</strong><span>actuator result + status + trace</span></button></li></ol>
-    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>采集成帧 · sensor + timestamp + device state + sequence</h3><p data-process-action>ESP32 校准、范围检查并编码版本化消息</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>原始现实先经过确定性契约，不能直接拼进 prompt</p></div></div>
-    <p class="process-loop"><strong>循环 / 返回条件：</strong>执行结果与新传感器状态回到“采集成帧”，形成可观测闭环；若任何阶段超时或校验失败，则不继续向右，而是进入设备本地的安全降级状态，并记录同一 correlation_id 下的拒绝原因。</p>
-    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
-    <p class="sr-only" aria-live="polite" data-process-status></p>
-  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Sensor/USB/ESP32 → framed message → Linux Edge Host
+  <header class="top">
+    <div class="brand">端侧 AI · 15 天工程路线</div>
+    <div class="top-actions">
+      <a href="/learning_ai/">目录首页</a>
+
+        <a class="language-switch" href="/learning_ai/en/day15.html" lang="en" hreflang="en" aria-label="Switch to English">English</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="学习导航">
+    <span class="eyebrow">学习导航</span>
+
+      <a class=""  href="/learning_ai/day01.html">Day 01 · 神经网络基础</a>
+
+      <a class=""  href="/learning_ai/day02.html">Day 02 · 训练与推理</a>
+
+      <a class=""  href="/learning_ai/day03.html">Day 03 · 模型格式</a>
+
+      <a class=""  href="/learning_ai/day04.html">Day 04 · 量化</a>
+
+      <a class=""  href="/learning_ai/day05.html">Day 05 · 算子</a>
+
+      <a class=""  href="/learning_ai/day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a>
+
+      <a class=""  href="/learning_ai/day07.html">Day 07 · 内存、带宽、MCU/NPU</a>
+
+      <a class=""  href="/learning_ai/day08.html">Day 08 · 端侧视觉模型</a>
+
+      <a class=""  href="/learning_ai/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/day12.html">Day 12 · LLM 量化与 GGUF</a>
+
+      <a class=""  href="/learning_ai/day13.html">Day 13 · 端侧 LLM 推理框架</a>
+
+      <a class=""  href="/learning_ai/day14.html">Day 14 · 性能分析</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/day15.html">Day 15 · 整合：端侧 AI 工程链路</a>
+
+  </aside>
+  <article class="content" data-day="15">
+    <div class="eyebrow">DAY 15</div>
+    <h1>整合：端侧 AI 工程链路</h1>
+    <p class="hero-sub">把 14 天知识收束成可交付项目</p>
+    <p class="reading-time">建议阅读：约 20 分钟</p>
+
+    <section>
+      <h2>学习目标</h2>
+      <div class="callout">完成从数据与模型到设备、主机、性能和产品约束的系统设计。</div>
+    </section>
+
+    <section>
+      <h2>本章关键词</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">安全边界</th><td>必须由确定性组件强制执行的权限和范围限制。</td><td>像 GPIO/电机驱动前的硬件互锁与状态机。</td></tr><tr><th scope="row">降级</th><td>依赖不可用时切换到安全且有限的功能。</td><td>像 Wi-Fi 断开后保留本地控制逻辑。</td></tr><tr><th scope="row">OTA</th><td>远程更新固件或模型的交付机制。</td><td>像版本化的固件分区与回滚流程。</td></tr><tr><th scope="row">验收报告</th><td>记录功能、性能、能耗和故障测试条件的证据。</td><td>像量产前的整机测试和可追溯记录。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>承上：回顾与定位</h2><p>上一章给出了可复现的性能证据。本章把前 14 天的模型、格式、资源、runtime 与硬件知识组合为系统设计，并用故障路径验证它能在真实现场工作。</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div>
+        <p class="section-lead">端侧 AI 整合看似新颖，核心却来自几十年的分布式与嵌入式系统经验：正确性要放在真正理解语义的端点，重计算可以卸载到近端资源，微控制器需要专门的内存与 runtime 设计，AI 风险必须覆盖整个生命周期。把这些脉络拼起来，才能形成“ESP32 守住物理边界、Edge Host 提供推理能力”的可靠架构。</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1984</div>
+              <div class="timeline-content"><h3>端到端原则明确关键正确性应由端点保证</h3><p>Saltzer、Reed 与 Clark 论证，一些功能即使在通信子系统中实现，最终仍需由真正掌握应用语义的端点检查。映射到 AI 控制链：传输层能保证帧完整，却不能判断“开阀 90%”是否在当前设备状态下安全。</p><a href="https://groups.csail.mit.edu/ana/Publications/PubPDFs/End-to-End%20Arguments%20in%20System%20Design.pdf" target="_blank" rel="noopener noreferrer">End-to-End Arguments 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2009</div>
+              <div class="timeline-content"><h3>Cloudlet 描绘近端资源主机的卸载模式</h3><p>Cloudlet 工作提出让资源受限移动设备通过低时延局域链路使用附近、资源丰富的计算节点，避开远端 WAN 的抖动与故障。今天 ESP32 加 Linux Edge Host 的分工延续这一思想：实时 I/O 留在端点，重推理放到一跳可达主机。</p><a href="https://elijah.cs.cmu.edu/DOCS/satya-ieeepvc-cloudlets-2009.pdf" target="_blank" rel="noopener noreferrer">Cloudlet 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2020</div>
+              <div class="timeline-content"><h3>TinyML Runtime 让微控制器成为模型执行端</h3><p>TensorFlow Lite Micro 的设计针对小内存、有限依赖和多类 MCU，展示模型解释器、静态内存规划与平台 kernel 如何进入固件。模型从云 API 变为设备模块，也让传感器前处理、arena、任务调度和确定性降级进入同一验收范围。</p><a href="https://arxiv.org/abs/2010.08678" target="_blank" rel="noopener noreferrer">TensorFlow Lite Micro 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2023</div>
+              <div class="timeline-content"><h3>NIST AI RMF 将 AI 风险纳入全生命周期管理</h3><p>AI RMF 1.0 用 Govern、Map、Measure、Manage 组织风险管理，强调系统情境、测量与持续治理。对端侧产品而言，准确率只是证据之一；权限、隐私、韧性、监控、供应链和退役路径也必须在设计与验收阶段有负责人。</p><a href="https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10" target="_blank" rel="noopener noreferrer">NIST AI RMF 1.0 官方发布 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">至今</div>
+              <div class="timeline-content"><h3>安全启动、签名 OTA 与回滚成为现场闭环</h3><p>ESP-IDF 的 OTA 状态与回滚机制允许新镜像首启自检后再标记有效，并可结合 Secure Boot 与 anti-rollback。模型、固件和配置都在变化时，发布链必须拥有签名、兼容矩阵、健康检查和可恢复版本，而不是只传一个新文件。</p><a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html" target="_blank" rel="noopener noreferrer">ESP-IDF OTA 官方文档 ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>今天为什么仍然重要：</strong> 这些里程碑共同给出终章架构：生成模型只提供概率性建议，端点状态机拥有最终权限；重计算可以在近端主机完成，但超时与断连必须降级；所有模型、协议和固件版本都要可度量、可追溯、可回滚。最终交付物不只是 demo，而是一套需求、接口、证据与故障恢复闭环。</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>把整套端侧 AI 想成机场塔台与飞机的协作</h3><p>Edge Host 上的 LLM 像塔台顾问：看得广、算得多，可以把自然语言意图整理成结构化航路建议；ESP32 像飞机上的飞控，直接读取传感器并掌握执行器。塔台发来的“下降到某高度”必须带航班号、序号和参数，飞控仍会检查高度包线、油量与当前模式。通信中断时，飞机不会失去基本控制，而会进入预先验证的本地程序。更新新模型或固件，则像更换航图：签名、版本兼容和回滚缺一不可。</p></div>
+          <div class="analogy-illustration" aria-label="把整套端侧 AI 想成机场塔台与飞机的协作">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🗼</span>
+                <strong>塔台顾问</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Edge Host 上的 LLM、检索与重计算服务</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">✈️</span>
+                <strong>机载飞控</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>ESP32 传感器、状态机、白名单与执行器互锁</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📻</span>
+                <strong>标准通话</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>带版本、序号、校验、超时和幂等语义的消息协议</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🗺️</span>
+                <strong>签名航图</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>模型、配置、固件的版本化 OTA 与可回滚发布</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>类比的边界：</strong> 真实航空系统有严格认证与确定性程序，而 LLM 本身无法达到飞控安全等级；类比绝不意味着模型可以参与硬实时闭环。它只说明职责分离与最终授权位置。任何可能伤人、损坏设备或违反法规的动作，都应由经过验证的确定性逻辑和必要的人类审批控制。</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>本章讲解</h2>
+      <h3>从验收指标反推系统边界</h3><p>先写产品必须满足的事件、端到端时延、离线时长、误报漏报、安全状态、功耗和成本，再决定模型放在 MCU、Edge Host 或云。若断网后仍须毫秒级停机，判断与执行就不能依赖主机 LLM；若任务需要大上下文，可把解释放主机，但设备保留阈值规则。每项需求都映射到一个责任组件和可测信号，避免架构图只有箭头没有承诺。</p><h3>把 Host 消息定义为提案而非指令</h3><p>消息应使用有版本的结构化 schema，包含 device_id、request_id、sequence、deadline、action、typed params 和认证信息。ESP32 收到后验证来源、版本、去重、时效、动作白名单、参数范围与当前状态，全部通过才转成内部事件。自然语言永远不直接驱动 GPIO。对重复帧、乱序、重放、半包和未知字段做协议测试，并让拒绝原因可审计。</p><h3>正常路径与降级路径必须共享状态机</h3><p>为在线、主机慢、链路断、模型失败、传感器异常和执行器故障定义显式状态与转换；不要在异常回调里临时拼补动作。超时后取消主机请求并丢弃迟到回复，设备切回本地阈值或安全保持模式；重连需重新握手和同步序号。通过断网、重启、包丢失、Host 满载与 watchdog 复位做故障注入，确认每条路径都能回到已知状态。</p><h3>模型、固件、协议和配置作为一组发布</h3><p>模型更新可能改变 tokenizer、模板、输出 schema 与资源需求，因此不能脱离固件兼容矩阵单独替换。发布清单应记录四类版本、哈希、最低硬件、内存预算、迁移步骤与回滚目标；下载后先验签，新槽首次启动运行自检，观测期通过才标记有效。灰度阶段同时监控拒绝率、TTFT、崩溃和设备安全事件，异常时可恢复上一组已知组合。</p><h3>用端到端追踪完成可交付证据闭环</h3><p>让 ESP32 事件、协议帧、Host 请求、模型版本、tool proposal 与最终执行共享 correlation_id，并使用各自单调时钟记录阶段时间。验收报告包含功能样本、性能分布、能耗、离线与越权测试、OTA 回滚和长期稳定性；日志需去除敏感原文并设置保留策略。最终应能从一次异常执行追到原始传感器证据、所有策略判断和发布版本。</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="从传感器事件到安全动作的端到端闭环">
+          <div class="process-heading">
+            <div><h3>从传感器事件到安全动作的端到端闭环</h3><p>动画同时展示上行数据、主机推理、下行提案与设备端授权；最后一步把结果反馈为下一轮可观测状态。</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8C%A1%EF%B8%8F%22%2C%22label%22%3A%22%E9%87%87%E9%9B%86%E6%88%90%E5%B8%A7%22%2C%22data%22%3A%22sensor%20%2B%20timestamp%20%2B%20device%20state%20%2B%20sequence%22%2C%22action%22%3A%22ESP32%20%E6%A0%A1%E5%87%86%E3%80%81%E8%8C%83%E5%9B%B4%E6%A3%80%E6%9F%A5%E5%B9%B6%E7%BC%96%E7%A0%81%E7%89%88%E6%9C%AC%E5%8C%96%E6%B6%88%E6%81%AF%22%2C%22insight%22%3A%22%E5%8E%9F%E5%A7%8B%E7%8E%B0%E5%AE%9E%E5%85%88%E7%BB%8F%E8%BF%87%E7%A1%AE%E5%AE%9A%E6%80%A7%E5%A5%91%E7%BA%A6%EF%BC%8C%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E6%8B%BC%E8%BF%9B%20prompt%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">🌡️</span><strong>采集成帧</strong><span>sensor + timestamp + device state + sequence</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A4%22%2C%22label%22%3A%22%E5%8F%AF%E9%9D%A0%E4%B8%8A%E8%A1%8C%22%2C%22data%22%3A%22authenticated%20frame%20%2B%20correlation_id%22%2C%22action%22%3A%22%E6%A0%A1%E9%AA%8C%E3%80%81%E5%8E%BB%E9%87%8D%E3%80%81%E8%B6%85%E6%97%B6%E9%87%8D%E8%AF%95%E5%B9%B6%E9%80%81%E8%BE%BE%20Edge%20Host%22%2C%22insight%22%3A%22%E4%BC%A0%E8%BE%93%E5%8F%AF%E9%9D%A0%E6%80%A7%E4%B8%8D%E7%AD%89%E4%BA%8E%E4%B8%9A%E5%8A%A1%E8%AF%AD%E4%B9%89%E6%AD%A3%E7%A1%AE%22%7D">
+                  <span class="process-icon" aria-hidden="true">📤</span><strong>可靠上行</strong><span>authenticated frame + correlation_id</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A0%22%2C%22label%22%3A%22%E4%B8%BB%E6%9C%BA%E6%8E%A8%E7%90%86%22%2C%22data%22%3A%22structured%20context%20%E2%86%92%20model%2Ftool%20proposal%22%2C%22action%22%3A%22%E6%89%A7%E8%A1%8C%E9%A2%84%E5%A4%84%E7%90%86%E3%80%81runtime%20%E6%8E%A8%E7%90%86%E4%B8%8E%20schema%20%E7%BA%A6%E6%9D%9F%22%2C%22insight%22%3A%22%E6%A8%A1%E5%9E%8B%E8%BE%93%E5%87%BA%E6%98%AF%E5%B8%A6%E4%B8%8D%E7%A1%AE%E5%AE%9A%E6%80%A7%E7%9A%84%E5%80%99%E9%80%89%EF%BC%8C%E4%B8%8D%E6%8B%A5%E6%9C%89%E6%89%A7%E8%A1%8C%E6%9D%83%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧠</span><strong>主机推理</strong><span>structured context → model/tool proposal</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E6%8F%90%E6%A1%88%E4%B8%8B%E8%A1%8C%22%2C%22data%22%3A%22action%20%2B%20typed%20params%20%2B%20deadline%20%2B%20request_id%22%2C%22action%22%3A%22%E7%AD%BE%E5%90%8D%E6%88%96%E8%AE%A4%E8%AF%81%E5%90%8E%E8%BF%94%E5%9B%9E%E8%AE%BE%E5%A4%87%EF%BC%8C%E5%B9%B6%E5%85%B3%E8%81%94%E5%8E%9F%E8%AF%B7%E6%B1%82%22%2C%22insight%22%3A%22%E8%BF%9F%E5%88%B0%E3%80%81%E9%87%8D%E5%A4%8D%E6%88%96%E6%97%A0%E6%B3%95%E5%85%B3%E8%81%94%E7%9A%84%E5%9B%9E%E5%A4%8D%E5%BF%85%E9%A1%BB%E6%8B%92%E7%BB%9D%22%7D">
+                  <span class="process-icon" aria-hidden="true">📥</span><strong>提案下行</strong><span>action + typed params + deadline + request_id</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9B%A1%EF%B8%8F%22%2C%22label%22%3A%22%E6%9C%AC%E5%9C%B0%E6%8E%88%E6%9D%83%22%2C%22data%22%3A%22proposal%20%2B%20live%20state%20%2B%20safety%20policy%22%2C%22action%22%3A%22ESP32%20%E6%A3%80%E6%9F%A5%E7%99%BD%E5%90%8D%E5%8D%95%E3%80%81%E8%8C%83%E5%9B%B4%E3%80%81%E4%BA%92%E9%94%81%E4%B8%8E%E5%B9%82%E7%AD%89%E6%9D%A1%E4%BB%B6%22%2C%22insight%22%3A%22%E6%9C%80%E7%BB%88%E5%AE%89%E5%85%A8%E5%88%A4%E6%96%AD%E6%94%BE%E5%9C%A8%E6%9C%80%E7%90%86%E8%A7%A3%E7%89%A9%E7%90%86%E7%8A%B6%E6%80%81%E7%9A%84%E7%AB%AF%E7%82%B9%22%7D">
+                  <span class="process-icon" aria-hidden="true">🛡️</span><strong>本地授权</strong><span>proposal + live state + safety policy</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22%E6%89%A7%E8%A1%8C%E4%B8%8E%E5%9B%9E%E8%AF%81%22%2C%22data%22%3A%22actuator%20result%20%2B%20status%20%2B%20trace%22%2C%22action%22%3A%22%E6%89%A7%E8%A1%8C%E7%A1%AE%E5%AE%9A%E6%80%A7%E5%8A%A8%E4%BD%9C%E3%80%81%E8%AE%B0%E5%BD%95%E7%BB%93%E6%9E%9C%E5%B9%B6%E4%B8%8A%E6%8A%A5%E5%81%A5%E5%BA%B7%E7%8A%B6%E6%80%81%22%2C%22insight%22%3A%22%E9%97%AD%E7%8E%AF%E8%AF%81%E6%8D%AE%E7%94%A8%E4%BA%8E%E7%9B%91%E6%8E%A7%E3%80%81%E5%9B%9E%E5%BD%92%E5%92%8C%E4%B8%8B%E4%B8%80%E8%BD%AE%E5%86%B3%E7%AD%96%22%7D">
+                  <span class="process-icon" aria-hidden="true">⚙️</span><strong>执行与回证</strong><span>actuator result + status + trace</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>采集成帧 · sensor + timestamp + device state + sequence</h3><p data-process-action>ESP32 校准、范围检查并编码版本化消息</p></div>
+            <div class="process-insight"><span>观察点</span><p data-process-insight>原始现实先经过确定性契约，不能直接拼进 prompt</p></div>
+          </div>
+          <p class="process-loop"><strong>循环 / 返回条件：</strong> 执行结果与新传感器状态回到“采集成帧”，形成可观测闭环；若任何阶段超时或校验失败，则不继续向右，而是进入设备本地的安全降级状态，并记录同一 correlation_id 下的拒绝原因。</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← 上一步</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>下一步 →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Sensor/USB/ESP32 → framed message → Linux Edge Host
        ↑ status/actuator ← tool policy ← LLM runtime
-                     model → backend → accelerator</pre></details></section>
-      <section><h2>代码或命令示例</h2><pre class="code"><code>POST /v1/chat/completions
+                     model → backend → accelerator</pre></details>
+      </section>
+
+
+    <section><h2>代码或命令示例</h2><pre class="code"><code>POST /v1/chat/completions
 {&quot;messages&quot;:[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;读取温度&quot;}],&quot;stream&quot;:true}
 
 # 验收：功能、延迟、能耗、离线、异常、升级、日志</code></pre></section>
-      <section><h2>动手实验</h2><div class="callout">做一个最小闭环：ESP32 采集温度并通过 USB/HTTP 发送，主机模型生成受控命令，ESP32 校验白名单后执行。</div></section>
-      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>只演示正常 Wi-Fi 和正常 prompt 的“happy path”会掩盖最重要的现场风险：网络抖动、模型幻觉、重复命令和升级中断。</div></section>
-      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. ESP32 + Edge Host 架构中，哪项应留在 ESP32 的确定性边界内？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>LLM 的所有权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>执行器白名单、范围检查和失联降级</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>云端训练循环</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>GGUF 转换脚本</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. 模型服务不可用时合理的降级策略是？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>无限重试并阻塞控制任务</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>回退到预定义阈值/状态机并上报故障</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>放开所有执行器权限</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>擦除模型分区</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 一次可复现的性能回归至少需要固定什么？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>仅产品名称</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>模型、输入/token、运行参数、硬件和测量条件</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>只固定屏幕分辨率</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>只固定 Git 分支名</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
-      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 入门（官方/原始资料）</a></li><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md" target="_blank" rel="noopener noreferrer">llama.cpp server（官方/原始资料）</a></li><li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/archives/triton-inference-server-2700/user-guide/docs/perf_benchmark/genai-perf-README.html" target="_blank" rel="noopener noreferrer">NVIDIA GenAI-Perf 指标（官方/原始资料）</a></li></ul></section>
-      <section><h2>启下：下一章如何使用本章能力</h2><p>课程到此收束。后续迭代应从具体产品约束重新走一遍：先定义安全和验收，再选择模型与硬件，而不是从某个热门模型倒推产品。</p></section>
-      <div class="nav"><a class="button secondary" href="day14.html">← Day 14</a><a class="button" href="index.html">回到首页</a></div>
-    </article>
-  </main>
+    <section><h2>动手实验</h2><div class="callout">做一个最小闭环：ESP32 采集温度并通过 USB/HTTP 发送，主机模型生成受控命令，ESP32 校验白名单后执行。</div></section>
+    <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong> 只演示正常 Wi-Fi 和正常 prompt 的“happy path”会掩盖最重要的现场风险：网络抖动、模型幻觉、重复命令和升级中断。</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-15">
+      <h2 id="quiz-title-15">核心测试</h2>
+      <p>完成 3 道单选题后提交；提交前不会显示答案。</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22ESP32%20%2B%20Edge%20Host%20%E6%9E%B6%E6%9E%84%E4%B8%AD%EF%BC%8C%E5%93%AA%E9%A1%B9%E5%BA%94%E7%95%99%E5%9C%A8%20ESP32%20%E7%9A%84%E7%A1%AE%E5%AE%9A%E6%80%A7%E8%BE%B9%E7%95%8C%E5%86%85%EF%BC%9F%22%2C%22options%22%3A%5B%22LLM%20%E7%9A%84%E6%89%80%E6%9C%89%E6%9D%83%E9%87%8D%22%2C%22%E6%89%A7%E8%A1%8C%E5%99%A8%E7%99%BD%E5%90%8D%E5%8D%95%E3%80%81%E8%8C%83%E5%9B%B4%E6%A3%80%E6%9F%A5%E5%92%8C%E5%A4%B1%E8%81%94%E9%99%8D%E7%BA%A7%22%2C%22%E4%BA%91%E7%AB%AF%E8%AE%AD%E7%BB%83%E5%BE%AA%E7%8E%AF%22%2C%22GGUF%20%E8%BD%AC%E6%8D%A2%E8%84%9A%E6%9C%AC%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E4%B8%8E%E7%89%A9%E7%90%86%E4%B8%96%E7%95%8C%E4%BA%A4%E4%BA%92%E7%9A%84%E5%AE%89%E5%85%A8%E7%BA%A6%E6%9D%9F%E5%BF%85%E9%A1%BB%E5%9C%A8%E6%9C%AC%E5%9C%B0%E7%A1%AE%E5%AE%9A%E6%80%A7%E5%AE%9E%E7%8E%B0%EF%BC%9BHost%20%E7%9A%84%E6%A8%A1%E5%9E%8B%E5%BB%BA%E8%AE%AE%E5%8F%AA%E8%83%BD%E4%BD%9C%E4%B8%BA%E5%8F%97%E9%99%90%E8%BE%93%E5%85%A5%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22%E6%A8%A1%E5%9E%8B%E6%9C%8D%E5%8A%A1%E4%B8%8D%E5%8F%AF%E7%94%A8%E6%97%B6%E5%90%88%E7%90%86%E7%9A%84%E9%99%8D%E7%BA%A7%E7%AD%96%E7%95%A5%E6%98%AF%EF%BC%9F%22%2C%22options%22%3A%5B%22%E6%97%A0%E9%99%90%E9%87%8D%E8%AF%95%E5%B9%B6%E9%98%BB%E5%A1%9E%E6%8E%A7%E5%88%B6%E4%BB%BB%E5%8A%A1%22%2C%22%E5%9B%9E%E9%80%80%E5%88%B0%E9%A2%84%E5%AE%9A%E4%B9%89%E9%98%88%E5%80%BC%2F%E7%8A%B6%E6%80%81%E6%9C%BA%E5%B9%B6%E4%B8%8A%E6%8A%A5%E6%95%85%E9%9A%9C%22%2C%22%E6%94%BE%E5%BC%80%E6%89%80%E6%9C%89%E6%89%A7%E8%A1%8C%E5%99%A8%E6%9D%83%E9%99%90%22%2C%22%E6%93%A6%E9%99%A4%E6%A8%A1%E5%9E%8B%E5%88%86%E5%8C%BA%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E9%99%8D%E7%BA%A7%E5%BA%94%E4%BF%9D%E6%8C%81%E5%8F%AF%E9%A2%84%E6%B5%8B%E5%92%8C%E5%AE%89%E5%85%A8%E3%80%82%E9%87%8D%E8%AF%95%E5%8F%AF%E6%9C%89%E4%B8%8A%E9%99%90%EF%BC%8C%E4%BD%86%E6%8E%A7%E5%88%B6%E7%B3%BB%E7%BB%9F%E9%9C%80%E8%A6%81%E5%9C%A8%20Host%20%E5%A4%B1%E6%95%88%E6%97%B6%E7%BB%A7%E7%BB%AD%E6%89%A7%E8%A1%8C%E7%BB%8F%E8%BF%87%E9%AA%8C%E8%AF%81%E7%9A%84%E6%9C%AC%E5%9C%B0%E7%AD%96%E7%95%A5%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22%E4%B8%80%E6%AC%A1%E5%8F%AF%E5%A4%8D%E7%8E%B0%E7%9A%84%E6%80%A7%E8%83%BD%E5%9B%9E%E5%BD%92%E8%87%B3%E5%B0%91%E9%9C%80%E8%A6%81%E5%9B%BA%E5%AE%9A%E4%BB%80%E4%B9%88%EF%BC%9F%22%2C%22options%22%3A%5B%22%E4%BB%85%E4%BA%A7%E5%93%81%E5%90%8D%E7%A7%B0%22%2C%22%E6%A8%A1%E5%9E%8B%E3%80%81%E8%BE%93%E5%85%A5%2Ftoken%E3%80%81%E8%BF%90%E8%A1%8C%E5%8F%82%E6%95%B0%E3%80%81%E7%A1%AC%E4%BB%B6%E5%92%8C%E6%B5%8B%E9%87%8F%E6%9D%A1%E4%BB%B6%22%2C%22%E5%8F%AA%E5%9B%BA%E5%AE%9A%E5%B1%8F%E5%B9%95%E5%88%86%E8%BE%A8%E7%8E%87%22%2C%22%E5%8F%AA%E5%9B%BA%E5%AE%9A%20Git%20%E5%88%86%E6%94%AF%E5%90%8D%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E4%BB%BB%E4%BD%95%E4%BC%9A%E5%BD%B1%E5%93%8D%E8%B7%AF%E5%BE%84%E7%9A%84%E5%8F%98%E9%87%8F%E9%83%BD%E5%BA%94%E8%AE%B0%E5%BD%95%E3%80%82%E8%BF%99%E6%A0%B7%E6%89%8D%E8%83%BD%E5%8C%BA%E5%88%86%E6%A8%A1%E5%9E%8B%E5%8F%98%E5%8C%96%E3%80%81runtime%20%E5%8F%98%E5%8C%96%E3%80%81%E7%A1%AC%E4%BB%B6%E7%83%AD%E7%8A%B6%E6%80%81%E6%88%96%E7%BD%91%E7%BB%9C%E5%9B%A0%E7%B4%A0%E3%80%82%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. ESP32 + Edge Host 架构中，哪项应留在 ESP32 的确定性边界内？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>LLM 的所有权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>执行器白名单、范围检查和失联降级</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>云端训练循环</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>GGUF 转换脚本</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. 模型服务不可用时合理的降级策略是？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>无限重试并阻塞控制任务</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>回退到预定义阈值/状态机并上报故障</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>放开所有执行器权限</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>擦除模型分区</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. 一次可复现的性能回归至少需要固定什么？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>仅产品名称</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>模型、输入/token、运行参数、硬件和测量条件</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>只固定屏幕分辨率</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>只固定 Git 分支名</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">提交本章测试</button>
+        <button class="button secondary retry-quiz" type="button" hidden>重新作答</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>延伸阅读</h2>
+      <ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 入门（官方/原始资料）</a></li><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md" target="_blank" rel="noopener noreferrer">llama.cpp server（官方/原始资料）</a></li><li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/archives/triton-inference-server-2700/user-guide/docs/perf_benchmark/genai-perf-README.html" target="_blank" rel="noopener noreferrer">NVIDIA GenAI-Perf 指标（官方/原始资料）</a></li></ul>
+    </section>
+
+    <section>
+      <h2>启下：下一章如何使用本章能力</h2>
+      <p>课程到此收束。后续迭代应从具体产品约束重新走一遍：先定义安全和验收，再选择模型与硬件，而不是从某个热门模型倒推产品。</p>
+
+    </section>
+
+    <nav class="nav" aria-label="学习导航">
+      <a class="button secondary" href="/learning_ai/day14.html">← Day 14</a>
+      <a class="button" href="/learning_ai/">回到首页</a>
+    </nav>
+  </article>
+</main>
+
+
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
-  <script src="content/enrichment-01-05.js"></script>
-  <script src="content/enrichment-06-10.js"></script>
-  <script src="content/enrichment-11-15.js"></script>
-  <script src="app.js"></script>
+  <script src="/learning_ai/app.js" defer></script>
 </body>
 </html>

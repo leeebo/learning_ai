@@ -1,0 +1,20 @@
+{
+  "name": "learning-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A bilingual 15-day embedded AI course built with Eleventy.",
+  "scripts": {
+    "build:site": "eleventy",
+    "sync:pages": "node scripts/sync-eleventy-output.cjs",
+    "build": "npm run build:site && npm run sync:pages",
+    "serve": "eleventy --serve",
+    "test": "node --test tests/course-data.test.cjs",
+    "check": "node --check eleventy.config.cjs && node --check src/assets/app.js && npm run build && npm test"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "3.1.6"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

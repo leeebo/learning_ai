@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 11 · LLM Runtime</title>
+  <meta name="description" content="Orchestrate the model, cache, and generation loop — Understand the runtime lifecycle, computation graph, sampler, and memory management, and divide responsibilities between an ESP32 and a Linux host.">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/en/day11.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day11.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day11.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day11.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
+</head>
+<body data-ui="%7B%22siteTitle%22%3A%22Edge%20AI%20%C2%B7%20A%2015-Day%20Engineering%20Path%22%2C%22siteDescription%22%3A%22A%20bilingual%20edge%20AI%20course%20for%20embedded%20engineers%2C%20from%20neural%20networks%20and%20deployment%20to%20complete%20system%20validation.%22%2C%22offlineLabel%22%3A%22Offline-first%20static%20course%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22From%20Neural%20Networks%20to%20a%20Shippable%20Edge%20AI%20System%22%2C%22heroBody%22%3A%22Built%20for%20engineers%20who%20already%20know%20ESP32%2C%20USB%2C%20and%20networking%20stacks.%20Each%20day%20follows%20one%20layer%20of%20the%20path%E2%80%94model%20%E2%86%92%20representation%20%E2%86%92%20runtime%20%E2%86%92%20kernel%20%E2%86%92%20memory%20and%20bandwidth%20%E2%86%92%20hardware%20%E2%86%92%20product%E2%80%94then%20connects%20its%20history%2C%20an%20illustrated%20analogy%2C%20and%20an%20interactive%20data-flow%20walkthrough.%22%2C%22startCourse%22%3A%22Start%20with%20Day%201%20%E2%86%92%22%2C%22cardMeta%22%3A%22history%20%2B%20visual%20analogy%20%2B%20animation%22%2C%22minutes%22%3A%22min%22%2C%22languageSwitch%22%3A%22%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20Simplified%20Chinese%22%2C%22home%22%3A%22Course%20home%22%2C%22learningNav%22%3A%22COURSE%20NAVIGATION%22%2C%22suggestedReading%22%3A%22Suggested%20reading%3A%20about%22%2C%22learningGoal%22%3A%22Learning%20goal%22%2C%22keywords%22%3A%22Chapter%20keywords%22%2C%22keyword%22%3A%22Keyword%22%2C%22explanation%22%3A%22Explanation%22%2C%22espAnalogy%22%3A%22ESP32%20engineering%20analogy%22%2C%22recap%22%3A%22Bridge%20from%20the%20previous%20chapter%22%2C%22historyKicker%22%3A%22HOW%20WE%20GOT%20HERE%22%2C%22historyTitle%22%3A%22Historical%20development%22%2C%22historyBridge%22%3A%22Why%20it%20still%20matters%20today%3A%22%2C%22analogyKicker%22%3A%22BUILD%20INTUITION%20FROM%20A%20FAMILIAR%20SYSTEM%22%2C%22analogyTitle%22%3A%22Illustrated%20analogy%22%2C%22analogyFallback%22%3A%22Embedded-systems%20analogy%22%2C%22analogyBoundary%22%3A%22Where%20the%20analogy%20stops%3A%22%2C%22lessonTitle%22%3A%22Chapter%20walkthrough%22%2C%22processKicker%22%3A%22WATCH%20THE%20DATA%20MOVE%22%2C%22processTitle%22%3A%22Interactive%20process%22%2C%22pausePlayback%22%3A%22Pause%20autoplay%22%2C%22reducedMotion%22%3A%22Reduced%20motion%20is%20enabled%22%2C%22restartPlayback%22%3A%22Play%20from%20the%20start%22%2C%22resumePlayback%22%3A%22Resume%20autoplay%22%2C%22step%22%3A%22Step%22%2C%22observation%22%3A%22Watch%20for%22%2C%22loopCondition%22%3A%22Loop%20%2F%20return%20condition%3A%22%2C%22previousStep%22%3A%22%E2%86%90%20Previous%22%2C%22nextStep%22%3A%22Next%20%E2%86%92%22%2C%22switchedStep%22%3A%22Switched%20to%20step%22%2C%22staticOverview%22%3A%22View%20the%20complete%20static%20diagram%22%2C%22flowchart%22%3A%22Process%20diagram%22%2C%22codeExample%22%3A%22Code%20or%20command%20example%22%2C%22lab%22%3A%22Hands-on%20lab%22%2C%22pitfall%22%3A%22Engineering%20pitfall%22%2C%22avoidMisread%22%3A%22Avoid%20this%20mistake%3A%22%2C%22quizTitle%22%3A%22Knowledge%20check%22%2C%22quizIntro%22%3A%22Answer%20all%20three%20multiple-choice%20questions%2C%20then%20submit.%20Answers%20stay%20hidden%20until%20submission.%22%2C%22submitQuiz%22%3A%22Submit%20this%20quiz%22%2C%22retryQuiz%22%3A%22Try%20again%22%2C%22completeQuestion%22%3A%22Please%20answer%20question%22%2C%22questionSuffix%22%3A%22.%22%2C%22correct%22%3A%22Correct.%22%2C%22incorrect%22%3A%22Not%20quite.%22%2C%22correctAnswer%22%3A%22Correct%20answer%3A%22%2C%22quizScore%22%3A%22Chapter%20score%3A%22%2C%22quizAdvice%22%3A%22Read%20each%20explanation%20before%20deciding%20whether%20to%20retry.%22%2C%22references%22%3A%22Further%20reading%22%2C%22sourceSuffix%22%3A%22%20(official%20or%20primary%20source)%22%2C%22nextPreview%22%3A%22Bridge%20to%20the%20next%20chapter%22%2C%22nextDay%22%3A%22Next%3A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22Back%20to%20course%20home%22%2C%22footer%22%3A%22Offline-ready%20%C2%B7%20For%20engineers%20familiar%20with%20ESP32%2C%20USB%2C%20and%20networking%20stacks%22%2C%22homeFooter%22%3A%2215%20days%20%C2%B7%2015%20standalone%20pages%20%C2%B7%20Chinese%20and%20English%20%C2%B7%20zero%20runtime%20dependencies%22%2C%22noscriptHome%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20chapter%20directory%20still%20works%2C%20and%20every%20chapter%20includes%20an%20expanded%20process%20diagram.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptDay%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20history%2C%20analogy%2C%20lesson%2C%20and%20expanded%20process%20overview%20remain%20readable.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%7D">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">You are in static reading mode. The history, analogy, lesson, and expanded process overview remain readable. Enable JavaScript for animation and quiz scoring.</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">Edge AI · A 15-Day Engineering Path</div>
+    <div class="top-actions">
+      <a href="/learning_ai/en/">Course home</a>
+
+        <a class="language-switch" href="/learning_ai/day11.html" lang="zh-CN" hreflang="zh-CN" aria-label="Switch to Simplified Chinese">简体中文</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="COURSE NAVIGATION">
+    <span class="eyebrow">COURSE NAVIGATION</span>
+
+      <a class=""  href="/learning_ai/en/day01.html">Day 01 · Neural Network Fundamentals</a>
+
+      <a class=""  href="/learning_ai/en/day02.html">Day 02 · Training and Inference</a>
+
+      <a class=""  href="/learning_ai/en/day03.html">Day 03 · Model Formats</a>
+
+      <a class=""  href="/learning_ai/en/day04.html">Day 04 · Quantization</a>
+
+      <a class=""  href="/learning_ai/en/day05.html">Day 05 · Operators</a>
+
+      <a class=""  href="/learning_ai/en/day06.html">Day 06 · Training and Deploying Non-LLM Edge Models</a>
+
+      <a class=""  href="/learning_ai/en/day07.html">Day 07 · Memory, Bandwidth, MCU, and NPU</a>
+
+      <a class=""  href="/learning_ai/en/day08.html">Day 08 · On-Device Vision Models</a>
+
+      <a class=""  href="/learning_ai/en/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/en/day10.html">Day 10 · KV Cache</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/en/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/en/day12.html">Day 12 · LLM Quantization and GGUF</a>
+
+      <a class=""  href="/learning_ai/en/day13.html">Day 13 · On-Device LLM Inference Frameworks</a>
+
+      <a class=""  href="/learning_ai/en/day14.html">Day 14 · Performance Analysis</a>
+
+      <a class=""  href="/learning_ai/en/day15.html">Day 15 · Integration: The Edge-AI Engineering Pipeline</a>
+
+  </aside>
+  <article class="content" data-day="11">
+    <div class="eyebrow">DAY 11</div>
+    <h1>LLM Runtime</h1>
+    <p class="hero-sub">Orchestrate the model, cache, and generation loop</p>
+    <p class="reading-time">Suggested reading: about 18 min</p>
+
+    <section>
+      <h2>Learning goal</h2>
+      <div class="callout">Understand the runtime lifecycle, computation graph, sampler, and memory management, and divide responsibilities between an ESP32 and a Linux host.</div>
+    </section>
+
+    <section>
+      <h2>Chapter keywords</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>Keyword</th><th>Explanation</th><th>ESP32 engineering analogy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Context</th><td>The tokens and KV state held by one inference session.</td><td>Like the protocol-state block for one connection.</td></tr><tr><th scope="row">Sampling</th><td>The policy used to choose the next token from logits.</td><td>Like choosing one output from candidate actions under a policy.</td></tr><tr><th scope="row">Streaming</th><td>Sending output while it is generated instead of waiting for a complete response.</td><td>Like segmented UART output that improves perceived first-response latency.</td></tr><tr><th scope="row">Cancellation</th><td>A mechanism that aborts an obsolete request and releases its resources.</td><td>Like reclaiming DMA and task resources after a socket closes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>Bridge from the previous chapter</h2><p>The previous chapter quantified the resource implications of a KV cache. This chapter places that cache in a real runtime: who loads the model, who allocates context, who streams output, and which controller should perform the final action.</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">HOW WE GOT HERE</span><h2>Historical development</h2></div>
+        <p class="section-lead">What we now call an LLM runtime did not suddenly appear as a “model player.” It inherits ideas from compilers, operating-system scheduling, numerical libraries, and online serving systems: make a computation graph executable, make state reusable, and then complete many requests reliably within controlled resources. Seen along this timeline, prefill, decode, KV cache, streaming, and cancellation are not unrelated APIs but stages of one lifecycle.</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>The Transformer establishes parallel prefill and autoregressive decode</h3><p>Attention Is All You Need replaces recurrence with an attention-only architecture, allowing an entire input to be processed with high parallelism while generation still emits the next token from the accumulated prefix. Modern runtimes therefore divide naturally into one throughput-oriented prefill and many latency-sensitive decode rounds.</p><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Original Transformer paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2022</div>
+              <div class="timeline-content"><h3>FlashAttention moves attention optimization from FLOPs to I/O</h3><p>FlashAttention explicitly includes transfers between HBM and on-chip SRAM in algorithm design and uses tiling to reduce intermediate movement. It reminds runtime engineers that mathematically equivalent work need not take equal time; a kernel&#39;s data path often explains real speed better than nominal arithmetic.</p><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener noreferrer">Original FlashAttention paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2023</div>
+              <div class="timeline-content"><h3>llama.cpp advances local LLM execution on general-purpose hardware</h3><p>With a lightweight C/C++ implementation, llama.cpp brings model loading, quantized kernels, mixed CPU/GPU execution, and the command-line generation loop into one project. Local inference moves from research script to embeddable process, and mmap, thread count, context, and backend become ordinary deployment parameters.</p><a href="https://github.com/ggml-org/llama.cpp" target="_blank" rel="noopener noreferrer">Official llama.cpp repository ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2023</div>
+              <div class="timeline-content"><h3>PagedAttention turns KV management into a virtual-memory problem</h3><p>vLLM&#39;s PagedAttention organizes the KV cache into fixed blocks, reducing fragmentation and waste from large contiguous allocations while enabling more flexible request scheduling. A runtime now manages session state, pages, batching, and reclamation like an operating system, in addition to executing operators.</p><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener noreferrer">Original PagedAttention paper ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2024–Present</div>
+              <div class="timeline-content"><h3>Local runtimes acquire complete service semantics</h3><p>Modern llama-server versions include parallel decoding, continuous batching, streaming APIs, monitoring, structured output, and cancellation in the service layer. Engineering emphasis moves from “generate one sentence” to resource isolation, observability, protocol compatibility, and the safety boundary around untrusted tool calls.</p><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md" target="_blank" rel="noopener noreferrer">Official llama.cpp Server documentation ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>Why it still matters today:</strong> This history connects the chapter&#39;s two main threads: the Transformer determines the computational shape of generation, while systems research and local runtimes determine how state is allocated, scheduled, and reclaimed. Draw both data flow and control flow, paying particular attention to cancellation, timeout, and exceptional cleanup—the paths that most clearly separate a demonstration from a reliable product.</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">BUILD INTUITION FROM A FAMILIAR SYSTEM</span><h2>Illustrated analogy</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>Think of the runtime as a busy noodle shop</h3><p>Model weights are the fixed recipes on the wall and can be loaded once for reuse. Each customer&#39;s prompt is a new order; prefill is the cook reading every customization at once and preparing the work surface, while the KV cache is that table&#39;s private tray of partially prepared ingredients. Decode then performs one small step and serves one token at a time. The sampler chooses among acceptable seasonings, and streaming lets the customer begin eating before the whole meal is finished. If the customer leaves, a cancellation bell must stop the kitchen immediately and return the tray.</p></div>
+          <div class="analogy-illustration" aria-label="Think of the runtime as a busy noodle shop">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📕</span>
+                <strong>Fixed recipes</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Model weights and tokenizer loaded and verified at process startup</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🧾</span>
+                <strong>Order queue</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Request validation, templating, tokenization, and context allocation</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🥣</span>
+                <strong>Private tray</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>A KV cache owned and continuously extended by one session</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔔</span>
+                <strong>Stop bell</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>Disconnection, timeout, EOS, or user cancellation triggering resource reclamation</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>Where the analogy stops:</strong> The noodle-shop analogy breaks down for parallel execution: a GPU batch is not several cooks each preparing one bowl, but one operation combining similar matrix work from different requests. A token is not an independent dish either; it changes every probability in the next step. The analogy explains lifecycle and ownership, not throughput, VRAM layout, or sampling mathematics.</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>Chapter walkthrough</h2>
+      <h3>Distinguish process resources from session state first</h3><p>Weight mappings, backends, and thread pools usually belong to the process and can be shared across requests. Token sequences, KV caches, sampler state, and stopping conditions belong to a session and must be isolated. Draw separate lifecycles for both object classes: weights are released when the process exits, while a context is returned as soon as its request ends. Putting session pointers into a global singleton causes histories to overwrite each other under concurrency; reloading weights for every request lets initialization dominate TTFT.</p><h3>Prefill and decode are two different workloads</h3><p>Prefill processes a whole prompt at once, creates larger matrices, and usually uses parallel compute more effectively. Decode adds only one or a few tokens per step, yet traverses every layer and reads historical KV, so memory bandwidth and kernel-launch overhead often dominate. One average tokens/s value cannot describe both. Record prompt tokens/s, TTFT, and per-token latency separately, using realistic input lengths; otherwise an optimization may accelerate only the stage that matters least.</p><h3>The sampler is a reproducible decision pipeline</h3><p>After the model emits logits, repetition penalties, temperature scaling, top-k, top-p, and random selection alter the candidate distribution in a defined order. A different order or random seed can make output diverge. For correctness debugging, begin with greedy decoding or a fixed seed and preserve sampling parameters plus summaries of the first few logits. Tool calling should also use grammar or schema constraints, but parseable structure does not prove that a command is authorized.</p><h3>Streaming and cancellation must share one control path</h3><p>SSE, WebSocket, and chunked HTTP are only output channels. The harder question is whether a decode task observes a cancellation flag at its next safe point after the client disconnects, then leaves the queue and releases KV resources. Give every request an explicit state machine: queued, prefill, decode, completed, cancelled, and failed, with each terminal state reclaiming resources exactly once. Inject slow consumers, partial packets, timeouts, and repeated cancellation, and check for hanging threads and memory leaks.</p><h3>Keep a deterministic gate between the ESP32 and the host</h3><p>The Linux host can handle tokenization, the LLM runtime, and natural-language interpretation, while the ESP32 retains sensing, actuator interlocks, watchdogs, and local fallback. A tool name and arguments generated by the model are only a proposal. The device must recheck an allowlist, numeric ranges, current state, and the request nonce. Replay unauthorized GPIO access, duplicate sequence numbers, expired commands, host disconnection, and malformed frames; verify that the device rejects them and leaves a correlatable audit trail.</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">WATCH THE DATA MOVE</span><h2>Interactive process</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="How a request passes through a cancellable generation loop">
+          <div class="process-heading">
+            <div><h3>How a request passes through a cancellable generation loop</h3><p>At every step, the player updates request data, runtime action, and observable evidence together. Decode forms a loop until an explicit termination condition is met.</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>Pause autoplay</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A8%22%2C%22label%22%3A%22Receive%20request%22%2C%22data%22%3A%22messages%20%2B%20max_tokens%20%2B%20request_id%22%2C%22action%22%3A%22Validate%20size%2C%20template%2C%20and%20authorization%20policy%3B%20reject%20unbounded%20requests%22%2C%22insight%22%3A%22Early%20rejection%20avoids%20consuming%20expensive%20context%20and%20queue%20time%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">📨</span><strong>Receive request</strong><span>messages + max_tokens + request_id</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A2%22%2C%22label%22%3A%22Encode%20and%20allocate%22%2C%22data%22%3A%22%5BBOS%2C%20421%2C%2087%2C%20%E2%80%A6%5D%20%2B%20context%20slot%22%2C%22action%22%3A%22Tokenize%2C%20verify%20the%20total%20token%20budget%2C%20and%20attach%20a%20cancellation%20handle%22%2C%22insight%22%3A%22Character%20count%20cannot%20replace%20token%20count%3B%20context%20overflow%20is%20visible%20here%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔢</span><strong>Encode and allocate</strong><span>[BOS, 421, 87, …] + context slot</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8F%97%EF%B8%8F%22%2C%22label%22%3A%22Prefill%22%2C%22data%22%3A%22prompt%20tokens%20%E2%86%92%20K%2FV%20blocks%20per%20layer%22%2C%22action%22%3A%22Run%20the%20prompt%20in%20a%20batch%20and%20establish%20the%20initial%20KV%20cache%22%2C%22insight%22%3A%22This%20stage%20mainly%20affects%20TTFT%20and%20deserves%20a%20separate%20prompt-tokens%2Fs%20metric%22%7D">
+                  <span class="process-icon" aria-hidden="true">🏗️</span><strong>Prefill</strong><span>prompt tokens → K/V blocks per layer</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%B2%22%2C%22label%22%3A%22Sample%22%2C%22data%22%3A%22logits%20%E2%86%92%20candidate%20distribution%20%E2%86%92%20token%22%2C%22action%22%3A%22Apply%20penalties%2C%20temperature%2C%20and%20top-k%2Ftop-p%20in%20a%20deterministic%20order%22%2C%22insight%22%3A%22A%20fixed%20seed%20and%20parameters%20are%20required%20to%20reproduce%20the%20divergence%20point%22%7D">
+                  <span class="process-icon" aria-hidden="true">🎲</span><strong>Sample</strong><span>logits → candidate distribution → token</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A1%22%2C%22label%22%3A%22Decode%20and%20stream%22%2C%22data%22%3A%22new%20token%20%2B%20cached%20K%2FV%20%E2%86%92%20text%20chunk%22%2C%22action%22%3A%22Append%20KV%2C%20decode%20text%2C%20and%20send%20an%20increment%20to%20the%20client%22%2C%22insight%22%3A%22Slow%20consumers%20need%20backpressure%3B%20unsent%20tokens%20cannot%20accumulate%20without%20bound%22%7D">
+                  <span class="process-icon" aria-hidden="true">📡</span><strong>Decode and stream</strong><span>new token + cached K/V → text chunk</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%B9%22%2C%22label%22%3A%22Terminate%20and%20reclaim%22%2C%22data%22%3A%22EOS%20%7C%20stop%20%7C%20limit%20%7C%20cancel%20%7C%20error%22%2C%22action%22%3A%22Finish%20the%20state%20machine%20and%20return%20the%20slot%2C%20KV%20pages%2C%20and%20network%20resources%22%2C%22insight%22%3A%22Every%20exit%20path%20should%20converge%20on%20idempotent%20cleanup%20logic%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧹</span><strong>Terminate and reclaim</strong><span>EOS | stop | limit | cancel | error</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>Step 1 / 6</span><h3 data-process-title>Receive request · messages + max_tokens + request_id</h3><p data-process-action>Validate size, template, and authorization policy; reject unbounded requests</p></div>
+            <div class="process-insight"><span>Watch for</span><p data-process-insight>Early rejection avoids consuming expensive context and queue time</p></div>
+          </div>
+          <p class="process-loop"><strong>Loop / return condition:</strong> If no EOS, stop string, length limit, error, or cancellation is reached, return from “Decode and stream” to “Sample.” Use the previous token as new input, reuse existing KV, and check the deadline and connection state on every turn.</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← Previous</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>Next →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>View the complete static diagram</summary><pre class="diagram">Load model → allocate context → prefill → decode loop → sample → stream token
+                                  └── stop/EOS/cancel ──┘</pre></details>
+      </section>
+
+
+    <section><h2>Code or command example</h2><pre class="code"><code>llama-cli -m model.gguf -p &quot;Explain UART framing&quot; -n 64
+llama-server -m model.gguf --host 0.0.0.0 --port 8080</code></pre></section>
+    <section><h2>Hands-on lab</h2><div class="callout">Start a local server and send HTTP requests from an ESP32; test time to first token, streaming output, request cancellation, and concurrency limits.</div></section>
+    <section><h2>Engineering pitfall</h2><div class="pitfall"><strong>Avoid this mistake:</strong> Treating LLM output as a GPIO or motor command that can execute directly bypasses the embedded system&#39;s safety boundary; running the model locally does not change this fact.</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-11">
+      <h2 id="quiz-title-11">Knowledge check</h2>
+      <p>Answer all three multiple-choice questions, then submit. Answers stay hidden until submission.</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22Which%20stages%20contribute%20most%20directly%20to%20TTFT%3F%22%2C%22options%22%3A%5B%22Decode%20sampling%20only%22%2C%22Request%20handling%2C%20tokenization%2C%20prefill%2C%20and%20all%20work%20before%20the%20first%20token%22%2C%22Network%20DNS%20only%22%2C%22Model%20download%20only%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22The%20input%20must%20be%20processed%20and%20prompt%20prefill%20must%20complete%20before%20the%20first%20token%20can%20be%20returned.%20TTFT%20and%20subsequent%20tokens%2Fs%20are%20therefore%20dominated%20by%20different%20workloads.%22%7D%2C%7B%22prompt%22%3A%22Why%20does%20a%20generation%20loop%20need%20cancellation%3F%22%2C%22options%22%3A%5B%22Cancellation%20improves%20model%20accuracy%22%2C%22It%20releases%20compute%20and%20KV-cache%20resources%20after%20a%20user%20disconnects%20or%20times%20out%22%2C%22The%20tokenizer%20cannot%20process%20long%20text%22%2C%22It%20retrains%20the%20weights%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22Without%20cancellation%2C%20invalid%20requests%20continue%20consuming%20memory%20and%20compute.%20In%20a%20multi-request%20runtime%2C%20this%20directly%20worsens%20latency%20for%20other%20requests.%22%7D%2C%7B%22prompt%22%3A%22What%20is%20the%20safest%20response%20when%20an%20ESP32%20receives%20an%20LLM%20tool%20call%3F%22%2C%22options%22%3A%5B%22Execute%20the%20generated%20string%20directly%22%2C%22Authorize%20it%20again%20using%20a%20local%20allowlist%2C%20parameter%20ranges%2C%20and%20the%20device%20state%20machine%22%2C%22Write%20the%20command%20into%20the%20bootloader%22%2C%22Disable%20the%20watchdog%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22Model%20output%20is%20untrusted%20input.%20The%20hardware%20side%20must%20preserve%20deterministic%20policy%20and%20least%20privilege%3B%20a%20model%20cannot%20replace%20the%20safety%20controller.%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. Which stages contribute most directly to TTFT?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>Decode sampling only</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>Request handling, tokenization, prefill, and all work before the first token</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>Network DNS only</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>Model download only</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. Why does a generation loop need cancellation?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>Cancellation improves model accuracy</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>It releases compute and KV-cache resources after a user disconnects or times out</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>The tokenizer cannot process long text</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>It retrains the weights</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. What is the safest response when an ESP32 receives an LLM tool call?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>Execute the generated string directly</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>Authorize it again using a local allowlist, parameter ranges, and the device state machine</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>Write the command into the bootloader</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>Disable the watchdog</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">Submit this quiz</button>
+        <button class="button secondary retry-quiz" type="button" hidden>Try again</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Further reading</h2>
+      <ul class="reference-list"><li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md" target="_blank" rel="noopener noreferrer">llama.cpp Server (official or primary source)</a></li><li><a href="https://huggingface.co/docs/transformers/en/chat_templating" target="_blank" rel="noopener noreferrer">Hugging Face Chat Templates (official or primary source)</a></li><li><a href="https://arxiv.org/pdf/2311.04934" target="_blank" rel="noopener noreferrer">Original Prompt Cache paper (official or primary source)</a></li></ul>
+    </section>
+
+    <section>
+      <h2>Bridge to the next chapter</h2>
+      <p>The next chapter compresses LLM weights, separates the GGUF container from block-quantization formats, and selects deployment artifacts using measurable quality and resource criteria.</p>
+      <p>Next: <a href="/learning_ai/en/day12.html">Day 12 · LLM Quantization</a></p>
+    </section>
+
+    <nav class="nav" aria-label="COURSE NAVIGATION">
+      <a class="button secondary" href="/learning_ai/en/day10.html">← Day 10</a>
+      <a class="button" href="/learning_ai/en/day12.html">Day 12 →</a>
+    </nav>
+  </article>
+</main>
+
+
+  <footer><div class="wrap">Offline-ready · For engineers familiar with ESP32, USB, and networking stacks</div></footer>
+  <script src="/learning_ai/app.js" defer></script>
+</body>
+</html>

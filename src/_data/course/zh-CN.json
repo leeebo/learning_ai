@@ -1,0 +1,3719 @@
+[
+  {
+    "n": 1,
+    "t": "神经网络基础",
+    "s": "从张量、层与损失函数建立直觉",
+    "goal": "理解神经网络如何把输入张量变成可优化的预测，并能读懂一次前向与反向传播。",
+    "concept": [
+      "张量形状、权重与偏置",
+      "激活函数与非线性",
+      "损失函数、梯度与反向传播",
+      "参数量与 MACs 的粗略估算"
+    ],
+    "analogy": "把网络看成一条数据管线：张量是 USB buffer，层是协议转换模块，权重是固件常量，梯度则像现场采集的误差反馈。",
+    "diagram": "输入 x\n  │ Linear(Wx+b)\n  ▼\n激活 f(·) ──► 预测 ŷ ──► Loss(ŷ,y)\n  ▲                         │\n  └────── 梯度反传 ◄─────────┘",
+    "code": "y = x @ W.T + b\ny = relu(y)\nloss = mean((y - target) ** 2)\nloss.backward()",
+    "lab": "用一个 2→3→1 的 MLP，手算每层形状、参数量和一次 MSE；再用任意框架验证梯度方向。",
+    "questions": [
+      "为什么没有激活函数时，多层线性层仍等价于一层线性层？",
+      "输入 shape 为 [1,3,32,32] 时，第一层卷积的输出 shape 如何计算？",
+      "参数量和 MACs 分别更接近哪一种资源成本？"
+    ],
+    "next": "训练与推理",
+    "lesson": [
+      {
+        "title": "Shape 之外还要读 stride 与轴语义",
+        "body": "同样是 3072 个数，[1,3,32,32] 与 [1,32,32,3] 的物理含义完全不同；即使 shape 相同，转置后的 view 也可能不连续。层通常按约定的轴做归一化、卷积或归约，广播又可能让错误 shape “合法运行”。读网络时应给每一轴标注 N/C/H/W、单位和 dtype，并在边界打印 stride，避免把可执行误当作语义正确。"
+      },
+      {
+        "title": "非线性真正改变的是可组合的决策边界",
+        "body": "仿射层只做旋转、缩放和平移，多层仿射映射仍可折成一次矩阵乘法。ReLU 等激活把输入空间切成多个区域，不同区域使用不同线性关系，于是层叠才会增长表达能力。工程上还要关注激活的输出范围：大面积恒为零可能意味着输入偏移或坏初始化，过大数值则可能在低精度部署时饱和。"
+      },
+      {
+        "title": "损失是目标接口，梯度是逐层信用账本",
+        "body": "损失函数规定什么差异值得惩罚；链式法则再把总误差对每个中间量的敏感度逐层相乘。梯度为零不等于已经学好，可能是饱和激活、断开的计算图或数值下溢；梯度爆大也会使一次更新越过有效区域。训练实验应同时记录 loss、梯度范数与参数更新量，而不是只盯最终准确率。"
+      },
+      {
+        "title": "参数、MAC 与峰值激活回答三种不同问题",
+        "body": "参数量近似回答权重需要多少存储，MAC 粗略回答进行了多少乘加，激活生命周期才决定运行时工作台有多大。卷积的权重可很少，却可能产生巨大的特征图；逐元素算子几乎没有参数，仍会完整读写张量。端侧预算应按执行顺序画出存活区间，再把 workspace、对齐填充和 I/O buffer 加入峰值。"
+      },
+      {
+        "title": "用有限差分和中间张量验证“会算”",
+        "body": "为一个极小网络固定权重与输入，保存每层输出、损失和解析梯度；再让单个参数增加与减少一个很小的 ε，用两次损失差近似导数。两者不符时，常见原因是转置、批量归约、原地修改或激活边界。部署侧不需要反向传播，但这份 golden tensor 可继续验证导出、量化和 kernel 是否保持前向语义。"
+      }
+    ],
+    "pitfall": "只比较参数量会漏掉激活张量和工作区。MCU 上让系统崩溃的往往是推理瞬间的峰值 RAM，而不是 Flash 中权重文件的大小。",
+    "references": [
+      [
+        "PyTorch ONNX 导出",
+        "https://docs.pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html"
+      ],
+      [
+        "LiteRT for Microcontrollers",
+        "https://ai.google.dev/edge/litert/microcontrollers/get_started"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "为什么两个线性层之间没有激活函数时可合并？",
+        "options": [
+          "每层都会自动归一化",
+          "线性映射的复合仍是线性映射",
+          "权重会在推理时消失",
+          "MAC 数必然为零"
+        ],
+        "answer": 1,
+        "explanation": "没有非线性时，W₂(W₁x+b₁)+b₂ 可整理成一个新的 W 和 b；增加层数并没有增加可表达的非线性边界。"
+      },
+      {
+        "prompt": "输入 shape 为 [1, 3, 32, 32] 最先应该确认什么？",
+        "options": [
+          "只确认总字节数",
+          "通道位置和 dtype 是否与模型契约一致",
+          "先把 batch 改成 32",
+          "先把它上传到 NPU"
+        ],
+        "answer": 1,
+        "explanation": "shape 的维度语义和 dtype 是模型 I/O 契约的一部分。NCHW/NHWC 或 int8/float 不匹配时，模型可运行却会稳定地产生错误结果。"
+      },
+      {
+        "prompt": "对端侧延迟更直接的粗略计算指标是什么？",
+        "options": [
+          "模型文件名长度",
+          "参数量",
+          "MACs 与数据搬运量",
+          "训练 epoch 数"
+        ],
+        "answer": 2,
+        "explanation": "参数量主要影响权重存储；MACs 描述计算量，但还必须结合激活读写、缓存与带宽，才能解释真实延迟。"
+      }
+    ],
+    "readingMinutes": 18,
+    "keywords": [
+      {
+        "term": "张量",
+        "definition": "带形状与数据类型的多维数值块，是模型输入、权重和中间结果的统一表示。",
+        "espAnalogy": "像注明采样数、通道数和位宽的 DMA buffer。"
+      },
+      {
+        "term": "Shape",
+        "definition": "描述各维长度及其语义，例如 NCHW 的 batch、通道、高和宽。",
+        "espAnalogy": "像协议帧的字段布局，顺序错了数据仍存在但含义全错。"
+      },
+      {
+        "term": "激活函数",
+        "definition": "在线性变换后加入非线性，使多层网络能表达复杂边界。",
+        "espAnalogy": "像状态机中的条件分支，不能被简单合并。"
+      },
+      {
+        "term": "MAC",
+        "definition": "一次乘加运算；常用于粗略估算计算量。",
+        "espAnalogy": "像内层 DSP 循环的工作次数，还需结合取数成本。"
+      }
+    ],
+    "recap": "这是课程起点。你已经熟悉 ESP32 中“外设产生数据、DMA 搬运数据、任务消费数据”的链路；本章把这条链路抽象为神经网络的输入、层和输出，为后续讨论训练与部署建立共同语言。",
+    "nextPreview": "下一章将把本章的前向计算拆出训练期与推理期：哪些状态属于实验室，哪些状态可以像稳定固件一样烧录到目标设备。",
+    "history": {
+      "intro": "神经网络并不是突然从“大模型”时代出现的。它经历了从逻辑化神经元、可学习的线性分类器，到多层网络的信用分配，再到 GPU 上的大规模表示学习这一条长线。今天在端侧工程里看到的张量、算子、自动微分和部署图，正是这条历史逐步沉淀出的分层接口。",
+      "milestones": [
+        {
+          "year": "1943",
+          "title": "神经元第一次被写成可计算的逻辑单元",
+          "body": "McCulloch 与 Pitts 用阈值化单元和连接网络描述神经活动，证明一组简单单元可以组合出逻辑行为。它没有现代训练算法，却奠定了“复杂功能可由大量统一小单元连接而成”的计算视角。",
+          "source": {
+            "label": "McCulloch 与 Pitts 原始论文",
+            "url": "https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf"
+          }
+        },
+        {
+          "year": "1958",
+          "title": "感知机把“连接”变成可由样本修正的权重",
+          "body": "Rosenblatt 的感知机引入依据分类误差调整连接权重的机制，使神经网络从手工逻辑结构走向数据驱动学习。它主要解决线性可分问题，也让“模型参数是训练结果”成为后来网络的核心观念。",
+          "source": {
+            "label": "Rosenblatt 感知机原始论文",
+            "url": "https://doi.org/10.1037/h0042519"
+          }
+        },
+        {
+          "year": "1986",
+          "title": "反向传播让隐藏层收到可计算的误差信号",
+          "body": "Rumelhart、Hinton 与 Williams 展示了误差反向传播如何逐层计算导数并调整权重。隐藏单元不再依赖人工指定含义，而能为任务形成内部表示；这让多层非线性网络拥有了实用的统一训练方法。",
+          "source": {
+            "label": "Nature 反向传播原始论文",
+            "url": "https://www.nature.com/articles/323533a0"
+          }
+        },
+        {
+          "year": "2012",
+          "title": "AlexNet 把深层表示学习推入大数据与 GPU 时代",
+          "body": "AlexNet 在大规模图像数据上训练深卷积网络，并用 GPU 承担密集张量计算。突破不只来自网络结构，还来自数据、并行计算和正则化共同到位；从此参数量、MAC、显存与吞吐成为同一套工程预算。",
+          "source": {
+            "label": "AlexNet 原始论文",
+            "url": "https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks"
+          }
+        },
+        {
+          "year": "2019",
+          "title": "命令式张量程序与自动微分成为日常工具",
+          "body": "PyTorch 论文总结了命令式前端、动态图与高性能张量后端的组合。研究者可以像普通程序一样写控制流，同时由系统记录运算关系并求梯度；今天导出前先确认动态图路径，也源自这种灵活性。",
+          "source": {
+            "label": "PyTorch 系统原始论文",
+            "url": "https://papers.neurips.cc/paper/2019/hash/bdbca288fee7f92f2bfa9f7012727740-Abstract.html"
+          }
+        }
+      ],
+      "bridge": "历史留下的工程启示是：网络能力来自可组合的非线性单元，学习来自可追踪的误差链，而性能来自张量程序对硬件的有效映射。端侧阅读一个模型时，应同时沿“数值如何变换”“梯度曾如何塑造权重”“部署时 buffer 如何存活”三条线检查。"
+    },
+    "visual": {
+      "title": "一拍训练脉冲：数据如何变成一次权重更新",
+      "description": "播放器每前进一步就点亮一个张量及其所有者；前半程信号向右流，后半程梯度向左回传，最后权重刻度发生细小移动。",
+      "steps": [
+        {
+          "icon": "📥",
+          "label": "装载样本",
+          "data": "x:[B,2]，y:[B,1]",
+          "action": "高亮 batch 轴，并把输入送入第一层",
+          "insight": "先确定 shape、dtype 与轴语义，后续计算才有共同契约"
+        },
+        {
+          "icon": "🧮",
+          "label": "仿射变换",
+          "data": "z = xWᵀ + b",
+          "action": "连线按权重粗细汇入每个输出单元",
+          "insight": "W 决定混合方向，b 平移边界；此步仍是线性的"
+        },
+        {
+          "icon": "⚡",
+          "label": "通过激活",
+          "data": "a = ReLU(z)",
+          "action": "负值节点熄灭，正值节点保持亮度",
+          "insight": "非线性让多层组合无法被折成单一矩阵"
+        },
+        {
+          "icon": "🎯",
+          "label": "计算损失",
+          "data": "L = mean((ŷ-y)²)",
+          "action": "预测点与目标点之间出现误差尺",
+          "insight": "标量损失把任务目标变成可求导的优化接口"
+        },
+        {
+          "icon": "↩️",
+          "label": "反传梯度",
+          "data": "∂L/∂W = ∂L/∂ŷ · …",
+          "action": "误差信号沿已记录的运算边反向传播",
+          "insight": "链式法则分配责任；shape 必须与对应参数一致"
+        },
+        {
+          "icon": "🔧",
+          "label": "更新参数",
+          "data": "W ← W − η∇W",
+          "action": "旋钮移动一小格并刷新下一轮预测",
+          "insight": "学习率决定步长，更新后必须用新前向结果验证方向"
+        }
+      ],
+      "loop": "更新后的权重重新接收下一批样本；动画回到装载样本，并保留一条逐步下降的 loss 轨迹作为跨轮次状态。"
+    },
+    "analogyDetail": {
+      "title": "一座会根据试音记录自动调节的连锁调音台",
+      "story": "想象一支乐队的多轨录音进入几排调音台。每排先按旋钮比例混合声道，再经过只允许某些信号通过的噪声门；末端监听员把成品与参考录音比较，并把“哪里偏响、哪里偏弱”的修正便签沿线路反向传回。重复试音后，旋钮位置就是学到的权重。",
+      "illustration": [
+        {
+          "icon": "🎚️",
+          "label": "成排旋钮",
+          "mapsTo": "权重与偏置决定各输入对下一层的贡献"
+        },
+        {
+          "icon": "🚪",
+          "label": "噪声门",
+          "mapsTo": "激活函数加入非线性并改变可表达的边界"
+        },
+        {
+          "icon": "🎧",
+          "label": "参考监听",
+          "mapsTo": "损失函数把预测与目标压缩成可优化的误差"
+        },
+        {
+          "icon": "📝",
+          "label": "反向便签",
+          "mapsTo": "链式法则把输出误差分摊到每个参数"
+        }
+      ],
+      "boundary": "这个类比只帮助理解信号变换与误差反馈。真实网络的一个“旋钮”会参与高维批量运算，梯度是局部导数的精确组合而不是主观意见；类比也无法表示参数共享、卷积布局和数值精度造成的耦合。"
+    }
+  },
+  {
+    "n": 2,
+    "t": "训练与推理",
+    "s": "理解离线训练与设备端执行的边界",
+    "goal": "区分训练图、推理图和部署图，知道哪些状态必须保留、哪些可以折叠。",
+    "concept": [
+      "epoch、batch、学习率与优化器",
+      "训练态与推理态",
+      "BatchNorm folding、常量折叠",
+      "端侧只执行 forward 的原因"
+    ],
+    "analogy": "训练像在实验室调试协议栈，推理像把确定好的状态机烧进设备；设备不应携带训练时的梯度、优化器和临时统计。",
+    "diagram": "数据集 → 训练循环 → checkpoint → 导出/优化 → runtime → 输入 → 输出",
+    "code": "model.eval()\nwith no_grad():\n    output = model(input)\nexport(model, example_input, format=\"onnx\")",
+    "lab": "对比训练态/推理态的 BatchNorm 输出；导出前后固定随机种子，验证误差与算子列表。",
+    "questions": [
+      "为什么 dropout 在推理时关闭？",
+      "哪些训练状态不能直接带到 MCU？",
+      "导出模型时为什么需要 example input？"
+    ],
+    "next": "模型格式",
+    "lesson": [
+      {
+        "title": "训练循环同时推进参数状态与优化器状态",
+        "body": "一次 step 不只是执行 forward 与减去梯度：Adam 等优化器还维护每个参数的历史统计，学习率调度器也有自己的步数。若只恢复权重却遗漏优化器和 epoch，续训轨迹会改变；而这些状态对纯推理毫无用途。工程上应把“可续训 checkpoint”和“可部署权重”作为两种产物命名、校验和归档。"
+      },
+      {
+        "title": "模式切换必须逐模块验证，不能只相信一个布尔值",
+        "body": "eval 会递归切换 Dropout、BatchNorm 等模块的行为，但自定义层可能仍读取 training 标志或随机数。BatchNorm 的 running mean/variance 还可能因小批次、数据漂移而失真。导出前应对同一输入连续运行多次确认输出确定，并逐项检查随机算子、统计 buffer 和 requires-grad 状态是否符合预期。"
+      },
+      {
+        "title": "部署图是经变换后的新产物，不是 checkpoint 的复印件",
+        "body": "导出器可能内联函数、删除反向节点、折叠常量，把 Conv 与 BatchNorm 的参数合并，或依据 example input 固化控制流。这样能降低调度和内存开销，却也可能只捕获示例走过的分支。若模型包含依赖数据的循环、动态 shape 或自定义算子，应明确导出策略，不能假设源程序的所有路径都被保存。"
+      },
+      {
+        "title": "训练、验证与现场输入必须有三份边界说明",
+        "body": "训练集用于更新参数，验证集用于选择超参数和 checkpoint，测试或现场回放用于估计最终泛化；三者混用会让指标乐观。设备部署还增加传感器量程、颜色转换和采样时序等分布因素。应保存原始现场样本及标签规则，让导出后的模型在不启动训练代码的情况下也能重复跑同一套验收。"
+      },
+      {
+        "title": "用分层等价测试定位导出误差发生在哪一站",
+        "body": "先在源框架的 train/eval 两种模式比较，确认差异来自预期模块；再以固定输入比较 eval 模型与导出 runtime；最后把设备端原始 buffer 回传到 PC 重放。每层设置绝对与相对误差容差，并记录首个超差节点。这样能区分模式错误、图转换错误、量化误差和设备前处理错误。"
+      }
+    ],
+    "pitfall": "只在 PC 上比较模型文件而没有比较设备端前处理，会把颜色空间、量化和 resize 的错误误判为“模型精度下降”。",
+    "references": [
+      [
+        "PyTorch ONNX 导出",
+        "https://docs.pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html"
+      ],
+      [
+        "ONNX Concepts",
+        "https://onnx.ai/onnx/intro/concepts.html"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "为什么推理前要调用 model.eval()？",
+        "options": [
+          "释放所有权重",
+          "使 Dropout、BatchNorm 使用推理行为",
+          "自动量化为 int8",
+          "把模型转换为 GGUF"
+        ],
+        "answer": 1,
+        "explanation": "eval() 不会量化或删除参数；它切换受训练状态影响的模块，避免 Dropout 随机置零或 BatchNorm 使用训练批统计。"
+      },
+      {
+        "prompt": "哪项通常不应随 MCU 推理产物部署？",
+        "options": [
+          "权重张量",
+          "输入输出元数据",
+          "优化器动量与梯度",
+          "算子执行顺序"
+        ],
+        "answer": 2,
+        "explanation": "优化器状态和梯度用于更新参数，端侧推理只执行已确定模型的前向计算，携带它们会浪费有限存储与内存。"
+      },
+      {
+        "prompt": "导出模型的 example input 最主要的作用是什么？",
+        "options": [
+          "给模型增加训练样本",
+          "帮助导出器捕获输入 shape 与实际算子路径",
+          "替代代表性校准集",
+          "设定设备 CPU 频率"
+        ],
+        "answer": 1,
+        "explanation": "example input 用于图捕获和 shape 推断；量化校准还需要覆盖真实输入范围的代表性数据。"
+      }
+    ],
+    "readingMinutes": 17,
+    "keywords": [
+      {
+        "term": "Epoch",
+        "definition": "训练集完整遍历一次。",
+        "espAnalogy": "像对一组整机测试用例完整跑一轮。"
+      },
+      {
+        "term": "Batch",
+        "definition": "一次用于计算梯度的一小批样本。",
+        "espAnalogy": "像把多帧传感器窗口攒成一次 DSP 处理。"
+      },
+      {
+        "term": "eval 模式",
+        "definition": "让 Dropout、BatchNorm 使用推理语义的模式。",
+        "espAnalogy": "像从调试配置切换到量产配置。"
+      },
+      {
+        "term": "优化器",
+        "definition": "依据梯度更新参数的算法及其状态。",
+        "espAnalogy": "像自动调参器；部署后不应留在固件里。"
+      }
+    ],
+    "recap": "上一章把网络看作有输入输出契约的数据管线。本章继续追问：谁来修改权重、何时停止修改、设备端到底需要保留哪些状态。",
+    "nextPreview": "下一章会把已经固定的推理图装进 ONNX、LiteRT 或 GGUF 等格式，重点检查格式是否保留了本章确定下来的输入输出契约。",
+    "history": {
+      "intro": "训练与推理的分界，是随着网络从实验装置走向可复用软件逐渐清晰的。早期学习规则一边接收样本一边改权重；多层训练引入完整梯度状态，随后 Dropout、BatchNorm 等模块又让“训练态”和“推理态”出现不同语义。移动端 runtime 的出现，最终把部署产物收束为稳定前向图。",
+      "milestones": [
+        {
+          "year": "1958",
+          "title": "感知机学习规则形成最小训练循环",
+          "body": "感知机依据预测错误修改连接权重，把样本、预测、误差、更新连接成闭环。虽然模型简单，它已经区分了“正在被样本改变的参数”和“使用当前参数给出判断”这两个时刻。",
+          "source": {
+            "label": "Rosenblatt 感知机原始论文",
+            "url": "https://doi.org/10.1037/h0042519"
+          }
+        },
+        {
+          "year": "1986",
+          "title": "反向传播扩大了训练期状态与计算",
+          "body": "多层网络需要保留前向中间量，并在反向阶段计算各参数梯度。训练由此成为一条比推理更长的计算图：除了权重，还有激活、梯度和更新过程；部署只保留结果参数的理由随之明确。",
+          "source": {
+            "label": "Nature 反向传播原始论文",
+            "url": "https://www.nature.com/articles/323533a0"
+          }
+        },
+        {
+          "year": "2014",
+          "title": "Dropout 明确展示同一模块的两套运行语义",
+          "body": "Dropout 在训练时随机丢弃单元，以降低共适应；测试时则使用完整网络的确定性近似。它使工程师必须显式切换模式，否则同一输入会因训练期随机行为而得到不稳定输出。",
+          "source": {
+            "label": "Dropout 原始论文",
+            "url": "https://www.jmlr.org/papers/v15/srivastava14a.html"
+          }
+        },
+        {
+          "year": "2015",
+          "title": "BatchNorm 增加了可学习参数之外的运行统计",
+          "body": "Batch Normalization 在训练批次上计算统计量，并在推理时使用累积统计与已学习的缩放、偏移。checkpoint 因而不只是权重矩阵，还包含会改变推理结果的 buffer；导出前固定模式成为必要步骤。",
+          "source": {
+            "label": "Batch Normalization 原始论文",
+            "url": "https://proceedings.mlr.press/v37/ioffe15.html"
+          }
+        },
+        {
+          "year": "2017",
+          "title": "轻量 runtime 把设备端职责收束为低延迟前向执行",
+          "body": "TensorFlow Lite 的开发者预览面向移动和嵌入式设备，强调轻量、快速初始化与硬件加速。模型从训练框架转换为受限部署格式，训练状态、调试便利性与设备运行约束开始由工具链明确分工。",
+          "source": {
+            "label": "TensorFlow Lite 官方发布说明",
+            "url": "https://developers.googleblog.com/en/announcing-tensorflow-lite/"
+          }
+        }
+      ],
+      "bridge": "今天的可靠部署不是简单调用 eval 后保存文件，而是建立训练 checkpoint、评估模型、导出图、优化图和设备二进制之间的可追溯关系。每个产物都有自己的状态与版本，任何一步折叠或替换节点，都要用固定输入证明它仍代表同一个任务函数。"
+    },
+    "visual": {
+      "title": "一份 checkpoint 如何瘦身为设备前向图",
+      "description": "动画把训练态携带的对象画成一列可拆卸舱段；进入导出闸门后，只允许确定的前向语义和必要常量继续流向设备。",
+      "steps": [
+        {
+          "icon": "🧺",
+          "label": "组成训练批次",
+          "data": "samples → batch[B,…]",
+          "action": "样本被打乱、增强并组成一个 batch",
+          "insight": "batch 既影响梯度估计，也可能影响训练态统计"
+        },
+        {
+          "icon": "🔄",
+          "label": "完成训练 step",
+          "data": "loss → grad → optimizer state",
+          "action": "前向、反向与参数更新三个环依次转动",
+          "insight": "优化器动量和梯度属于续训状态，不属于推理输入"
+        },
+        {
+          "icon": "🔒",
+          "label": "切换评估语义",
+          "data": "Dropout=off，BN=running stats",
+          "action": "随机开关停止闪烁，统计表被锁定",
+          "insight": "同一层在训练态与推理态可能执行不同公式"
+        },
+        {
+          "icon": "✂️",
+          "label": "导出并优化",
+          "data": "checkpoint → inference graph",
+          "action": "梯度、优化器舱段脱离，常量节点被合并",
+          "insight": "导出会变换图，必须验证动态分支和折叠结果"
+        },
+        {
+          "icon": "📟",
+          "label": "设备只做前向",
+          "data": "input → runtime → output",
+          "action": "固定图在目标 backend 上逐节点点亮",
+          "insight": "设备资源预算只覆盖权重、激活、workspace 与 I/O"
+        },
+        {
+          "icon": "🔍",
+          "label": "对齐固定向量",
+          "data": "Δ = output_source − output_device",
+          "action": "两条输出曲线叠加并标出首个超差点",
+          "insight": "按层对比比只看最终类别更容易定位语义漂移"
+        }
+      ],
+      "loop": "新 checkpoint 只有在评估语义、导出图和设备输出三道校验都通过后，才替换上一版部署产物；失败则回到对应阶段而非直接重训。"
+    },
+    "analogyDetail": {
+      "title": "从风洞试飞到封装进无人机的飞控程序",
+      "story": "训练像在风洞中反复试飞：工程师改变参数，注入扰动，记录每次偏航并调整控制律。推理像量产无人机起飞，机上只带定型的控制表、传感器接口和必要状态，不会把整座风洞、试验日志与调参团队一同装进去。导出则是把试验配置审定为可烧录版本。",
+      "illustration": [
+        {
+          "icon": "🌬️",
+          "label": "风洞与扰动",
+          "mapsTo": "数据批次、增强和 Dropout 等训练随机性"
+        },
+        {
+          "icon": "🧑‍🔧",
+          "label": "调参工程师",
+          "mapsTo": "优化器读取梯度并维护动量等更新状态"
+        },
+        {
+          "icon": "📋",
+          "label": "审定配置",
+          "mapsTo": "eval 模式、checkpoint 选择与导出图冻结"
+        },
+        {
+          "icon": "🛩️",
+          "label": "机载飞控",
+          "mapsTo": "设备 runtime 只执行受验证的前向路径"
+        }
+      ],
+      "boundary": "飞控通常由明确物理模型和安全论证构成，而神经网络是统计模型，不能因“已定型”就视为覆盖所有现场条件。类比也不代表导出后图永远不变：常量折叠、量化与后端分区仍会改变数值和资源行为。"
+    }
+  },
+  {
+    "n": 3,
+    "t": "模型格式",
+    "s": "让模型成为可移植的中间表示",
+    "goal": "能从计算图、权重张量、元数据三个角度阅读 ONNX、TFLite、GGUF 等格式。",
+    "concept": [
+      "计算图与拓扑排序",
+      "权重布局与 dtype",
+      "opset、metadata 与版本兼容",
+      "转换器、runtime 与后端的职责"
+    ],
+    "analogy": "模型格式类似 USB 描述符 + 数据包协议：描述符说明端点与能力，权重是 payload，runtime 负责把它落到具体控制器。",
+    "diagram": "Framework → Export IR → Converter → Optimizer → Runtime → Backend\n PyTorch       ONNX/TFLite/GGUF                     CPU/GPU/NPU",
+    "code": "onnx.checker.check_model(model)\nprint(model.graph.input, model.graph.output)\n# tflite / gguf 还要检查量化类型与 tokenizer metadata",
+    "lab": "选一个小模型，分别列出输入输出、算子、权重 dtype、动态维度和 metadata。",
+    "questions": [
+      "为什么同一个模型换格式后大小和精度会变化？",
+      "opset 不兼容时，问题通常出在导出端还是 runtime 端？",
+      "为什么元数据对 LLM 比对普通 CNN 更关键？"
+    ],
+    "next": "量化",
+    "lesson": [
+      {
+        "title": "把格式拆成语法、语义与随附资产三层",
+        "body": "schema 只回答字段如何编码，算子规范才回答节点应算什么，tokenizer、标签表或归一化参数则可能存在 metadata 或外部文件中。解析成功只证明语法有效；缺少算子语义会导致 runtime 拒绝，缺少资产则可能运行却解释错输出。交付清单应逐层列出校验方式，而不是只记录一个模型文件哈希。"
+      },
+      {
+        "title": "读图时追踪值的来源、生命周期与可变性",
+        "body": "Graph 的输入来自调用者，initializer 通常保存常量权重，中间 value 由节点产生；动态维度则用符号或未知值表达。拓扑顺序说明依赖，却不等于最终执行顺序，runtime 还会做内存复用和并行调度。检查模型时应标出每个输出由哪条路径产生、哪些维度可变，以及 shape 推断失败的位置。"
+      },
+      {
+        "title": "IR、opset 与 runtime 版本是三把不同的锁",
+        "body": "IR version 约束模型容器与图结构，opset 约束特定域中算子的签名和语义，runtime 版本决定实现覆盖。降 opset 不是改一个整数：若旧集合没有等价表达，转换器必须分解节点或直接失败。自定义 domain 还要求随部署提供实现。兼容表应记录三者组合及目标芯片，而非笼统写“支持 ONNX”。"
+      },
+      {
+        "title": "转换器会重写表达，必须审计差异清单",
+        "body": "转换可能把一个高层算子展开为子图、把常量计算提前、把 NCHW 换成 NHWC，或将权重存为不同 dtype。数学上等价的重写仍可能改变舍入、workspace 和 backend 分区。应在转换日志中保存新增、删除、替换的节点统计，并对关键中间张量建立名称映射，避免最终输出异常时只能盲猜。"
+      },
+      {
+        "title": "建立模型 ABI 测试包，而不只保存模型本体",
+        "body": "为每个模型版本附上输入名称、shape 范围、dtype、量纲、前后处理版本和数个 golden 样本；样本应包含正常值、边界 shape 与非法输入。CI 先做 schema/checker 校验，再由目标 runtime 加载并比较输出容差。若模型使用外部权重或 tokenizer 文件，还要校验相对路径与哈希，防止“主文件没变、配套资产已漂移”。"
+      }
+    ],
+    "pitfall": "“能用 Netron 打开”只说明文件可解析；不等于目标 runtime 支持该 opset、动态维度或自定义算子。",
+    "references": [
+      [
+        "ONNX Concepts",
+        "https://onnx.ai/onnx/intro/concepts.html"
+      ],
+      [
+        "ONNX Versioning",
+        "https://onnx.ai/onnx/repo-docs/Versioning.html"
+      ],
+      [
+        "GGUF 格式规范",
+        "https://github.com/ggerganov/ggml/blob/master/docs/gguf.md"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "ONNX opset 主要声明什么？",
+        "options": [
+          "模型训练轮数",
+          "图中算子应遵循的语义版本",
+          "芯片时钟频率",
+          "权重压缩比"
+        ],
+        "answer": 1,
+        "explanation": "opset 是算子集合的版本。相同 Add 在不同 opset 可能遵循不同定义，runtime 必须支持模型声明的域和版本。"
+      },
+      {
+        "prompt": "GGUF 最准确的描述是？",
+        "options": [
+          "一种唯一的量化算法",
+          "用于 GGML 执行器推理的模型容器格式",
+          "训练框架",
+          "NPU 驱动"
+        ],
+        "answer": 1,
+        "explanation": "GGUF 保存张量和可扩展 metadata；张量可采用不同量化方案，因此容器格式与具体量化算法不能混为一谈。"
+      },
+      {
+        "prompt": "转换后最可靠的第一项验证是什么？",
+        "options": [
+          "只比较文件大小",
+          "用固定输入比较源模型与目标 runtime 输出",
+          "只检查扩展名",
+          "只看模型卡参数量"
+        ],
+        "answer": 1,
+        "explanation": "固定测试向量可以直接发现 I/O 布局、数值类型或算子语义变化；文件大小无法证明推理结果正确。"
+      }
+    ],
+    "readingMinutes": 18,
+    "keywords": [
+      {
+        "term": "计算图",
+        "definition": "以节点和边描述张量如何经过算子得到输出。",
+        "espAnalogy": "像固件的数据流图或任务依赖图。"
+      },
+      {
+        "term": "ONNX opset",
+        "definition": "模型声明的算子语义版本。",
+        "espAnalogy": "像通信协议版本；收发两端必须兼容。"
+      },
+      {
+        "term": "Metadata",
+        "definition": "随模型保存的名称、词表、量化或配置说明。",
+        "espAnalogy": "像 USB 描述符，帮助主机正确解释 payload。"
+      },
+      {
+        "term": "Runtime",
+        "definition": "加载模型并调度算子执行的程序。",
+        "espAnalogy": "像 RTOS 加驱动抽象层，而非模型文件本身。"
+      }
+    ],
+    "recap": "上一章已经把模型固定为推理图和权重。本章关注这份产物如何跨框架、转换器与硬件后端传递，以及传递过程中什么会失真。",
+    "nextPreview": "下一章会在格式契约稳定的前提下压缩数值精度：量化的 scale、zero-point 和校准数据都依赖本章确认的 tensor 语义。",
+    "history": {
+      "intro": "模型格式的演化，本质上是在回答“如何把一个框架内部对象交给另一套软件和硬件”。早期模型常依赖训练代码才能解释，随后数据流图、统一算子语义和轻量二进制容器逐渐分离。格式没有消灭差异，而是把差异从隐蔽的源代码依赖变成可检查的 schema、opset 和 metadata。",
+      "milestones": [
+        {
+          "year": "2014",
+          "title": "Caffe 用声明式网络与权重文件推动模型复用",
+          "body": "Caffe 将网络结构、训练配置与学习到的参数组织为可交换产物，并以层为扩展单元。它展示了模型可以脱离单个研究脚本被分享和部署，也暴露了框架专属层与格式绑定的问题。",
+          "source": {
+            "label": "Caffe 原始论文",
+            "url": "https://arxiv.org/abs/1408.5093"
+          }
+        },
+        {
+          "year": "2015",
+          "title": "TensorFlow 把训练与推理统一表达为数据流图",
+          "body": "TensorFlow 白皮书用带状态的 dataflow graph 表达异构系统上的机器学习计算。节点、边、设备放置与张量流成为系统级接口，为后续图优化、序列化和跨设备执行提供了清晰基础。",
+          "source": {
+            "label": "TensorFlow 2015 白皮书",
+            "url": "https://research.google/pubs/tensorflow-large-scale-machine-learning-on-heterogeneous-distributed-systems/"
+          }
+        },
+        {
+          "year": "2017",
+          "title": "ONNX v1 将互操作写成公开的图与算子契约",
+          "body": "ONNX v1 面向多个框架发布生产就绪版本，以开放图格式和算子集推动模型转移。导出器、转换器和 runtime 从此可以围绕共同 IR 协作，但每一方仍必须支持模型声明的域与 opset。",
+          "source": {
+            "label": "ONNX v1 官方发布说明",
+            "url": "https://engineering.fb.com/2017/12/08/ml-applications/onnx-v1-released/"
+          }
+        },
+        {
+          "year": "2017",
+          "title": "TensorFlow Lite 为移动与嵌入式运行收紧格式边界",
+          "body": "TensorFlow Lite 面向小二进制、快速启动和设备加速，模型转换不再只为交换，也为受限 runtime 准备可直接读取的结构。支持算子、静态内存规划和硬件委托开始反向影响模型设计。",
+          "source": {
+            "label": "TensorFlow Lite 官方发布说明",
+            "url": "https://developers.googleblog.com/en/announcing-tensorflow-lite/"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "GGUF 强化单文件、可扩展与快速加载",
+          "body": "GGUF 作为 GGML 系执行器的模型格式，把张量与键值 metadata 放入可扩展的二进制容器，并取代早期 GGML、GGMF、GGJT 格式。它说明 LLM 部署不仅要保存权重，还要可靠携带架构和 tokenizer 等解释信息。",
+          "source": {
+            "label": "GGUF 官方规范",
+            "url": "https://github.com/ggml-org/ggml/blob/master/docs/gguf.md"
+          }
+        }
+      ],
+      "bridge": "现代格式形成了两类互补路线：ONNX 一类 IR 强调通用计算图与算子语义，LiteRT、GGUF 等部署容器更贴近特定 runtime 的加载和资源约束。工程选择不应从扩展名开始，而应从目标后端支持矩阵、输入契约、可变 shape 与随模型必须携带的资产开始。"
+    },
+    "visual": {
+      "title": "模型穿越五道格式闸门",
+      "description": "同一组测试数据伴随模型从训练框架走到目标 backend；每道闸门检查一种契约，任何红灯都会停在最接近根因的位置。",
+      "steps": [
+        {
+          "icon": "🧩",
+          "label": "框架对象",
+          "data": "modules + parameters + control flow",
+          "action": "展开实际执行过的模块与参数引用",
+          "insight": "源程序可以包含无法直接序列化的动态行为"
+        },
+        {
+          "icon": "🕸️",
+          "label": "导出计算图",
+          "data": "nodes + edges + initializers",
+          "action": "控制路径被捕获，张量依赖连成有向图",
+          "insight": "example input 可能决定捕获到的分支与 shape"
+        },
+        {
+          "icon": "📜",
+          "label": "核对规范",
+          "data": "IR vN + domain/opset",
+          "action": "每个节点在版本册中寻找签名与语义",
+          "insight": "能解析文件不等于 runtime 支持所有算子"
+        },
+        {
+          "icon": "🔁",
+          "label": "转换部署格式",
+          "data": "layout/dtype/metadata changes",
+          "action": "节点被折叠、拆分或换布局，差异表同步更新",
+          "insight": "转换是语义保持的重写，不是字节级复制"
+        },
+        {
+          "icon": "🧱",
+          "label": "runtime 分区",
+          "data": "supported subgraphs → backend",
+          "action": "支持节点流向加速器，其余节点标出回退路径",
+          "insight": "格式兼容之后仍有 kernel、copy 与内存约束"
+        },
+        {
+          "icon": "✅",
+          "label": "固定输入验收",
+          "data": "golden input → Δoutput",
+          "action": "源端与目标端输出叠加，显示误差和首个分歧节点",
+          "insight": "数值证据才闭合“同一个模型”的交接声明"
+        }
+      ],
+      "loop": "当 runtime、opset、转换器或配套资产升级时，从受影响的闸门重新播放；golden 输入始终随模型同行，形成可回归的格式护照。"
+    },
+    "analogyDetail": {
+      "title": "跨国运输中的集装箱、舱单与港口规则",
+      "story": "模型像一批要跨国转运的精密设备。权重是箱内货物，计算图是装卸顺序和连接说明，metadata 是舱单，opset 是这一版作业规则。文件顺利抵港只代表箱子能被识别；目标港口还必须有对应吊具和工人，才能按规则真正完成装配。",
+      "illustration": [
+        {
+          "icon": "📦",
+          "label": "集装箱",
+          "mapsTo": "二进制模型文件封装张量与结构"
+        },
+        {
+          "icon": "🗺️",
+          "label": "装卸路线图",
+          "mapsTo": "计算图规定节点依赖与张量流向"
+        },
+        {
+          "icon": "📑",
+          "label": "舱单与版本册",
+          "mapsTo": "metadata、IR version、opset 和自定义域"
+        },
+        {
+          "icon": "🏗️",
+          "label": "港口吊具",
+          "mapsTo": "runtime 与 backend 必须实现所需算子和 dtype"
+        }
+      ],
+      "boundary": "真实模型转换并非密封箱原样转运：转换器可能改布局、拆算子、折叠常量甚至量化张量。运输类比也无法表达浮点非结合性和动态控制流，因此“货物齐全”仍不能替代固定输入的数值比对。"
+    }
+  },
+  {
+    "n": 4,
+    "t": "量化",
+    "s": "用更少的 bit 换取更低的存储与带宽",
+    "goal": "掌握对称/非对称量化、scale/zero-point，并能判断误差来源。",
+    "concept": [
+      "int8 与 float 的映射",
+      "per-tensor、per-channel",
+      "校准集与激活范围",
+      "量化误差、饱和与反量化"
+    ],
+    "analogy": "像把高精度传感器值映射成有限 ADC 码：scale 是量程，zero-point 是零点，校准集决定量程是否覆盖真实信号。",
+    "diagram": "float x ──(x/scale)+zp──► int8 q ──runtime kernel──► int8/float output",
+    "code": "q = round(x / scale + zero_point)\nq = clip(q, -128, 127)\nx_hat = (q - zero_point) * scale",
+    "lab": "写一个 numpy/Python 量化器，比较 per-tensor 与 per-channel 的 MSE，并找出饱和比例。",
+    "questions": [
+      "为什么权重常用 per-channel 而激活常用 per-tensor？",
+      "校准集为什么不能只取一张“平均图片”？",
+      "量化后速度一定更快吗？"
+    ],
+    "next": "算子",
+    "lesson": [
+      {
+        "title": "先从可逆近似公式看清三个误差入口",
+        "body": "仿射量化用 q=round(x/scale)+zero_point，再把 q 限制到整数范围；反量化只得到格点上的近似值。误差分别来自格距造成的舍入、范围不足造成的饱和，以及统计范围被异常值拉宽后的分辨率浪费。实现时应分别统计量化 MSE、上下界命中率与零点映射，三者混成一个准确率数字很难定位。"
+      },
+      {
+        "title": "对称、非对称与 per-channel 是后端契约选择",
+        "body": "对称量化通常令 zero-point 为零，乘法路径更简单；非对称量化能更充分利用偏斜分布的整数范围。per-channel 可为每个输出通道设置 scale，常能缓解权重通道间幅度差异，却要求 kernel 知道量化轴并加载多组参数。选择前应查询目标 runtime 的 dtype、轴和算子限制，不能只凭 PC 精度。"
+      },
+      {
+        "title": "校准不是抽几张“典型图”，而是覆盖激活状态空间",
+        "body": "权重范围可以直接扫描，中间激活却由输入和前置层共同决定。代表性数据应覆盖光照、静默、饱和传感器、类别边界和设备噪声，并沿真实前处理进入模型。可按层查看直方图与裁剪比例，发现少量离群值是否支配 scale；若生产分布改变，原校准表也应视为需要重新验证的版本化资产。"
+      },
+      {
+        "title": "整数卷积仍需要高位累加与正确的尺度接力",
+        "body": "int8 输入与 int8 权重的乘积通常进入更宽的累加器，偏置尺度应与输入 scale×权重 scale 对齐，输出再经 multiplier、shift 或等价操作 requantize。任何一处零点补偿、舍入规则或饱和次序不同，都可能造成系统偏差。用极小矩阵手算累加与边界值，是验证自定义 kernel 最有效的单元测试之一。"
+      },
+      {
+        "title": "把精度回归与性能验收放在同一张层级报告里",
+        "body": "先比较 float 与量化模型的最终任务指标，再对输出漂移最大的样本逐层定位 SQNR、余弦相似度或最大绝对误差；同时从 profile 检查是否出现 Quantize/Dequantize 岛和 float fallback。若文件缩小却执行更慢，问题可能是缺少整数 kernel、布局转换或频繁重标度，而不是量化算法本身失败。"
+      }
+    ],
+    "pitfall": "量化为 int8 不保证更快：若目标后端没有 int8 kernel，或频繁插入 dequantize/quantize，转换开销可能抵消收益。",
+    "references": [
+      [
+        "LiteRT PTQ",
+        "https://ai.google.dev/edge/litert/models/post_training_quantization"
+      ],
+      [
+        "ESP-DL 量化",
+        "https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_quantize_model.html"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "全整数量化为何需要 representative dataset？",
+        "options": [
+          "用来重新训练所有权重",
+          "估计会随输入变化的激活范围",
+          "生成模型名称",
+          "提高摄像头帧率"
+        ],
+        "answer": 1,
+        "explanation": "权重本身可直接扫描，输入和中间激活需要运行代表性样本来估计 min/max 或其他量程统计。"
+      },
+      {
+        "prompt": "量化饱和最接近 ADC 的哪种问题？",
+        "options": [
+          "采样率过高",
+          "输入超过量程而被夹到最大/最小码",
+          "串口波特率不匹配",
+          "Flash 擦写"
+        ],
+        "answer": 1,
+        "explanation": "超过 scale 覆盖范围的数值会被 clip 到 int8 边界，反量化后原始差异已经丢失。"
+      },
+      {
+        "prompt": "ESP-DL 文档中 ESP32 与 ESP32-S3 常使用的策略是？",
+        "options": [
+          "所有 Conv 必为 per-channel",
+          "per-tensor 量化",
+          "仅支持 float32",
+          "不支持任何量化"
+        ],
+        "answer": 1,
+        "explanation": "ESP-DL 的平台策略受 ISA 与实现限制影响；课程应检查目标芯片而非把 P4 的 per-channel 能力泛化到所有 ESP32。"
+      }
+    ],
+    "readingMinutes": 19,
+    "keywords": [
+      {
+        "term": "Scale",
+        "definition": "整数码与真实数值之间的比例系数。",
+        "espAnalogy": "像 ADC 的量程和每个码的物理含义。"
+      },
+      {
+        "term": "Zero-point",
+        "definition": "映射中代表真实零值的整数偏移。",
+        "espAnalogy": "像传感器零偏校正后的基准码。"
+      },
+      {
+        "term": "校准集",
+        "definition": "用于估计激活范围的代表性输入样本。",
+        "espAnalogy": "像用真实工况标定 ADC，而非只输入中间值。"
+      },
+      {
+        "term": "Per-channel",
+        "definition": "为不同权重通道分别使用量化参数。",
+        "espAnalogy": "像为不同传感器通道分别做增益标定。"
+      }
+    ],
+    "recap": "上一章确认了模型格式、算子语义和 I/O 契约。本章在这些契约不变的前提下，将 float 数值映射到更少 bit，并量化误差的来源。",
+    "nextPreview": "下一章会从量化后的图继续进入算子与 kernel：同样的 int8 图在不同布局、融合和后端上可能有完全不同的延迟。",
+    "history": {
+      "intro": "神经网络量化并非简单追随移动芯片而出现。早期数字与模拟神经硬件就必须面对有限字长；深度学习扩大模型后，研究从“有限精度能否工作”转向压缩、低比特训练与整数算子协同设计。今天的 PTQ、QAT、per-channel 和代表性校准，是数十年精度—存储—硬件权衡的工程化结果。",
+      "milestones": [
+        {
+          "year": "1990",
+          "title": "有限字长被作为神经计算的系统设计问题",
+          "body": "Neural Network Number Systems 比较了数字神经网络中的定点、浮点和指数数值表示。早期工作已经意识到，位宽选择同时影响电路成本、动态范围和计算误差，而不是单纯更换文件 dtype。",
+          "source": {
+            "label": "Neural Network Number Systems 原始论文记录",
+            "url": "https://stars.library.ucf.edu/scopus1990/1465/"
+          }
+        },
+        {
+          "year": "2015",
+          "title": "Deep Compression 把量化放进完整模型压缩流水线",
+          "body": "Deep Compression 将剪枝、训练后权值共享式量化和 Huffman 编码组合，展示模型存储与内存访问可大幅削减。它强化了一个工程事实：压缩方案必须连同编码开销、解码路径和目标硬件一起评估。",
+          "source": {
+            "label": "Deep Compression 原始论文",
+            "url": "https://arxiv.org/abs/1510.00149"
+          }
+        },
+        {
+          "year": "2016–2017",
+          "title": "低比特权重与激活进入训练过程",
+          "body": "Quantized Neural Networks 在前向和反向计算中引入低精度权重与激活，并研究极低 bit 表示。量化不再只是模型训练完成后的包装，而可以在训练时显式暴露误差，让参数适应离散码本。",
+          "source": {
+            "label": "Quantized Neural Networks 原始论文",
+            "url": "https://www.jmlr.org/papers/v18/16-456.html"
+          }
+        },
+        {
+          "year": "2018",
+          "title": "整数算术从输入贯穿到输出",
+          "body": "Jacob 等人给出面向整数算术推理的量化方案与训练流程，同时量化权重和激活，并处理比例因子、zero-point 与累加。算法设计开始明确对接 ARM CPU 和整数加速器，而非只报告文件缩小。",
+          "source": {
+            "label": "CVPR 整数推理原始论文",
+            "url": "https://openaccess.thecvf.com/content_cvpr_2018/html/Jacob_Quantization_and_Training_CVPR_2018_paper.html"
+          }
+        },
+        {
+          "year": "2020s",
+          "title": "PTQ 校准成为端侧工具链的标准阶段",
+          "body": "LiteRT 的全整数量化流程使用代表性数据估计输入与中间激活范围，并允许把模型 I/O 也设为整数。当前实践因而强调校准数据、算子覆盖和目标硬件实测，而不把 int8 标签当作性能保证。",
+          "source": {
+            "label": "LiteRT 全整数量化官方教程",
+            "url": "https://ai.google.dev/edge/litert/models/post_training_integer_quant"
+          }
+        }
+      ],
+      "bridge": "发展脉络从“有限精度是否可用”走到“训练、格式、kernel 与芯片共同设计”。在 ESP32 一类平台上，正确问题不是浮点能压成几 bit，而是目标 ISA 支持什么量化轴、累加位宽与算子组合，以及校准样本是否覆盖真实传感器的长尾范围。"
+    },
+    "visual": {
+      "title": "浮点波形如何落入 256 个整数格",
+      "description": "动画先伸缩一把覆盖实测数据的标尺，再让每个浮点点吸附到最近格位；超界点会撞上红色挡板，随后整数流进入累加器。",
+      "steps": [
+        {
+          "icon": "📊",
+          "label": "扫描分布",
+          "data": "activation samples → min/max/histogram",
+          "action": "样本点铺开成直方图，长尾以另一颜色标出",
+          "insight": "激活范围必须由代表性真实输入估计"
+        },
+        {
+          "icon": "📏",
+          "label": "设置格距",
+          "data": "scale，zero_point",
+          "action": "整数标尺平移并缩放到选定范围",
+          "insight": "scale 控制分辨率，zero-point 决定真实零映射到哪个码"
+        },
+        {
+          "icon": "🧲",
+          "label": "舍入到格点",
+          "data": "q = round(x/scale)+zp",
+          "action": "每个浮点点吸附到最近整数刻度",
+          "insight": "格内细节在此变成不可恢复的舍入误差"
+        },
+        {
+          "icon": "🧱",
+          "label": "执行饱和",
+          "data": "q = clip(q,qmin,qmax)",
+          "action": "越界点撞到两侧红色挡板并重叠",
+          "insight": "饱和会把多个不同原值永久映成同一码"
+        },
+        {
+          "icon": "⚙️",
+          "label": "整数 kernel",
+          "data": "int8 × int8 → int32 accumulate",
+          "action": "整数码进入乘加阵列，累加槽变宽",
+          "insight": "低位输入不表示所有中间计算都使用同一位宽"
+        },
+        {
+          "icon": "🔬",
+          "label": "重标度并比对",
+          "data": "requantize → q_out；Δ vs float",
+          "action": "输出回到目标尺度，与 float 曲线叠加",
+          "insight": "同时检查数值误差、饱和率和真实 kernel 延迟"
+        }
+      ],
+      "loop": "若误差或饱和超限，播放器回到分布扫描，可切换校准样本、量化轴或范围策略；若性能不达标，则回到整数 kernel 检查 fallback 与转换边界。"
+    },
+    "analogyDetail": {
+      "title": "把连续山景印成一张只有有限色阶的版画",
+      "story": "摄影师拥有层次丰富的原片，但印刷机每种颜色只有有限档位。制版师先观察整组照片的最暗与最亮区域，再决定每一格色阶覆盖多大范围；落在两格之间的颜色要舍入，超出纸张量程的高光和阴影只能压成同一个极值。分色制版则像为每个通道单独选量程。",
+      "illustration": [
+        {
+          "icon": "🏔️",
+          "label": "原始山景",
+          "mapsTo": "连续或高精度的 float 权重与激活"
+        },
+        {
+          "icon": "🎨",
+          "label": "有限调色板",
+          "mapsTo": "整数码本及由 scale 决定的格距"
+        },
+        {
+          "icon": "🖼️",
+          "label": "分色版",
+          "mapsTo": "per-channel 为不同输出通道选择量化参数"
+        },
+        {
+          "icon": "☀️",
+          "label": "高光溢出",
+          "mapsTo": "超出校准范围的数值被 clip 后不可恢复"
+        }
+      ],
+      "boundary": "图像色阶主要诉诸视觉感受，模型误差却会在多层算子中累积，并以任务指标而非“看起来相似”衡量。真实整数 kernel 还涉及偏置尺度、int32 累加、requantize 和硬件指令，版画类比无法说明这些算术约束。"
+    }
+  },
+  {
+    "n": 5,
+    "t": "算子",
+    "s": "从数学定义走到可执行 kernel",
+    "goal": "理解算子语义、内存布局、kernel 选择和算子融合之间的关系。",
+    "concept": [
+      "Conv/GEMM/Softmax/LayerNorm",
+      "算子输入输出契约",
+      "NHWC/NCHW 与 contiguous",
+      "fusion、tiling、SIMD"
+    ],
+    "analogy": "算子是协议栈里的单个命令，kernel 是针对某种芯片的驱动实现；同一个命令可以有不同硬件后端。",
+    "diagram": "Graph: Conv → BN → ReLU\nOptimizer: Conv+BN+ReLU fusion\nKernel: tile → load → MAC → store",
+    "code": "for (m_tile : M)\n  for (n_tile : N)\n    acc = 0\n    for (k_tile : K) acc += A * B\n    C = acc + bias",
+    "lab": "分别计算一个 1x1 Conv 与 GEMM 的等价关系；记录转置、cache miss 和融合前后访存次数。",
+    "questions": [
+      "为什么算子融合常常比减少 FLOPs 更重要？",
+      "布局转换何时会吞掉 kernel 加速收益？",
+      "NPU 不支持某算子时，runtime 应如何回退？"
+    ],
+    "next": "非 LLM 模型",
+    "lesson": [
+      {
+        "title": "算子契约包含属性、边界与数值约定",
+        "body": "Conv 不只是一条求和公式，还包括 stride、padding、dilation、groups、权重维度顺序和输出 shape 规则；Softmax 还必须指定归一化 axis 与稳定计算方式。两个 runtime 都声称支持同名算子，也可能只覆盖部分 dtype 或属性组合。模型接入时应从真实节点导出契约表，并用非对称 shape 与边界输入验证。"
+      },
+      {
+        "title": "同一 Conv 可以对应多种算法与 workspace 交换",
+        "body": "直接卷积、im2col+GEMM、Winograd 或硬件专用路径具有不同适用区间。im2col 便于复用成熟矩阵乘 kernel，却可能展开出大 buffer；Winograd 可减少部分乘法，但对尺寸、数值精度和变换开销敏感。backend 的算法选择必须连同实际 shape、可用 workspace 和量化模式测量，不能只比较理论 MAC。"
+      },
+      {
+        "title": "Layout 决定相邻数据是谁，也决定向量单元吃得顺不顺",
+        "body": "NCHW 与 NHWC 改变通道和空间维在内存中的邻接关系；即使维度名称一致，stride 不连续也可能触发隐式 copy。某个 kernel 偏好通道连续，另一个加速器却要求块化布局，边界转换便会整张读写激活。profile 时应把 transpose、reorder 和 memcpy 当作正式节点计时，而非归入无法解释的框架开销。"
+      },
+      {
+        "title": "Tiling 的目标是让重复使用发生在最快的存储层",
+        "body": "GEMM 将 M、N、K 分块后，把小块输入和权重装入寄存器或 cache，多次 MAC 后才写回；tile 过大会溢出工作集，过小又增加循环与边界开销。SIMD 还要求对齐，并为尾部元素处理 mask 或标量路径。在 ESP32 上应测试真实地址、对齐和 DMA 来源，因为桌面数组的理想连续性不会自动出现。"
+      },
+      {
+        "title": "融合与加速器分区要用“少落地几次”来验收",
+        "body": "Conv、Bias、ReLU 融合可让中间值留在寄存器或片上 SRAM，但若某输出还被旁路节点消费，或相邻算子的量化尺度不兼容，融合可能受限。NPU 子图两侧同样会产生同步、布局变化和 copy。验收报告应列出融合前后节点、分区边界、搬运字节与端到端时间，避免用单个 kernel 加速比替代系统收益。"
+      }
+    ],
+    "pitfall": "把不支持的 NPU 子图与 CPU fallback 交错，会引入切分边界 copy；仅看 NPU 峰值 TOPS 无法预测端到端速度。",
+    "references": [
+      [
+        "ONNX Concepts",
+        "https://onnx.ai/onnx/intro/concepts.html"
+      ],
+      [
+        "ONNX Runtime Execution Providers",
+        "https://onnxruntime.ai/docs/execution-providers/"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "算子融合经常提速的主要原因是？",
+        "options": [
+          "改变模型训练标签",
+          "减少中间张量读写与调度开销",
+          "增加 batch 到无限大",
+          "自动增加 NPU SRAM"
+        ],
+        "answer": 1,
+        "explanation": "融合通常保留数学语义，却避免把中间结果落到慢内存；这对带宽受限设备往往比少量 FLOPs 更重要。"
+      },
+      {
+        "prompt": "NCHW 到 NHWC 转换的风险是什么？",
+        "options": [
+          "只会改变文件扩展名",
+          "可能增加完整张量 copy 并破坏连续布局",
+          "必然提高准确率",
+          "能消除所有动态 shape"
+        ],
+        "answer": 1,
+        "explanation": "layout transform 是实际的内存读写；若夹在加速 kernel 两侧，copy 成本可能超过 kernel 的收益。"
+      },
+      {
+        "prompt": "ONNX Runtime 多个 Execution Provider 的常见回退行为是？",
+        "options": [
+          "不支持节点时删除节点",
+          "按优先级将支持的子图交给 EP，其余可由 CPU 执行",
+          "把模型重新训练",
+          "把所有节点复制到 Flash"
+        ],
+        "answer": 1,
+        "explanation": "EP 通过能力探测领取节点/子图；未支持部分常由 CPU provider 接管，所以必须测量分区与数据转移。"
+      }
+    ],
+    "readingMinutes": 18,
+    "keywords": [
+      {
+        "term": "Kernel",
+        "definition": "针对具体硬件实现一个算子的低层计算代码。",
+        "espAnalogy": "像同一外设 API 的芯片专用驱动。"
+      },
+      {
+        "term": "Layout",
+        "definition": "张量维度在内存中的排列方式，如 NCHW 或 NHWC。",
+        "espAnalogy": "像结构体字段和对齐规则。"
+      },
+      {
+        "term": "Fusion",
+        "definition": "将多个连续算子合并为一次执行。",
+        "espAnalogy": "像把多个小 DMA 事务合并以减少中断和搬运。"
+      },
+      {
+        "term": "Tiling",
+        "definition": "把大计算分块以适配寄存器或 cache。",
+        "espAnalogy": "像用分块 buffer 处理长数据流。"
+      }
+    ],
+    "recap": "上一章得到的是带量化约束的图与张量。本章将图中的数学算子落到实际 kernel，理解为什么“同样的 FLOPs”也可能有不同的端侧表现。",
+    "nextPreview": "下一章会把算子、量化和 I/O 链组合为非 LLM 小模型的完整部署闭环，从数据采集到 ESP32 上的事件输出。",
+    "history": {
+      "intro": "算子的历史有两条交织路线：一条发明能表达任务的网络结构，另一条把这些数学结构变成可高效执行的 kernel。卷积网络从层级感受野走到端到端训练后，GPU 原语库把优化实现与框架分开，编译器又把融合、布局和调度自动化。现代 runtime 的职责正位于数学图与异构硬件之间。",
+      "milestones": [
+        {
+          "year": "1980",
+          "title": "Neocognitron 展示层级局部感受野与位移鲁棒性",
+          "body": "Fukushima 的 Neocognitron 以层级结构处理视觉模式，并追求位置变化下的识别。它不是今天以反向传播训练的 Conv kernel，却把局部连接、特征层级和空间复用带入了卷积网络谱系。",
+          "source": {
+            "label": "Neocognitron 原始论文",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/7370364/"
+          }
+        },
+        {
+          "year": "1998",
+          "title": "LeNet 把卷积、下采样与梯度训练连成应用系统",
+          "body": "LeCun 等人的文档识别工作系统化展示了卷积网络及端到端梯度学习。算子不再是孤立公式，而是与输入几何、权重共享和任务后处理共同构成可运行流水线。",
+          "source": {
+            "label": "LeNet 文档识别原始论文",
+            "url": "https://bottou.org/papers/lecun-98h"
+          }
+        },
+        {
+          "year": "2014",
+          "title": "cuDNN 将深度学习原语做成可复用高性能库",
+          "body": "cuDNN 提供面向 GPU 的卷积等优化原语，使框架不必随每代并行硬件重写全部 kernel。论文把深度学习算子库类比 BLAS，并展示算法选择、内存使用与硬件优化可以隐藏在稳定接口之后。",
+          "source": {
+            "label": "cuDNN 原始论文",
+            "url": "https://arxiv.org/abs/1410.0759"
+          }
+        },
+        {
+          "year": "2018",
+          "title": "TVM 把图融合与低层调度纳入统一编译搜索",
+          "body": "TVM 同时处理高层算子融合、硬件原语映射与内存延迟隐藏，并用成本模型搜索低层优化。kernel 选择从厂商手写库扩展到可针对 CPU、GPU、FPGA 和加速器生成的调度空间。",
+          "source": {
+            "label": "TVM OSDI 原始论文",
+            "url": "https://www.usenix.org/conference/osdi18/presentation/chen"
+          }
+        },
+        {
+          "year": "2020s",
+          "title": "Execution Provider 让同一图按能力切给异构后端",
+          "body": "ONNX Runtime 以 Execution Provider 接入不同硬件实现，并把支持的节点或子图分配给相应后端。现代部署因此不只问“有没有 NPU”，还要检查领取了哪些节点、边界搬运多少数据以及哪些路径回退 CPU。",
+          "source": {
+            "label": "ONNX Runtime Execution Providers 官方文档",
+            "url": "https://onnxruntime.ai/docs/execution-providers/"
+          }
+        }
+      ],
+      "bridge": "从结构发明到 kernel 库，再到图编译与异构分区，核心问题始终是保持算子语义的同时减少无效搬运。端侧优化应从具体 shape、layout、量化参数和支持矩阵出发；峰值 TOPS 只有在子图足够完整、数据已位于正确内存时才可能兑现。"
+    },
+    "visual": {
+      "title": "Conv–BN–ReLU 如何落成一次分块执行",
+      "description": "动画从抽象图逐层下钻到内存：先核对算子契约，再选择融合与布局，最后让 tile 在片上缓冲区中循环装载、计算和写回。",
+      "steps": [
+        {
+          "icon": "🧾",
+          "label": "展开算子契约",
+          "data": "Conv(stride,pad,groups) → BN → ReLU",
+          "action": "属性卡附着到节点，输入输出 shape 同步变化",
+          "insight": "同名算子只有属性、axis 与 dtype 都匹配才算语义兼容"
+        },
+        {
+          "icon": "🧬",
+          "label": "判断可融合区",
+          "data": "Conv + folded BN + activation",
+          "action": "可融合节点收拢为一个彩色子图，旁路消费者保留边界",
+          "insight": "融合依赖图结构、量化尺度与 backend 能力"
+        },
+        {
+          "icon": "🧱",
+          "label": "选择内存布局",
+          "data": "NCHW ⇄ NHWC / blocked",
+          "action": "张量小方格重新排列，并显示一次转换字节数",
+          "insight": "布局能帮助 kernel，也可能在边界制造完整张量 copy"
+        },
+        {
+          "icon": "📥",
+          "label": "装载一个 tile",
+          "data": "input tile + weight tile → local SRAM/cache",
+          "action": "一小块数据从慢内存滑入片上工作区",
+          "insight": "tile 尺寸决定复用率、cache 命中与 workspace 峰值"
+        },
+        {
+          "icon": "⚙️",
+          "label": "乘加并就地激活",
+          "data": "acc += A×B；acc=max(acc,0)",
+          "action": "SIMD lanes 并行闪动，累加后直接经过激活门",
+          "insight": "中间结果不落到慢内存是融合的主要收益"
+        },
+        {
+          "icon": "📤",
+          "label": "写回与 profile",
+          "data": "output tile；bytes/time/fallback",
+          "action": "结果只写回一次，计数器累加搬运量和耗时",
+          "insight": "端到端证据必须包含 copy、同步和未接管节点"
+        }
+      ],
+      "loop": "tile 沿输出空间循环直到完成；切换 layout、tile 大小或 backend 时，动画重置计数器并并排保留上一轮的字节数、workspace 与延迟。"
+    },
+    "analogyDetail": {
+      "title": "同一份菜谱如何落到一间拥挤的专业厨房",
+      "story": "算子像菜谱中的“切丁、翻炒、收汁”，只规定输入、动作和成品；kernel 是某位厨师在特定灶台上的具体手法。食材按取用顺序摆盘是 layout，把切丁和腌制合在同一案板上是 fusion，把一大锅拆成刚好放进炒锅的小份则是 tiling。菜谱没变，出餐速度可以相差数倍。",
+      "illustration": [
+        {
+          "icon": "📖",
+          "label": "标准菜谱",
+          "mapsTo": "算子名称、属性、输入输出和数值语义"
+        },
+        {
+          "icon": "👨‍🍳",
+          "label": "厨师与灶台",
+          "mapsTo": "针对 CPU、GPU、NPU 的不同 kernel 实现"
+        },
+        {
+          "icon": "🥬",
+          "label": "备菜托盘",
+          "mapsTo": "NHWC/NCHW、连续性、对齐和 buffer 所在内存"
+        },
+        {
+          "icon": "🍳",
+          "label": "分锅快炒",
+          "mapsTo": "tiling 让工作集适配寄存器或 cache"
+        }
+      ],
+      "boundary": "厨房类比不能表达并行线程、向量指令和浮点舍入，也容易让人误以为融合总是有利；真实 fusion 会受量化尺度、分支复用和 backend 支持限制，数值等价与性能收益都必须用目标硬件验证。"
+    }
+  },
+  {
+    "n": 6,
+    "t": "非 LLM 端侧模型训练与部署",
+    "s": "把视觉/音频/传感器模型真正烧进设备",
+    "goal": "完成数据、训练、导出、量化、部署、验证的闭环，重点覆盖 MCU 常见小模型。",
+    "concept": [
+      "数据切分与数据增强",
+      "小模型结构选择",
+      "代表性数据集校准",
+      "TFLite Micro/ESP-DL 部署",
+      "设备端前后处理与阈值"
+    ],
+    "analogy": "模型只是固件中的一个模块；采样率、DMA buffer、任务优先级和 watchdog 与准确率同样决定产品体验。",
+    "diagram": "Sensor → DMA/RingBuffer → Preprocess → Inference → Postprocess → Event/Actuator",
+    "code": "idf.py build flash monitor\n# 设备端关注：arena、tensor arena、输入归一化、推理耗时\nESP_LOGI(TAG, \"latency=%d ms\", elapsed_ms);",
+    "lab": "用 IMU/声音/图像任选其一，做一个 2~4 类分类器；在 PC 与 ESP32 上对比输入归一化、延迟和混淆矩阵。",
+    "questions": [
+      "为什么设备端准确率下降常来自前处理不一致？",
+      "arena 太小与 stack 太小的故障表现有何不同？",
+      "什么时候应把模型放到 Linux host 而不是 ESP32？"
+    ],
+    "next": "内存与带宽",
+    "lesson": [
+      {
+        "title": "从产品事件反推数据，而不是从现成数据集寻找用途",
+        "body": "先写出设备最终要发布的事件、允许的漏报和误报、响应时限以及无法判断时的动作，再据此定义采样窗口和标签。训练集要按设备或采集批次切分，避免同一段连续信号泄漏到训练与测试两侧；负类不能只有“安静背景”，还要包含容易混淆的动作、噪声和传感器异常。每条样本应保留固件版本、采样率与环境元数据，才能在回归时定位数据漂移。"
+      },
+      {
+        "title": "把前处理做成可校验的二进制契约",
+        "body": "PC 训练管线与固件必须对采样率、通道顺序、裁剪窗口、插值方式、颜色空间、归一化常数、舍入和饱和规则逐项一致。不要只比较最终类别；选若干黄金样本，在原始 buffer、预处理浮点张量、量化整数张量三个边界计算摘要并抽查元素。若部署工具要求 int8 输入，还要确认 scale 与 zero-point 的方向，避免把已经量化的数据再次量化。"
+      },
+      {
+        "title": "把导出和转换看作编译链，而不是文件另存为",
+        "body": "训练 checkpoint 先切换推理语义，再导出含固定 I/O 契约的图；转换器随后折叠常量、替换算子、量化并生成目标格式。每一阶段都可能改变布局或数值，因此要锁定工具版本，保存算子清单、输入输出名称和量化参数，并用同一批输入做逐阶段差分。转换成功只证明文件可生成；目标 runtime 没有对应 kernel、发生浮点 fallback 或 shape 超界时仍会失败。"
+      },
+      {
+        "title": "让推理成为受调度约束的固件任务",
+        "body": "设备端需要同时安排传感器生产者、DMA、预处理、推理和事件消费者。采用有界队列并明确满队列策略：实时任务通常丢旧帧比无限等待更合理；推理期间若占用长时间 CPU，应分片、降低频率或喂狗，但不能用喂狗掩盖死锁。arena、模型和 I/O buffer 尽量在初始化期分配，稳态路径避免碎片化；错误分支必须归还帧并发布可观察的降级状态。"
+      },
+      {
+        "title": "用四层证据完成部署验收",
+        "body": "验收依次比较源框架、导出模型、目标 runtime 和真实板端，既测固定黄金向量，也回放整段原始采集。结果至少包含混淆矩阵、按类别阈值曲线、p50/p95 延迟、峰值 arena、长时间运行与异常输入。业务层还要验证迟滞、连续命中次数和冷却时间，避免分数在阈值附近抖动成事件风暴。升级模型或 SDK 后重跑同一清单，才能区分精度回归与系统回归。"
+      }
+    ],
+    "pitfall": "PC 端把 float 图像直接喂给模型而固件端错误地喂 RGB565 或漏掉归一化，是设备准确率突然下降的高频原因。",
+    "references": [
+      [
+        "ESP-DL 入门",
+        "https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html"
+      ],
+      [
+        "ESP-DL 加载、测试与性能分析",
+        "https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html"
+      ],
+      [
+        "LiteRT for Microcontrollers",
+        "https://ai.google.dev/edge/litert/microcontrollers/get_started"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "设备端精度明显低于 PC 时，最先比对什么？",
+        "options": [
+          "网页 CSS",
+          "前处理：颜色、resize、归一化与量化",
+          "模型文件的修改时间",
+          "Wi-Fi SSID"
+        ],
+        "answer": 1,
+        "explanation": "同一个权重在不同输入分布上会给出不同结果；前处理应通过保存的测试向量逐项对齐。"
+      },
+      {
+        "prompt": "Tensor arena 不足通常意味着什么？",
+        "options": [
+          "模型一定训练过拟合",
+          "输入、输出或中间张量无法完成内存分配",
+          "Flash 分区表被删除",
+          "网络 API 返回 404"
+        ],
+        "answer": 1,
+        "explanation": "LiteRT Micro 将张量放进预分配 arena；不足会在 AllocateTensors 或运行前后暴露，是模型峰值内存预算问题。"
+      },
+      {
+        "prompt": "何时应把通用 LLM 放到 Linux Edge Host？",
+        "options": [
+          "ESP32 有 GPIO 时",
+          "模型与 KV cache 超出 MCU RAM/算力预算时",
+          "温度传感器存在时",
+          "只要使用 USB"
+        ],
+        "answer": 1,
+        "explanation": "ESP32 可保持采集、协议与安全控制；通用 LLM 的权重和 KV cache 通常需要 Linux 主机或适配的加速器。"
+      }
+    ],
+    "readingMinutes": 19,
+    "keywords": [
+      {
+        "term": "代表性数据",
+        "definition": "覆盖真实设备工况的数据集合。",
+        "espAnalogy": "像整机测试必须覆盖温湿度、电源和负载边界。"
+      },
+      {
+        "term": "Tensor arena",
+        "definition": "为 MCU 推理预分配输入、输出和中间张量的内存区。",
+        "espAnalogy": "像启动时规划好的静态工作区。"
+      },
+      {
+        "term": "前处理",
+        "definition": "将原始传感器数据变成模型输入的步骤。",
+        "espAnalogy": "像协议栈的 framing、字节序和校验。"
+      },
+      {
+        "term": "混淆矩阵",
+        "definition": "按真实类别与预测类别统计的表。",
+        "espAnalogy": "像按故障类型统计误报和漏报。"
+      }
+    ],
+    "recap": "上一章说明图最终由算子和 kernel 执行。本章把这些部件放回完整产品链路，完成一个可部署的视觉、音频或传感器小模型。",
+    "nextPreview": "下一章将解释为何模型“能跑”仍不够：Flash、SRAM、PSRAM、带宽和 DMA 限制决定它能否长期稳定地跑。",
+    "history": {
+      "intro": "把小模型放进 MCU，并不是把桌面推理代码缩小后复制过去。它经历了“结构更省算力—kernel 更贴硬件—runtime 更少依赖—产品验证更可重复”的共同演进，最终才形成今天从数据到固件的闭环。",
+      "milestones": [
+        {
+          "year": "1989",
+          "title": "结构化卷积网络走向真实任务",
+          "body": "LeCun 等人把局部连接、权重共享与反向传播用于邮政编码识别，说明可以让网络直接处理像素，同时用结构约束压低参数与计算需求。",
+          "source": {
+            "label": "LeCun 等原始论文",
+            "url": "https://doi.org/10.1162/neco.1989.1.4.541"
+          }
+        },
+        {
+          "year": "2017",
+          "title": "MobileNet 把硬件预算写进网络设计",
+          "body": "MobileNet 以深度可分离卷积和宽度、分辨率系数显式交换准确率与延迟，“先定设备预算再选模型”由经验做法变成可调设计方法。",
+          "source": {
+            "label": "MobileNet 原始论文",
+            "url": "https://arxiv.org/abs/1704.04861"
+          }
+        },
+        {
+          "year": "2017",
+          "title": "生产级 ML 开始强调系统测试",
+          "body": "Google 的 ML Test Score 将数据、特征、模型、基础设施与监控拆成具体测试项，指出离线指标只是上线准备度的一部分。",
+          "source": {
+            "label": "Google Research 原始论文",
+            "url": "https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/"
+          }
+        },
+        {
+          "year": "2018",
+          "title": "CMSIS-NN 让量化模型贴近 Cortex-M",
+          "body": "CMSIS-NN 提供面向 Cortex-M 的卷积、全连接等优化 kernel，并用部分 im2col 等办法同时降低运行时间和峰值内存。",
+          "source": {
+            "label": "CMSIS-NN 原始论文",
+            "url": "https://arxiv.org/abs/1801.06601"
+          }
+        },
+        {
+          "year": "2020",
+          "title": "TFLite Micro 固化微控制器运行时范式",
+          "body": "TFLite Micro 面向没有虚拟内存、资源紧张且平台碎片化的设备，采用小型解释器和预规划工作区，让同一模型能进入多种 MCU。",
+          "source": {
+            "label": "TFLite Micro 原始论文",
+            "url": "https://arxiv.org/abs/2010.08678"
+          }
+        },
+        {
+          "year": "现在",
+          "title": "ESP-DL 串起量化、格式、内存规划与分析",
+          "body": "当前 ESP-DL 用 ESP-PPQ、.espdl 格式、静态内存规划和设备侧 profiling 把模型转换、加载、执行与测量放进同一工具链。",
+          "source": {
+            "label": "ESP-DL 官方介绍",
+            "url": "https://docs.espressif.com/projects/esp-dl/en/latest/introduction/readme.html"
+          }
+        }
+      ],
+      "bridge": "这条脉络留下的工程结论很明确：模型结构只决定“可能跑多快”，前处理契约、量化导出、kernel 覆盖、任务调度和板端回归测试才决定它是否真的成为产品功能。"
+    },
+    "visual": {
+      "title": "一条样本如何变成设备事件",
+      "description": "播放器逐步点亮数据形态和责任边界，并在最后把现场失败样本送回数据集。",
+      "steps": [
+        {
+          "icon": "🎙️",
+          "label": "采集与标注",
+          "data": "raw window + label + metadata",
+          "action": "按设备与场景记录原始样本，冻结标签规则",
+          "insight": "数据来源决定模型能识别的世界"
+        },
+        {
+          "icon": "🧽",
+          "label": "等价前处理",
+          "data": "tensor[shape, dtype, range]",
+          "action": "在 PC 与固件执行同一裁剪、缩放和量化规则",
+          "insight": "输入契约比 API 名称更重要"
+        },
+        {
+          "icon": "🧠",
+          "label": "训练与导出",
+          "data": "checkpoint → graph → quantized model",
+          "action": "固定推理态并逐阶段比较输出",
+          "insight": "每次转换都是潜在语义边界"
+        },
+        {
+          "icon": "📟",
+          "label": "板端执行",
+          "data": "arena + kernels + latency",
+          "action": "加载模型、调度 kernel 并记录内存和阶段耗时",
+          "insight": "能加载不等于稳态能运行"
+        },
+        {
+          "icon": "🚨",
+          "label": "事件决策",
+          "data": "score → threshold → state",
+          "action": "应用迟滞、去抖和 fallback 后再驱动物理动作",
+          "insight": "模型分数不是最终控制命令"
+        },
+        {
+          "icon": "🔁",
+          "label": "现场回流",
+          "data": "false positive / false negative",
+          "action": "保存误报漏报及其原始上下文，进入下一轮数据审查",
+          "insight": "闭环让部署从演示变成可维护系统"
+        }
+      ],
+      "loop": "现场回流的样本经过人工复核后重新进入“采集与标注”，但旧测试集保持冻结，用来判断新版本是否真的改善。"
+    },
+    "analogyDetail": {
+      "title": "一座把鲜果变成果汁的微型工厂",
+      "story": "果园每天送来的果子并不整齐：大小、成熟度、泥点都不同。实验室先制定验收样本和清洗配方，再训练“质检员”；量产线必须照同一配方切块、称重，质检结果还要经过阈值与复核，才会真正打开装瓶阀门。",
+      "illustration": [
+        {
+          "icon": "🧺",
+          "label": "果筐与留样",
+          "mapsTo": "真实设备采集、标签规范、训练/验证/测试切分"
+        },
+        {
+          "icon": "🚿",
+          "label": "清洗切块配方",
+          "mapsTo": "采样、resize、归一化、量化输入等前处理契约"
+        },
+        {
+          "icon": "🔬",
+          "label": "微型质检员",
+          "mapsTo": "量化后的模型、设备 kernel 与 tensor arena"
+        },
+        {
+          "icon": "🚦",
+          "label": "装瓶放行灯",
+          "mapsTo": "阈值、去抖、fallback 与业务事件"
+        }
+      ],
+      "boundary": "类比能解释闭环和契约，却不能把模型当成固定规则质检机：它输出的是依赖数据分布的概率或分数。现场出现训练集未覆盖的新工况时，配方完全一致也不保证判断正确，仍需漂移监控、拒识与安全状态机。"
+    }
+  },
+  {
+    "n": 7,
+    "t": "内存、带宽、MCU/NPU",
+    "s": "从“能跑”进化到“跑得稳”",
+    "goal": "用峰值 RAM、持续带宽和算力预算解释端侧性能，而不是只看参数量。",
+    "concept": [
+      "Flash/RAM/PSRAM/Cache",
+      "峰值活跃内存",
+      "算力 roofline 直觉",
+      "DMA、对齐与零拷贝",
+      "NPU delegate 与 fallback"
+    ],
+    "analogy": "Flash 像仓库，RAM 像工作台，cache 像手边料盒，带宽是搬运工速度；模型小不代表工作台峰值小。",
+    "diagram": "Flash weights ─mmap/copy─► RAM/PSRAM ─► cache ─► MAC unit\n                              ▲ DMA / zero-copy",
+    "code": "peak = weights + activations + workspace + io_buffers\nif peak > available_ram:\n    reduce_resolution_or_batch()\n    enable_streaming_or_tiling()",
+    "lab": "给定模型层表，估算每层 activation 与 workspace 峰值；用不同输入分辨率画 RAM/latency 曲线。",
+    "questions": [
+      "为什么带宽受限模型加大算力未必提速？",
+      "PSRAM 能否完全替代内部 SRAM？",
+      "NPU delegate 的边界为什么会影响性能？"
+    ],
+    "next": "视觉模型",
+    "lesson": [
+      {
+        "title": "峰值内存来自生命周期重叠，不是文件大小相加",
+        "body": "为计算图列出每个 tensor 的产生节点、最后一次消费、大小和内存能力，画出活跃区间后才能求峰值。权重常可留在映射 Flash，激活、累加器和 kernel workspace 却可能在同一层同时存在；相机双缓冲、任务栈和网络包也要纳入系统峰值。规划器能复用生命周期不重叠的区域，但动态 shape、分支与 fallback 会改变计划，必须用运行时 high-water mark 校验静态估算。"
+      },
+      {
+        "title": "用运算强度判断等待的是乘加器还是内存",
+        "body": "粗算每个算子执行的 MAC 与从慢层级搬运的字节，得到“每字节做多少运算”的直觉；低运算强度路径更可能受带宽约束。提高主频或增加 NPU 单元只有在计算受限时才直接见效，带宽受限时应优先融合算子、分块复用、避免中间张量落地和改变布局。理论带宽是上限，连续读写、cache miss、总线争用与刷新协议决定可持续值，所以必须用接近真实访问模式的基准测量。"
+      },
+      {
+        "title": "零拷贝是一份所有权协议，不是一处指针转换",
+        "body": "让相机 DMA 写入模型输入可省一次复制，但前提是 buffer 的地址能力、对齐、stride、cache 一致性和生命周期都满足双方要求。CPU 在 DMA 完成前不能读取，DMA 复用前推理也必须释放；带 cache 的系统还需在正确方向做同步。建议用明确状态机标记 FREE、FILLING、READY、IN_USE，并把超时与丢帧计数写入日志。没有这些约束的“零拷贝”常变成偶发撕裂或陈旧数据。"
+      },
+      {
+        "title": "NPU 加速要看整个分区边界的净收益",
+        "body": "delegate 会按算子、shape、dtype 和布局能力切分子图。若只有中间几层被接管，CPU→NPU 的量化、layout transform、buffer copy 与同步可能吞掉 kernel 节省的时间；不支持节点还可能静默 fallback。检查运行时分区日志，分别计时加速子图和边界转换，并与纯 CPU 基线比较。选择模型时宁可让较小网络完整落入 NPU，也不要只依据宣称 TOPS 选择产生碎片化分区的大网络。"
+      },
+      {
+        "title": "以稳态曲线而不是单次最快值验收资源方案",
+        "body": "在固定输入、频率和编译选项下预热，再记录各阶段周期、总线或 cache 计数、峰值堆和功耗；逐步改变分辨率与采样率，画出延迟和内存曲线。连续运行要覆盖 Wi‑Fi、摄像头与 OTA 等竞争负载，并观察热降频和尾延迟。优化前后若输出发生变化，应先做数值一致性检查。最终预算要留出碎片、异常日志和固件升级余量，而不是把实验室空闲内存全部承诺给模型。"
+      }
+    ],
+    "pitfall": "把“PSRAM 容量大”当作“可替代内部 SRAM”会导致 DMA 不可用、带宽下降或 cache 一致性问题，尤其在相机和显示流同时运行时。",
+    "references": [
+      [
+        "ESP-IDF 内存类型",
+        "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/memory-types.html"
+      ],
+      [
+        "LiteRT for Microcontrollers",
+        "https://ai.google.dev/edge/litert/microcontrollers/get_started"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "端侧推理峰值 RAM 预算应至少包含？",
+        "options": [
+          "仅权重",
+          "权重、激活、workspace 与 I/O buffer",
+          "仅模型名称",
+          "仅 FreeRTOS tick"
+        ],
+        "answer": 1,
+        "explanation": "峰值由同时存活的缓冲区决定。权重可能在 Flash，激活和临时 workspace 才常常决定能否稳定运行。"
+      },
+      {
+        "prompt": "ESP-IDF 的 MALLOC_CAP_DMA 对经典 ESP32 的含义更接近？",
+        "options": [
+          "优先分配外部 PSRAM",
+          "分配适合硬件 DMA 的内存，通常排除外部 PSRAM",
+          "强制分配 Flash",
+          "禁用 cache"
+        ],
+        "answer": 1,
+        "explanation": "官方文档明确说明该 capability 适合 DMA 且排除外部 PSRAM；实际能力仍应按所用 SoC/外设文档核对。"
+      },
+      {
+        "prompt": "为什么带宽受限模型增加 MAC 单元未必变快？",
+        "options": [
+          "MAC 单元会删掉权重",
+          "处理器仍在等待权重和激活从内存搬运",
+          "输入 shape 自动缩小",
+          "量化会自动失败"
+        ],
+        "answer": 1,
+        "explanation": "当瓶颈是每秒可搬运字节数，额外算力处于空闲等待；应优先减少读写、改善布局或融合算子。"
+      }
+    ],
+    "readingMinutes": 18,
+    "keywords": [
+      {
+        "term": "峰值活跃内存",
+        "definition": "某一时刻同时需要保留的所有 buffer 总量。",
+        "espAnalogy": "像任务切换时同时占用的栈与 DMA 描述符。"
+      },
+      {
+        "term": "带宽",
+        "definition": "单位时间可搬运的数据量。",
+        "espAnalogy": "像 SPI/I2S 总线吞吐，快算力也会等数据。"
+      },
+      {
+        "term": "PSRAM",
+        "definition": "通过外部接口连接的大容量 RAM。",
+        "espAnalogy": "像扩展仓库，容量大但访问和 DMA 规则不同。"
+      },
+      {
+        "term": "Delegate",
+        "definition": "将支持子图交给专用加速器的后端机制。",
+        "espAnalogy": "像把支持的外设请求转交给协处理器。"
+      }
+    ],
+    "recap": "上一章证明了一个小模型的功能闭环。本章把关注点从准确率转到资源预算：哪些 buffer 同时活着、数据搬运是否成为瓶颈、NPU delegate 是否真的被使用。",
+    "nextPreview": "下一章会以相机为例把这些预算放进实时流水线，观察 DMA、frame buffer、颜色格式和后处理如何共同影响结果。",
+    "history": {
+      "intro": "端侧性能史反复证明：乘加单元只是厨房里的炉灶，数据怎样到达炉灶、在哪里暂存、是否反复搬运，往往更决定吞吐与能耗。MCU/NPU 工程因此从“数 FLOPs”走向“联合规划计算与数据流”。",
+      "milestones": [
+        {
+          "year": "1982",
+          "title": "脉动阵列让数据在计算单元间流动",
+          "body": "H. T. Kung 系统阐述脉动架构：规则排列的处理单元按节拍复用并传递数据，为后来矩阵加速器的数据流设计奠定重要基础。",
+          "source": {
+            "label": "Why Systolic Architectures 原始论文",
+            "url": "https://doi.org/10.1109/MC.1982.1653825"
+          }
+        },
+        {
+          "year": "2009",
+          "title": "Roofline 把算力上限与带宽上限画在一起",
+          "body": "Roofline 用运算强度连接峰值计算和可持续内存带宽，使“该优化算术还是减少搬运”成为可以测量和讨论的问题。",
+          "source": {
+            "label": "UC Berkeley Roofline 原始报告",
+            "url": "https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf"
+          }
+        },
+        {
+          "year": "2016",
+          "title": "Eyeriss 量化了数据移动的能耗代价",
+          "body": "Eyeriss 提出 row-stationary 数据流，利用局部存储和处理单元间通信复用权重、激活与部分和，强调少搬数据本身就是加速。",
+          "source": {
+            "label": "Eyeriss 原始论文页面",
+            "url": "https://research.nvidia.com/publication/2016-06_eyeriss-spatial-architecture-energy-efficient-dataflow-convolutional-neural"
+          }
+        },
+        {
+          "year": "2018",
+          "title": "MCU kernel 同时优化时间和工作区",
+          "body": "CMSIS-NN 展示 SIMD、定点计算与部分 im2col 如何在 Cortex-M 上提高吞吐并降低内存占用，说明 kernel 选择会改变峰值工作集。",
+          "source": {
+            "label": "CMSIS-NN 原始论文",
+            "url": "https://arxiv.org/abs/1801.06601"
+          }
+        },
+        {
+          "year": "2020",
+          "title": "MCUNet 把网络与推理引擎协同设计",
+          "body": "MCUNet 用 TinyNAS 在设备约束内搜索网络，并让 TinyEngine 按整图生命周期调度内存，推动模型、runtime 和硬件联合优化。",
+          "source": {
+            "label": "MCUNet 原始论文",
+            "url": "https://arxiv.org/abs/2007.10319"
+          }
+        },
+        {
+          "year": "现在",
+          "title": "内存能力与一致性成为显式 API",
+          "body": "ESP-IDF 通过 capability allocator 区分 DMA、字节访问等内存属性；在带 cache 与 DMA 的芯片上，还必须显式处理同步和所有权。",
+          "source": {
+            "label": "ESP-IDF 官方内存分配文档",
+            "url": "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/mem_alloc.html"
+          }
+        }
+      ],
+      "bridge": "今天的资源分析应同时回答四个问题：哪些 buffer 同时活跃、每个字节跨过几次总线、每段子图由谁执行、测到的瓶颈是否随输入和温度变化。只报参数量或峰值 TOPS 会漏掉最昂贵的路径。"
+    },
+    "visual": {
+      "title": "一块激活张量的资源旅行",
+      "description": "每一步显示张量所在层级、发生的搬运和此刻真正限制吞吐的资源。",
+      "steps": [
+        {
+          "icon": "🗄️",
+          "label": "取得权重",
+          "data": "Flash/PSRAM → cache",
+          "action": "按 tile 读取本轮需要的权重",
+          "insight": "容量够用仍可能被慢层级带宽限制"
+        },
+        {
+          "icon": "📥",
+          "label": "接收输入",
+          "data": "DMA buffer → SRAM",
+          "action": "确认对齐、所有权并同步 cache",
+          "insight": "零拷贝先是一份一致性契约"
+        },
+        {
+          "icon": "🧩",
+          "label": "规划活跃区",
+          "data": "input + output + workspace",
+          "action": "根据生命周期复用不重叠区域",
+          "insight": "峰值由同一时刻的工作集决定"
+        },
+        {
+          "icon": "⚙️",
+          "label": "执行 kernel",
+          "data": "tile × weights → partial sums",
+          "action": "在寄存器和局部存储中尽量复用数据",
+          "insight": "少搬一次可能比多做几次 MAC 更划算"
+        },
+        {
+          "icon": "🚧",
+          "label": "跨后端边界",
+          "data": "CPU layout ↔ NPU layout",
+          "action": "转换 dtype/布局并同步子图",
+          "insight": "delegate 边界有可见的通行费"
+        },
+        {
+          "icon": "📈",
+          "label": "测量并重排",
+          "data": "cycles + bytes + peak RAM",
+          "action": "用实测瓶颈选择融合、分块或降分辨率",
+          "insight": "优化对象应由证据而不是 TOPS 决定"
+        }
+      ],
+      "loop": "测量结果返回内存规划：若带宽占主导就减少搬运，若工作集溢出就缩小 tile 或输入，若计算饱和才替换更快 kernel。"
+    },
+    "analogyDetail": {
+      "title": "晚餐高峰期的一间小餐馆",
+      "story": "冷库里食材很多，不代表厨房能同时做很多桌菜。切配台面积决定多少盘子能同时摊开，狭窄过道决定服务员搬菜的速度，专用烤炉虽然很快，却只接收合适的烤盘；每次把菜改盘、送进送出都会消耗时间。",
+      "illustration": [
+        {
+          "icon": "🧊",
+          "label": "外部冷库",
+          "mapsTo": "Flash/PSRAM 中容量大但访问代价更高的权重和数据"
+        },
+        {
+          "icon": "🔪",
+          "label": "切配台",
+          "mapsTo": "内部 SRAM 中同时活跃的输入、输出与 workspace"
+        },
+        {
+          "icon": "🛎️",
+          "label": "传菜过道",
+          "mapsTo": "内存总线、DMA、cache line 与持续带宽"
+        },
+        {
+          "icon": "🔥",
+          "label": "专用烤炉",
+          "mapsTo": "只支持部分算子、布局与 dtype 的 NPU delegate"
+        }
+      ],
+      "boundary": "餐馆类比适合解释容量、吞吐和换盘成本，但真实存储层次并非互斥房间：cache 会自动替换，DMA 与 CPU 还可能并发访问同一物理内存。是否需要 flush、invalidate 或对齐，必须以芯片手册和实测为准。"
+    }
+  },
+  {
+    "n": 8,
+    "t": "端侧视觉模型",
+    "s": "从摄像头帧到可用事件",
+    "goal": "掌握检测/分类/分割的选择，以及摄像头、颜色格式、缩放和后处理的流水线。",
+    "concept": [
+      "分类、检测、分割",
+      "RGB/YUV、stride 与 DMA",
+      "ROI、resize 与 letterbox",
+      "NMS、置信度与时序平滑"
+    ],
+    "analogy": "摄像头流水线像 USB 摄像头驱动到应用层：帧格式、stride、buffer ownership 任一环节错位，模型就会“稳定地错”。",
+    "diagram": "Camera DMA → Frame buffer → Crop/Resize → Normalize → CNN\n                                      └→ decode boxes → NMS → tracker",
+    "code": "frame = camera.acquire()\nroi = letterbox(frame, 320, 320)\nboxes = detector(roi)\nboxes = nms(boxes, iou=0.45)\ncamera.release(frame)",
+    "lab": "用一张测试图逐步可视化原图、resize、模型输入、候选框、NMS 后结果，记录每步耗时。",
+    "questions": [
+      "letterbox 为什么要把缩放比例带入后处理？",
+      "检测模型的 FPS 是否等于摄像头帧率？",
+      "如何处理 buffer 复用导致的撕裂？"
+    ],
+    "next": "Tokenizer",
+    "lesson": [
+      {
+        "title": "先按业务需要选择输出粒度",
+        "body": "只需判断“画面中是否有火焰”且目标占据稳定 ROI，可从分类开始；需要位置与数量才使用检测；需要像素级面积、边缘或可通行区域才考虑分割。输出越细，标签成本、后处理和内存通常越高。还要写明最小目标像素、允许遮挡和相机距离，因为输入分辨率决定信息上限。用业务事件回放比较候选方案，而不是拿不同数据集上的单一指标横向排名。"
+      },
+      {
+        "title": "把 frame buffer 当成带描述符的二维存储",
+        "body": "一帧不只有 width×height：还包含 RGB565、YUV 或 JPEG 等格式、每行 stride、平面排列、对齐和有效区域。JPEG 必须先解码，YUV 转 RGB 时要确认矩阵与范围；直接把有 padding 的行当连续像素会产生斜纹。相机驱动交出的 buffer 通常由池管理，推理完成前不得归还或覆盖。先用彩条、棋盘格和像素探针验证读取路径，再让模型介入，可快速隔离格式错误。"
+      },
+      {
+        "title": "为每次几何变换保留可逆账本",
+        "body": "预处理应记录原图尺寸、ROI 原点、缩放比例、填充宽度和模型输入尺寸。拉伸 resize 会改变物体形状；letterbox 保持比例却引入边缘填充，两者必须与训练配置一致。检测框或分割 mask 回到原图时，按变换逆序先去 padding、再除比例、再加 ROI 偏移，并裁剪到有效边界。用四角标记和已知矩形做单元测试，比肉眼看几个框更能发现半像素与取整偏差。"
+      },
+      {
+        "title": "后处理把稠密预测变成稳定事件",
+        "body": "检测头输出的通常是大量候选，需要按模型定义解码中心、尺寸和类别，再做置信过滤与 NMS；阈值过早会漏目标，过晚则浪费时间。NMS 的 IoU 与类别策略应通过目标尺寸和遮挡场景校准。连续帧中可用轻量跟踪、连续命中和丢失容忍抑制闪烁，但时序平滑会增加响应延迟。业务事件应携带时间戳、置信度与追踪 ID，不能只留一张最终截图。"
+      },
+      {
+        "title": "以分阶段回放验证实时流水线",
+        "body": "保存一组可合法分享的原始帧，并为每帧留存模型输入、raw output、NMS 结果和回映射结果作为黄金记录。板端逐阶段计算摘要，与 PC 实现比较；同时记录采集、预处理、推理、后处理和排队耗时。压力测试要改变曝光、帧率和消费者速度，确认队列满时丢哪一帧、buffer 是否总能归还。最终 FPS 取决于最慢阶段和流水并发，并不等于模型单次推理的倒数。"
+      }
+    ],
+    "pitfall": "未等 DMA 传输完成就把同一个 frame buffer 交给预处理，或提前归还它，会造成撕裂、偶现误检和难以复现的数据竞争。",
+    "references": [
+      [
+        "ESP-IDF Camera Controller",
+        "https://docs.espressif.com/projects/esp-idf/en/latest/esp32p4/api-reference/peripherals/camera_driver.html"
+      ],
+      [
+        "ESP-IDF 内存类型",
+        "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/memory-types.html"
+      ],
+      [
+        "ESP-DL 加载、测试与性能分析",
+        "https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "letterbox 后为什么必须保存缩放和 padding？",
+        "options": [
+          "为了增加模型参数",
+          "把检测框坐标正确映射回原始帧",
+          "为了改变 tokenizer",
+          "为了关闭 DMA"
+        ],
+        "answer": 1,
+        "explanation": "letterbox 同时缩放和填充；后处理必须做逆变换，否则框的位置和大小会相对原始图像错误。"
+      },
+      {
+        "prompt": "相机帧最安全的处理时机是？",
+        "options": [
+          "DMA 启动前",
+          "驱动报告传输完成并取得 buffer 所有权后",
+          "任意 ISR 中",
+          "Flash 擦写期间"
+        ],
+        "answer": 1,
+        "explanation": "帧数据在完成事件前仍可能被 DMA 写入。明确所有权和生命周期是防止撕裂与并发访问的基础。"
+      },
+      {
+        "prompt": "检测模型 10 FPS 是否意味着相机必须为 10 FPS？",
+        "options": [
+          "是，二者永远相等",
+          "否，采集、预处理和推理可独立，并可能丢帧或复用最新帧",
+          "是，因为 NMS 决定时钟",
+          "否，因为模型不需要输入"
+        ],
+        "answer": 1,
+        "explanation": "端到端吞吐由流水线决定。相机可能更快，系统应定义背压、队列深度和取最新帧或逐帧处理的策略。"
+      }
+    ],
+    "readingMinutes": 20,
+    "keywords": [
+      {
+        "term": "Stride",
+        "definition": "同一行相邻像素数据在内存中的跨度。",
+        "espAnalogy": "像 DMA 行传输的实际步长，不总等于可见宽度。"
+      },
+      {
+        "term": "Letterbox",
+        "definition": "保持比例缩放并填充边缘的 resize 方法。",
+        "espAnalogy": "像把不同长度 payload 装进固定帧但保留原比例。"
+      },
+      {
+        "term": "NMS",
+        "definition": "去除高度重叠候选框的后处理。",
+        "espAnalogy": "像对重复中断事件做去重和合并。"
+      },
+      {
+        "term": "Buffer ownership",
+        "definition": "规定谁可读写、何时归还 buffer 的规则。",
+        "espAnalogy": "像 DMA 和任务之间明确的资源所有权。"
+      }
+    ],
+    "recap": "上一章完成了内存和带宽预算。本章把预算应用到摄像头流：一帧从 DMA 到模型再到事件，任何一步的格式或所有权错误都会稳定地产生错误结果。",
+    "nextPreview": "下一章会从视觉帧转向文本流，解释文本怎样经由 tokenizer 变成模型可消费的整数序列；二者都依赖严格的输入契约。",
+    "history": {
+      "intro": "端侧视觉从“整张图属于哪一类”发展到“哪里有什么、轮廓在哪里、连续帧中是否仍是同一目标”。算法进步之外，相机格式、几何变换和实时后处理逐渐成为与网络同等重要的系统组成。",
+      "milestones": [
+        {
+          "year": "1989",
+          "title": "卷积网络从像素学习局部模式",
+          "body": "早期邮政编码识别展示了局部感受野与共享权重如何处理图像平移结构，为后来端到端视觉模型建立基本范式。",
+          "source": {
+            "label": "LeCun 等原始论文",
+            "url": "https://doi.org/10.1162/neco.1989.1.4.541"
+          }
+        },
+        {
+          "year": "2012",
+          "title": "深层 CNN 与 GPU 训练扩大视觉能力",
+          "body": "AlexNet 在 ImageNet 上以深层卷积网络展示显著效果，推动视觉主干快速加深，也让部署侧开始面对更大的算力与内存压力。",
+          "source": {
+            "label": "AlexNet 原始论文",
+            "url": "https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks"
+          }
+        },
+        {
+          "year": "2015",
+          "title": "YOLO 将检测统一为一次网络前向",
+          "body": "YOLO 直接从整图预测边界框和类别概率，把检测从多阶段候选流程推向单阶段实时管线，突出端到端延迟的重要性。",
+          "source": {
+            "label": "YOLO 原始论文",
+            "url": "https://arxiv.org/abs/1506.02640"
+          }
+        },
+        {
+          "year": "2017",
+          "title": "MobileNet 面向移动与嵌入式视觉",
+          "body": "深度可分离卷积显著降低常规卷积的计算量，宽度和分辨率系数又让同一模型家族覆盖不同设备预算。",
+          "source": {
+            "label": "MobileNet 原始论文",
+            "url": "https://arxiv.org/abs/1704.04861"
+          }
+        },
+        {
+          "year": "现在",
+          "title": "视觉模型被封装进完整设备流水线",
+          "body": "ESP-WHO 等官方工程把摄像头驱动、图像处理、推理模型和示例应用组合起来，部署关注点从单个网络扩展到端到端链路。",
+          "source": {
+            "label": "ESP-WHO 官方仓库",
+            "url": "https://github.com/espressif/esp-who"
+          }
+        }
+      ],
+      "bridge": "当前工程不应只问模型 mAP 或 FPS，而要追踪一帧从曝光、DMA、颜色转换到坐标回映射和事件发布的全部变换。任何一步丢失 stride、比例或 buffer 所有权，都会让一个正确模型稳定地产生错误结果。"
+    },
+    "visual": {
+      "title": "一帧图像到一个可信事件",
+      "description": "播放器保留每次像素与坐标变换，直观看见候选如何被筛选并跨帧稳定。",
+      "steps": [
+        {
+          "icon": "📷",
+          "label": "DMA 采帧",
+          "data": "YUV/RGB/JPEG + stride + timestamp",
+          "action": "相机填充池中 buffer 并移交所有权",
+          "insight": "一帧必须携带格式描述符"
+        },
+        {
+          "icon": "✂️",
+          "label": "裁剪与缩放",
+          "data": "ROI → letterbox tensor",
+          "action": "执行颜色转换、resize、padding 和归一化",
+          "insight": "同时保存比例、偏移与填充账本"
+        },
+        {
+          "icon": "🧠",
+          "label": "模型前向",
+          "data": "tensor → logits/boxes/mask",
+          "action": "在目标 runtime 运行并保留 raw output 摘要",
+          "insight": "模型尚未输出业务事件"
+        },
+        {
+          "icon": "🧹",
+          "label": "解码与去重",
+          "data": "candidates → threshold → NMS",
+          "action": "按模型头定义解码并合并重叠候选",
+          "insight": "后处理参数会改变精度和耗时"
+        },
+        {
+          "icon": "🧭",
+          "label": "坐标回映射",
+          "data": "model xy → source xy",
+          "action": "逆序撤销 padding、缩放和 ROI 偏移",
+          "insight": "变换账本决定框能否落回原物体"
+        },
+        {
+          "icon": "🎯",
+          "label": "跨帧成事件",
+          "data": "track id + confidence + time",
+          "action": "时序平滑后发布事件并归还 frame buffer",
+          "insight": "稳定性、延迟和资源释放同时闭环"
+        }
+      ],
+      "loop": "下一帧回到 DMA 采帧；跟踪状态跨帧保留，而像素 buffer 在发布结果后立即归还相机池，二者生命周期不可混淆。"
+    },
+    "analogyDetail": {
+      "title": "一场多机位体育直播",
+      "story": "摄像机先送来带行距和色彩制式的原始画面，导播裁出比赛区域并缩放到分析屏；解说员在屏上圈出候选球员，导播去掉重复圈选、跨帧确认身份，最后才播出“进球”事件。任何裁切比例没有记账，圈都会回到错误位置。",
+      "illustration": [
+        {
+          "icon": "🎥",
+          "label": "摄像机信号",
+          "mapsTo": "曝光、像素格式、stride、DMA frame buffer"
+        },
+        {
+          "icon": "🖼️",
+          "label": "导播裁屏",
+          "mapsTo": "ROI、颜色转换、resize、letterbox 与归一化"
+        },
+        {
+          "icon": "⭕",
+          "label": "画面圈选",
+          "mapsTo": "分类分数、检测候选框或分割 mask"
+        },
+        {
+          "icon": "📣",
+          "label": "赛事播报",
+          "mapsTo": "NMS、跟踪、时序平滑与业务事件"
+        }
+      ],
+      "boundary": "直播类比能解释几何和时序，却不能代表视觉模型真的“理解比赛”。框、类别和 mask 都是统计输出；遮挡、逆光、镜头污渍或分布外物体会破坏判断，关键动作仍需置信门控、传感器交叉验证或人工复核。"
+    }
+  },
+  {
+    "n": 9,
+    "t": "Tokenizer",
+    "s": "理解文本如何变成模型可消费的整数流",
+    "goal": "能解释 vocabulary、merges、special tokens、padding 与 token budget，并定位端侧分词开销。",
+    "concept": [
+      "Unicode 与规范化",
+      "BPE/SentencePiece",
+      "特殊 token 与 chat template",
+      "token id、位置编码与上下文长度"
+    ],
+    "analogy": "Tokenizer 是串口协议的 framing 层：人类文本先被切成稳定的帧编号，模型只认编号，不直接认字。",
+    "diagram": "UTF-8 text → normalize → tokenize → [BOS, 1203, 88, EOS] → embedding lookup",
+    "code": "ids = tokenizer.encode(\"温度 28°C\")\nprint(ids, len(ids))\nprompt = template(system, user)\n# token budget = prompt_tokens + generated_tokens",
+    "lab": "选同一句中英文混合文本，比较不同 tokenizer 的 token 数；测量逐 token 编码与整段编码的差异。",
+    "questions": [
+      "为什么中文、代码和 emoji 的 token 成本差异很大？",
+      "chat template 不一致会造成什么问题？",
+      "上下文窗口限制的是字符数还是 token 数？"
+    ],
+    "next": "KV Cache",
+    "lesson": [
+      {
+        "title": "从字符串追到字节，先固定规范化语义",
+        "body": "视觉上相同的文本可能由不同 Unicode 码点序列组成，例如预组合字符与组合附加符；全角、换行和不可见控制字符也会改变 token。不要在应用、模板和 tokenizer 三处分别做清洗，否则训练与推理难以对齐。明确输入采用哪种规范化、是否保留空白与大小写，并用十六进制码点记录边界样本。字节级 tokenizer 虽能覆盖任意输入，也不意味着损坏的 UTF‑8 或替换字符可以被悄悄接受。"
+      },
+      {
+        "title": "理解子词算法在词表与序列长度间的交换",
+        "body": "BPE 从基础符号出发，按学习到的 rank 反复合并相邻片段；WordPiece 与 unigram/SentencePiece 的训练准则不同，不能只靠同一份词表复现。大词表可缩短常见文本，却增大 embedding 和输出层；小词表覆盖容易但序列更长。中文、代码、数字和 emoji 的频率结构不同，所以字符数无法预测 token 数。工程比较应使用产品语料的长度分布、编码耗时和模型质量，而非只试一句英文。"
+      },
+      {
+        "title": "把 special token 与 chat template 当成不可拆的 ABI",
+        "body": "聊天模型训练时看到的是 role/content 经模板渲染后的 token 序列，不是应用中的对象数组。模板决定 system、user、assistant 的边界，是否插入 BOS/EOS，以及生成提示停在哪里。先渲染字符串再 tokenize 时，通常应关闭重复的 special token 添加；切换模型必须连同 tokenizer 和模板一起切换。对用户文本还要区分普通字符与允许的控制 token，防止文本意外越过消息边界。"
+      },
+      {
+        "title": "预算的不只是 context 上限，还有编码路径本身",
+        "body": "请求预算应先套模板再计数，包含系统提示、历史消息、工具描述和预留输出，不能用字符数估算。端侧逐字符追加后每次重新编码整段会形成平方级重复工作；可缓存稳定前缀或使用支持增量的实现，但合并可能跨越追加边界，不能天真地把两段 token 列表直接拼接。限制超长输入时应按消息或语义块截断，并重新生成模板，避免从 UTF‑8 字节或 special token 中间切开。"
+      },
+      {
+        "title": "用金向量验证跨语言、跨实现的一致性",
+        "body": "建立包含中文、英文、空白、换行、emoji、组合字符、代码和疑似 special token 的小型语料，保存 tokenizer 哈希、模板版本、期望 id 与解码结果。在 Python、Host runtime 和设备实现上逐项比较，额外检查 encode→decode 是否满足声明的可逆边界。升级库后若 id 改变，即使解码文本相同也不能直接复用旧 prompt/KV cache；缓存键应包含完整 tokenizer 契约。"
+      },
+      {
+        "title": "沿分层快照定位第一个错误 token",
+        "body": "调试 token 差异时，不要只打印最终 ids。保存原始字节和 Unicode 码点，再快照规范化结果、模板字符串、预切分片段及各 token 的 id。按首个差异对齐：字符串不同就查换行、Jinja 空白控制和 BOS/EOS；字符串相同而片段不同，查 tokenizer.json 与 merge ranks；ids 相同而模型行为不同，再查 position 和 attention mask。这样能把问题定位到具体协议层。"
+      }
+    ],
+    "pitfall": "把“同一句文本”直接拼接给不同聊天模型，或重复插入 BOS/EOS，常会造成模型角色混乱、首 token 异常或上下文预算失真。",
+    "references": [
+      [
+        "Hugging Face Chat Templates",
+        "https://huggingface.co/docs/transformers/en/chat_templating"
+      ],
+      [
+        "GGUF 格式规范",
+        "https://github.com/ggerganov/ggml/blob/master/docs/gguf.md"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "LLM 的上下文窗口通常限制什么？",
+        "options": [
+          "UTF-8 字节数",
+          "屏幕字符数",
+          "token 数",
+          "HTTP 包数"
+        ],
+        "answer": 2,
+        "explanation": "模型的 embedding 与位置编码按 token 工作。一个汉字、emoji 或代码片段占用的 token 数并不固定。"
+      },
+      {
+        "prompt": "为什么应使用模型自带 chat template？",
+        "options": [
+          "它会自动训练模型",
+          "不同模型的角色控制 token 和输入格式不同",
+          "它能减少所有 KV cache",
+          "它只影响网页排版"
+        ],
+        "answer": 1,
+        "explanation": "同一基础模型的不同对话微调也可能要求不同格式；错误控制 token 会破坏训练时的上下文分布。"
+      },
+      {
+        "prompt": "先 apply_chat_template(tokenize=False) 再 tokenize 时通常要注意？",
+        "options": [
+          "强制添加更多 special tokens",
+          "避免再次添加模板已经包含的 special tokens",
+          "删除所有空格",
+          "把 token 变成 float32"
+        ],
+        "answer": 1,
+        "explanation": "官方文档警告重复 special tokens 往往有害。直接 tokenize=True 通常更安全，因为模板与分词在同一调用中完成。"
+      }
+    ],
+    "readingMinutes": 17,
+    "keywords": [
+      {
+        "term": "Vocabulary",
+        "definition": "token 到整数 id 的映射表。",
+        "espAnalogy": "像协议中的命令码表。"
+      },
+      {
+        "term": "BPE",
+        "definition": "通过合并常见子串构建 token 的算法。",
+        "espAnalogy": "像把常见字节片段定义为更短的帧类型。"
+      },
+      {
+        "term": "Special token",
+        "definition": "表示开始、结束、角色等控制含义的 token。",
+        "espAnalogy": "像帧头、帧尾和控制字。"
+      },
+      {
+        "term": "Chat template",
+        "definition": "将消息列表格式化为模型训练期预期字符串的模板。",
+        "espAnalogy": "像不同设备各自的命令帧格式。"
+      }
+    ],
+    "recap": "上一章让图像按严格格式进入模型。本章处理文本的同一问题：模型不直接理解字符串，而只读取有词表和边界规则的 token id。",
+    "nextPreview": "下一章将说明生成模型为何会保留历史 token 的 K/V 状态，以及 context 增长怎样转化为 RAM 和带宽压力。",
+    "history": {
+      "intro": "Tokenizer 的演进是一段在“词表有限、任何文本都要可编码、序列不能太长”之间寻找平衡的历史。它从通用压缩中的重复片段替换，逐步变成语言模型输入协议，并进一步承担对话角色与工具消息的 framing。",
+      "milestones": [
+        {
+          "year": "1994",
+          "title": "BPE 从反复替换高频字节对开始",
+          "body": "Philip Gage 描述的 Byte Pair Encoding 反复以新符号替换最高频相邻字节对，原本目标是用简单替换表压缩数据。",
+          "source": {
+            "label": "BPE 原始论文",
+            "url": "https://www.derczynski.com/papers/archive/BPE_Gage.pdf"
+          }
+        },
+        {
+          "year": "2015",
+          "title": "BPE 被改造成神经翻译的子词算法",
+          "body": "Sennrich 等人用子词序列表示稀有词和未登录词，让固定词表不再把所有未知形式压成同一个 UNK。",
+          "source": {
+            "label": "Subword NMT 原始论文",
+            "url": "https://arxiv.org/abs/1508.07909"
+          }
+        },
+        {
+          "year": "2016",
+          "title": "WordPiece 进入大规模翻译系统",
+          "body": "GNMT 将词切成有限的 common sub-word units，在受控词表规模下覆盖开放文本，子词分词成为神经语言系统的关键部件。",
+          "source": {
+            "label": "GNMT 原始论文",
+            "url": "https://arxiv.org/abs/1609.08144"
+          }
+        },
+        {
+          "year": "2018",
+          "title": "SentencePiece 直接从原始句子训练",
+          "body": "SentencePiece 不要求先按空格切词，并提供语言无关的 tokenizer/detokenizer，使无空格语言和跨语言流程更一致。",
+          "source": {
+            "label": "SentencePiece 原始论文",
+            "url": "https://aclanthology.org/D18-2012/"
+          }
+        },
+        {
+          "year": "2019",
+          "title": "GPT-2 采用字节级 BPE 覆盖任意文本",
+          "body": "GPT-2 报告使用 byte-level BPE，在字节覆盖与可复用子词之间折中，减少传统词级词表面对异常字符的盲区。",
+          "source": {
+            "label": "GPT-2 原始技术报告",
+            "url": "https://cdn.openai.com/better-language-models/language-models.pdf"
+          }
+        },
+        {
+          "year": "2023–现在",
+          "title": "Chat template 把消息结构纳入 tokenizer 契约",
+          "body": "现代聊天模型把 role/content 渲染为带控制 token 的单一序列；模板随 tokenizer 保存，应用不再适合手工猜测分隔符。",
+          "source": {
+            "label": "Hugging Face 官方 Chat Template 文档",
+            "url": "https://huggingface.co/docs/transformers/chat_templating"
+          }
+        }
+      ],
+      "bridge": "因此，tokenizer 不是可随意替换的文本工具，而是模型 ABI 的一部分。词表、merge/rank、规范化、特殊 token 和模板中的一个字节发生变化，都可能改变后续全部 token id、位置与 KV cache。"
+    },
+    "visual": {
+      "title": "一段对话如何变成整数列车",
+      "description": "逐步播放器展示人类消息在每个协议层增加或改变了什么，最后再从 token 片段流式还原文本。",
+      "steps": [
+        {
+          "icon": "💬",
+          "label": "组织消息",
+          "data": "[{role, content}, …]",
+          "action": "保留角色、轮次和工具字段的结构",
+          "insight": "对象结构尚不是模型输入"
+        },
+        {
+          "icon": "🧾",
+          "label": "应用模板",
+          "data": "role tokens + content + generation marker",
+          "action": "按模型自带模板插入控制边界",
+          "insight": "同一消息可因模板不同产生不同序列"
+        },
+        {
+          "icon": "🔤",
+          "label": "规范化与预切分",
+          "data": "Unicode text → pieces/bytes",
+          "action": "执行 tokenizer 声明的字符与正则规则",
+          "insight": "不可见字符也会参与协议"
+        },
+        {
+          "icon": "🧲",
+          "label": "子词合并",
+          "data": "base symbols → ranked merges",
+          "action": "按 BPE/WordPiece/SentencePiece 规则形成片段",
+          "insight": "词表大小与序列长度在交换"
+        },
+        {
+          "icon": "🔢",
+          "label": "查表成 ID",
+          "data": "[1, 2457, 93, …]",
+          "action": "映射词表并计算 context budget",
+          "insight": "模型只消费带位置的整数序列"
+        },
+        {
+          "icon": "📤",
+          "label": "增量解码",
+          "data": "token bytes → UTF-8 text",
+          "action": "累积完整字节边界后向界面输出",
+          "insight": "单个 token 未必能独立显示为字符"
+        }
+      ],
+      "loop": "新一轮消息回到“组织消息”并重套模板；若要复用前缀，必须同时匹配模板、tokenizer 哈希、token 序列与位置。"
+    },
+    "analogyDetail": {
+      "title": "跨国车站的检票与编组系统",
+      "story": "旅客说着不同语言、带着 emoji 和代码片段来到车站。检票处先按统一规则核验证件，再把常见同行片段编成短车厢编号；站长插入“列车开始、乘客发言、列车结束”等控制车厢，模型只看到最终编号序列。",
+      "illustration": [
+        {
+          "icon": "🪪",
+          "label": "证件核验",
+          "mapsTo": "Unicode 处理、规范化与原始字节边界"
+        },
+        {
+          "icon": "🧩",
+          "label": "车厢编组",
+          "mapsTo": "BPE merge、WordPiece 或 SentencePiece 子词切分"
+        },
+        {
+          "icon": "🎫",
+          "label": "编号车票",
+          "mapsTo": "vocabulary 中稳定的 token id"
+        },
+        {
+          "icon": "🚉",
+          "label": "站长控制车厢",
+          "mapsTo": "BOS/EOS、角色 token 与 chat template"
+        }
+      ],
+      "boundary": "类比容易让人误以为一个 token 就对应一个可读词；实际 token 可能是词、空格前缀、若干 UTF‑8 字节甚至跨字符片段。编号也没有跨 tokenizer 的通用含义，拆分结果更不直接代表模型对概念的理解程度。"
+    }
+  },
+  {
+    "n": 10,
+    "t": "KV Cache",
+    "s": "用内存换取 Decode 阶段的重复计算",
+    "goal": "理解 Prefill/Decode、K/V 张量布局、cache 量级与长上下文代价。",
+    "concept": [
+      "Attention 的 Q/K/V",
+      "Prefill 与 autoregressive Decode",
+      "cache shape 与 layer/head",
+      "paged KV、滑窗与量化"
+    ],
+    "analogy": "像网络协议缓存已确认的 header：新 token 只带来新的 Q/K/V 增量，不必重新解析整段历史 payload。",
+    "diagram": "Prompt tokens ──Prefill──► K,V cache\nNew token ──Q + cached K,V──► attention ─► next token ─► append cache",
+    "code": "kv_bytes ≈ layers * 2 * tokens * kv_heads * head_dim * bytes_per_value\n# 2 = K + V; batch、dtype、GQA 会改变实际值",
+    "lab": "做一个 KV cache 计算器：改变 context、层数、KV heads、head_dim、dtype，观察 PSRAM/显存占用。",
+    "questions": [
+      "为什么 Decode 常受内存带宽限制？",
+      "GQA/MQA 如何减少 KV Cache？",
+      "滑动窗口会牺牲哪类能力？"
+    ],
+    "next": "LLM Runtime",
+    "lesson": [
+      {
+        "title": "从一层因果注意力看懂为什么要存 K 和 V",
+        "body": "每个 token 的隐藏状态在线性投影后得到 Q、K、V。当前 Q 与所有可见历史 K 计算相似度，经 causal mask 和 softmax 加权历史 V；模型权重固定时，旧 token 在该层的 K/V 不会因新 token 到来而改变，因此可以缓存。Q 只服务当前计算，通常无需长期保存。缓存省掉的是对历史 token 重做各层 K/V 投影，却仍要读取历史 cache 并完成随上下文增长的注意力计算。"
+      },
+      {
+        "title": "Prefill 与 Decode 是两种资源画像",
+        "body": "Prefill 一次处理整段 prompt，可在 token 维度并行，常有较高计算利用率，并连续写入每层 K/V；Decode 每轮只有新 token，却要读取不断变长的历史 cache，容易转为内存带宽受限。首 token 看排队和 prefill，后续看 inter-token latency。优化时必须分开计时：缩短 prompt 主要改善 prefill，降低 KV 字节数或提高局部性更直接影响长上下文 decode。"
+      },
+      {
+        "title": "先用模型结构计算 cache 斜率",
+        "body": "常见近似为 batch×layers×2×tokens×kv_heads×head_dim×每元素字节数，其中 2 代表 K 和 V；实现还含对齐和分页元数据。不要用 attention heads 代替 kv_heads，GQA/MQA 模型二者不同。把公式化成“每新增一个 token、一个会话增加多少字节”，再叠加权重、临时 workspace 与 runtime 开销。若实测斜率不符，检查 cache dtype、滑窗和预分配。"
+      },
+      {
+        "title": "压缩与管理策略各自牺牲不同能力",
+        "body": "MQA/GQA 从模型结构上减少 KV heads，不能在任意已训练模型上无损切换；低比特 KV cache 减少容量和带宽，但需验证长上下文质量与 kernel 支持。滑动窗口限制可访问的远端历史，分页主要减少碎片而不改变每个有效 token 的张量量，prefix cache 则只在 token 与位置完全匹配时复用 prefill。策略可组合，但必须分别记录节省来自哪里，避免把分页误报成数值压缩。"
+      },
+      {
+        "title": "用增长曲线与状态破坏测试验证 runtime",
+        "body": "固定模型和采样参数，逐级增加 prompt 长度，记录 prefill、每 token 延迟、已用/预留 KV 字节和输出一致性；再提高并发，观察碎片、驱逐和尾延迟。状态测试要覆盖取消后回收、会话复位、prefix 命中与未命中、上下文移位以及 EOS。对同一 token 序列，关闭 cache 的参考路径应在容差内给出同样 logits；若编辑历史却仍命中旧 cache，则是位置或缓存键错误，而不是性能优化。"
+      },
+      {
+        "title": "用一个容量算例识别 kv_heads 误算",
+        "body": "以 32 层、8 个 KV head、head_dim 128、FP16 为例，每 token cache 为 32×2×8×128×2=131072 字节，即 128 KiB；4096 token 约 512 MiB，四会话约 2 GiB，未计对齐等开销。若误把 32 个 query head 代入，估算会放大四倍。应从模型元数据读取 layers 与 kv_heads，用 runtime 分配值校核，并区分有效占用和预留容量。"
+      },
+      {
+        "title": "把分页缓存当作并发状态机验证",
+        "body": "分页 runtime 把每个序列的逻辑位置映射到固定大小 KV block。块太大造成尾块内部碎片，太小则增加页表和调度开销；连续批处理还要在每轮为新 token 找空槽。prefix sharing 应对共享页维护引用计数，任一会话续写时采取 copy-on-write，不能覆盖别人的前缀。取消、超时和 EOS 必须走同一释放路径；压力测试可随机启动、增长、取消会话，核对空闲块总数回到基线，并验证驱逐不会串改其他序列的位置与内容。还要按不同并发记录页表查找、复制和回收耗时，避免容量优化制造新的尾延迟。"
+      }
+    ],
+    "pitfall": "只按权重文件估 RAM 而忽略长 prompt 的 KV cache，会导致模型“加载成功、请求一长就 OOM”。",
+    "references": [
+      [
+        "GQA 原始论文",
+        "https://arxiv.org/pdf/2305.13245"
+      ],
+      [
+        "Prompt Cache 原始论文",
+        "https://arxiv.org/pdf/2311.04934"
+      ],
+      [
+        "llama.cpp llama-bench",
+        "https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "KV cache 的核心收益是什么？",
+        "options": [
+          "不再需要权重",
+          "避免每生成一个 token 都重算整个历史的 K/V",
+          "自动减少 tokenizer 时间",
+          "把模型转换为 int8"
+        ],
+        "answer": 1,
+        "explanation": "cache 保存已处理 token 的 attention state；新 token 仍需计算自身状态并对历史做 attention，但不重复构造历史 K/V。"
+      },
+      {
+        "prompt": "KV cache 容量与 context length 的关系通常是？",
+        "options": [
+          "完全无关",
+          "近似线性增长",
+          "必然平方增长",
+          "每次减半"
+        ],
+        "answer": 1,
+        "explanation": "每增加一个 token，通常每层要新增 K 与 V 向量，因此存储量随 token 数近似线性增长。"
+      },
+      {
+        "prompt": "GQA 如何降低 KV cache？",
+        "options": [
+          "删除所有 query head",
+          "多个 query head 共享较少的 K/V head",
+          "让所有 token 使用同一个 embedding",
+          "压缩 HTTP 响应"
+        ],
+        "answer": 1,
+        "explanation": "GQA 位于 MHA 与 MQA 之间，以分组共享 K/V head，在质量和容量/带宽之间取折中。"
+      }
+    ],
+    "readingMinutes": 19,
+    "keywords": [
+      {
+        "term": "Prefill",
+        "definition": "一次处理已有 prompt 并建立 KV cache 的阶段。",
+        "espAnalogy": "像先解析并缓存整段握手状态。"
+      },
+      {
+        "term": "Decode",
+        "definition": "逐 token 生成并追加状态的阶段。",
+        "espAnalogy": "像持续接收增量事件的实时循环。"
+      },
+      {
+        "term": "KV cache",
+        "definition": "保存历史 token 的 key/value 张量。",
+        "espAnalogy": "像缓存已解析报头，避免反复解析历史 payload。"
+      },
+      {
+        "term": "GQA",
+        "definition": "多个 query head 共享较少 K/V head 的注意力设计。",
+        "espAnalogy": "像多个消费者共享一组只读索引以省内存。"
+      }
+    ],
+    "recap": "上一章把 prompt 变成 token id。本章跟踪这些 id 在生成过程中的历史状态：为什么新 token 不必重算全部前缀，却要用内存保存 K/V。",
+    "nextPreview": "下一章会把 KV cache、模型权重和采样循环放入 LLM runtime，讨论请求取消、并发与 ESP32/Host 的责任边界。",
+    "history": {
+      "intro": "KV cache 的历史是自回归生成从“数学上可行”走向“系统上可承载”的缩影。Transformer 定义了注意力，随后 MQA/GQA 减少每个 token 的状态，分页、复用与量化又开始解决动态会话带来的内存管理问题。",
+      "milestones": [
+        {
+          "year": "2017",
+          "title": "Transformer 建立缩放点积与多头注意力",
+          "body": "Transformer 用 Q、K、V 的缩放点积注意力替代循环结构，并以 causal mask 支持解码器只访问当前位置之前的状态。",
+          "source": {
+            "label": "Attention Is All You Need 原始论文",
+            "url": "https://arxiv.org/abs/1706.03762"
+          }
+        },
+        {
+          "year": "2019",
+          "title": "MQA 直接瞄准增量解码带宽",
+          "body": "Multi-Query Attention 让多个 query head 共享一组 K/V head，显著缩小增量解码反复读取的 K/V 张量。",
+          "source": {
+            "label": "MQA 原始论文",
+            "url": "https://arxiv.org/abs/1911.02150"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "GQA 在质量与 cache 规模间增加档位",
+          "body": "Grouped-Query Attention 让若干 query head 共享一个 K/V head，在传统多头注意力与单组 MQA 之间提供可调折中。",
+          "source": {
+            "label": "GQA 原始论文",
+            "url": "https://arxiv.org/abs/2305.13245"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "PagedAttention 处理动态会话碎片",
+          "body": "PagedAttention 借鉴虚拟内存分页，把每个请求增长不定的 KV cache 映射到非连续块，并支持更灵活的共享。",
+          "source": {
+            "label": "PagedAttention 原始论文",
+            "url": "https://arxiv.org/abs/2309.06180"
+          }
+        },
+        {
+          "year": "2024",
+          "title": "KV 量化成为独立优化方向",
+          "body": "KIVI 分析 key 与 value 的数值分布并采用不同量化维度，说明 cache 精度可以像权重一样被单独纳入容量和质量预算。",
+          "source": {
+            "label": "KIVI 原始论文",
+            "url": "https://arxiv.org/abs/2402.02750"
+          }
+        },
+        {
+          "year": "现在",
+          "title": "本地 runtime 暴露 cache 类型与 offload 策略",
+          "body": "llama.cpp 等执行器把 K/V 数据类型、offload、上下文与缓存复用变成可配置项，cache 已是部署配置而非隐藏实现细节。",
+          "source": {
+            "label": "llama.cpp 官方 CLI 文档",
+            "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/cli/README.md"
+          }
+        }
+      ],
+      "bridge": "今天选择模型时，权重文件只是静态门票；真正随 token 和会话增长的是 KV cache。容量、读带宽、位置语义、淘汰策略和取消时的资源回收必须在 runtime 设计阶段一并确定。"
+    },
+    "visual": {
+      "title": "一个新 token 如何读取并扩展 KV Cache",
+      "description": "播放器区分只发生一次的 prefill 与重复发生的 decode，并让缓存随步数增长。",
+      "steps": [
+        {
+          "icon": "📜",
+          "label": "Prefill 提示",
+          "data": "N prompt tokens",
+          "action": "并行处理已有序列，在每层生成 K/V",
+          "insight": "首轮集中计算并建立历史状态"
+        },
+        {
+          "icon": "🗃️",
+          "label": "写入分层缓存",
+          "data": "[layer, seq, pos, kv_head, dim]",
+          "action": "按位置保存 prompt 的 key 与 value",
+          "insight": "cache 大小随 token 近似线性增长"
+        },
+        {
+          "icon": "✨",
+          "label": "产生新 Query",
+          "data": "1 new token → Q, K, V",
+          "action": "只为最新 token 计算本轮投影",
+          "insight": "旧 token 的 K/V 不必重新投影"
+        },
+        {
+          "icon": "🔎",
+          "label": "扫描历史",
+          "data": "Q × Kᵀ → weights → V",
+          "action": "读取所有可见 cache 并计算因果注意力",
+          "insight": "省重算不等于免去历史读取"
+        },
+        {
+          "icon": "🎲",
+          "label": "采样下一个 token",
+          "data": "logits → token id",
+          "action": "应用采样策略并输出增量文本",
+          "insight": "采样改变序列，cache 管理不改变模型语义"
+        },
+        {
+          "icon": "➕",
+          "label": "追加并循环",
+          "data": "tokens = N + 1",
+          "action": "把新 K/V 放入下一位置并进入下一轮 decode",
+          "insight": "上下文越长，容量和读带宽压力越大"
+        }
+      ],
+      "loop": "“追加并循环”回到“产生新 Query”，直到 EOS、长度上限或取消；取消必须释放该序列占用的页或槽位。"
+    },
+    "analogyDetail": {
+      "title": "侦探桌上不断增长的案卷索引卡",
+      "story": "侦探读完每页证词后，不再每次从第一页重读，而是为每层分析保存两类索引卡：一类写“将来怎样找到这条线索”，另一类写“找到后取出什么内容”。新问题拿着查询卡扫过历史索引，形成判断，再把新证词的索引追加进去。",
+      "illustration": [
+        {
+          "icon": "❓",
+          "label": "当前查询卡",
+          "mapsTo": "新 token 在每层产生的 Query"
+        },
+        {
+          "icon": "🗂️",
+          "label": "线索目录卡",
+          "mapsTo": "历史 token 的 Key cache"
+        },
+        {
+          "icon": "📝",
+          "label": "线索内容卡",
+          "mapsTo": "历史 token 的 Value cache"
+        },
+        {
+          "icon": "📚",
+          "label": "分层案卷柜",
+          "mapsTo": "按 layer、sequence、position、KV head 管理的缓存"
+        }
+      ],
+      "boundary": "KV cache 不是可读摘要、事实数据库，也不是原始 token 的无损副本；它是特定模型权重、位置编码和精度下的中间张量。换模型、改前缀位置或任意编辑历史后，旧卡片通常不能直接沿用，缓存也不会让注意力本身变成常数成本。"
+    }
+  },
+  {
+    "n": 11,
+    "t": "LLM Runtime",
+    "s": "把模型、缓存和生成循环组织起来",
+    "goal": "理解 runtime 的生命周期、计算图、采样器和内存管理，并能划分 ESP32 与 Linux 主机职责。",
+    "concept": [
+      "模型加载与 mmap",
+      "Prefill/Decode 调度",
+      "采样：temperature、top-k、top-p",
+      "线程、batch 与 context 管理",
+      "streaming output 与取消"
+    ],
+    "analogy": "Runtime 像一个实时总线调度器：管理 buffer、算子、超时和事件回调，模型只是挂载在总线上的业务模块。",
+    "diagram": "Load model → allocate context → prefill → decode loop → sample → stream token\n                                  └── stop/EOS/cancel ──┘",
+    "code": "llama-cli -m model.gguf -p \"Explain UART framing\" -n 64\nllama-server -m model.gguf --host 0.0.0.0 --port 8080",
+    "lab": "启动本地 server，用 ESP32 发送 HTTP 请求；测试首 token 延迟、流式输出、取消请求与并发限制。",
+    "questions": [
+      "首 token 延迟与每秒 token 由哪些阶段主导？",
+      "为什么生成循环要支持取消？",
+      "设备侧 tool calling 的安全边界在哪里？"
+    ],
+    "next": "LLM 量化",
+    "lesson": [
+      {
+        "title": "先分清进程级资源与会话级状态",
+        "body": "权重映射、backend、线程池通常属于进程，可跨请求复用；token 序列、KV cache、采样器状态和停止条件属于会话，必须隔离。实现时为两类对象分别画生命周期：进程退出才释放权重，请求结束就归还 context。若把会话指针塞进全局单例，并发时会串写历史；若每次请求重载权重，TTFT 又会被初始化成本吞没。"
+      },
+      {
+        "title": "Prefill 与 Decode 是两种工作负载",
+        "body": "Prefill 一次处理整段 prompt，矩阵较大，通常更容易吃满并行算力；decode 每步只新增一个或少量 token，却要遍历层并读取历史 KV，常受内存带宽和 kernel 启动开销限制。因此不能用一个平均 tokens/s 描述两者。应分别记录 prompt tokens/s、TTFT、逐 token 延迟，并用真实输入长度测试，否则优化可能只把不重要的阶段变快。"
+      },
+      {
+        "title": "采样器是一条可复现的决策管线",
+        "body": "模型输出 logits 后，重复惩罚、温度缩放、top-k、top-p 与随机抽样按既定顺序改变候选分布；顺序或随机种子不同，输出就可能分叉。调试正确性时先使用贪心或固定种子，保存采样参数和首若干步 logits 摘要。面向工具调用还应使用语法或 schema 约束，但约束只保证结构可解析，不能证明命令被授权。"
+      },
+      {
+        "title": "流式返回必须与取消共用控制路径",
+        "body": "SSE、WebSocket 或分块 HTTP 只是输出通道；真正困难的是客户端断开后，decode 任务能否在下一安全点观察取消标志，停止排队并释放 KV。设计时让请求拥有明确状态机：排队、prefill、decode、完成、取消、失败，并保证每个终态只回收一次。用慢客户端、半包、超时和重复取消做故障注入，检查没有悬挂线程与内存泄漏。"
+      },
+      {
+        "title": "ESP32 与主机之间保留确定性闸门",
+        "body": "Linux 主机可负责 tokenizer、LLM runtime 和自然语言解释，ESP32 则保留采样、执行器互锁、看门狗与本地降级。模型产生的工具名和参数只是“提案”，设备必须再次检查白名单、数值范围、当前状态与请求 nonce。验证时回放越权 GPIO、重复序号、过期命令、主机掉线和乱码帧，确认设备拒绝并留下可关联的审计日志。"
+      }
+    ],
+    "pitfall": "把 LLM 输出当成可直接执行的 GPIO/电机指令，会绕过嵌入式系统的安全边界；即使模型在本地运行也不改变这一点。",
+    "references": [
+      [
+        "llama.cpp server",
+        "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md"
+      ],
+      [
+        "Hugging Face Chat Templates",
+        "https://huggingface.co/docs/transformers/en/chat_templating"
+      ],
+      [
+        "Prompt Cache 原始论文",
+        "https://arxiv.org/pdf/2311.04934"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "TTFT 主要包含哪些阶段？",
+        "options": [
+          "仅 Decode 采样",
+          "请求处理、tokenize、prefill 与首 token 产生前的工作",
+          "仅网络 DNS",
+          "仅模型下载"
+        ],
+        "answer": 1,
+        "explanation": "首 token 前必须处理输入并执行 prompt prefill；因此 TTFT 和后续 tokens/s 受不同工作负载主导。"
+      },
+      {
+        "prompt": "生成循环为什么需要取消机制？",
+        "options": [
+          "取消会提高模型准确率",
+          "用户断开或超时后可释放计算与 KV cache 资源",
+          "因为 tokenizer 不支持长文本",
+          "为了重新训练权重"
+        ],
+        "answer": 1,
+        "explanation": "没有取消，已失效请求仍持续占用内存和计算。对多请求 runtime，这会直接恶化其他请求的延迟。"
+      },
+      {
+        "prompt": "ESP32 接收 LLM 工具调用后最安全的做法是？",
+        "options": [
+          "直接执行模型生成字符串",
+          "依据本地白名单、参数范围和状态机再次授权",
+          "把命令写入 bootloader",
+          "关闭 watchdog"
+        ],
+        "answer": 1,
+        "explanation": "模型输出是不可信输入。硬件侧必须保留确定性策略与最小权限，模型不可替代安全控制器。"
+      }
+    ],
+    "readingMinutes": 18,
+    "keywords": [
+      {
+        "term": "Context",
+        "definition": "一次推理会话持有的 token 和 KV 状态。",
+        "espAnalogy": "像一个连接会话的协议状态块。"
+      },
+      {
+        "term": "Sampling",
+        "definition": "从 logits 选择下一个 token 的策略。",
+        "espAnalogy": "像从候选动作中按策略选择一个输出。"
+      },
+      {
+        "term": "Streaming",
+        "definition": "边生成边发送输出而非等待完整回复。",
+        "espAnalogy": "像 UART 分段输出，改善首响应体验。"
+      },
+      {
+        "term": "Cancellation",
+        "definition": "中止已失效请求并释放资源的机制。",
+        "espAnalogy": "像关闭 socket 后回收 DMA 与任务资源。"
+      }
+    ],
+    "recap": "上一章量化了 KV cache 的资源含义。本章把它放进实际 runtime：谁加载模型、谁分配 context、谁负责流式返回，以及哪个控制器应当执行最终动作。",
+    "nextPreview": "下一章将继续压缩 LLM 权重，区分 GGUF 容器和块量化格式，并用可测的质量与资源指标选择部署产物。",
+    "history": {
+      "intro": "今天所谓的 LLM Runtime，并不是突然出现的一层“模型播放器”。它继承了编译器、操作系统调度、数值计算库与在线服务系统的思想：先让计算图可执行，再让状态可复用，最后让多个请求在受控资源里稳定完成。沿着这条脉络看，prefill、decode、KV cache、流式输出和取消就不再是零散 API，而是同一个生命周期的不同阶段。",
+      "milestones": [
+        {
+          "year": "2017",
+          "title": "Transformer 奠定并行 Prefill 与自回归 Decode 的结构基础",
+          "body": "《Attention Is All You Need》用纯注意力架构替代循环结构，使整段输入可以高度并行处理；生成端仍按已生成前缀逐步产生下一个 token。现代 runtime 因而天然分成一次吞吐导向的 prefill 与多次低延迟 decode。",
+          "source": {
+            "label": "Transformer 原始论文",
+            "url": "https://arxiv.org/abs/1706.03762"
+          }
+        },
+        {
+          "year": "2022",
+          "title": "FlashAttention 把注意力优化从 FLOPs 推向 I/O",
+          "body": "FlashAttention 明确把 HBM 与片上 SRAM 之间的读写纳入算法设计，通过分块减少中间矩阵搬运。它提醒 runtime 工程师：数学结果相同并不代表耗时相同，kernel 的数据路径往往比名义计算量更能解释实际速度。",
+          "source": {
+            "label": "FlashAttention 原始论文",
+            "url": "https://arxiv.org/abs/2205.14135"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "llama.cpp 推动通用硬件上的本地 LLM 运行",
+          "body": "llama.cpp 以轻量 C/C++ 实现把模型加载、量化 kernel、CPU/GPU 混合执行和命令行生成循环放到同一工程里。本地推理由研究脚本变为可嵌入进程，也让 mmap、线程数、context 和后端选择成为普通部署参数。",
+          "source": {
+            "label": "llama.cpp 官方仓库",
+            "url": "https://github.com/ggml-org/llama.cpp"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "PagedAttention 将 KV 管理变成类似虚拟内存的问题",
+          "body": "vLLM 的 PagedAttention 以固定块组织 KV cache，降低连续大块分配造成的碎片与浪费，并支持更灵活的请求调度。至此，runtime 不只是跑算子，还要像操作系统一样管理会话状态、页面、批处理和回收。",
+          "source": {
+            "label": "PagedAttention 原始论文",
+            "url": "https://arxiv.org/abs/2309.06180"
+          }
+        },
+        {
+          "year": "2024—至今",
+          "title": "本地 Runtime 逐渐具备完整服务语义",
+          "body": "现代 llama-server 已把并行解码、连续批处理、流式接口、监控、结构化输出与取消等能力放进服务层。工程重点从“能生成一句话”转向资源隔离、可观测性、协议兼容和不可信工具调用的安全边界。",
+          "source": {
+            "label": "llama.cpp Server 官方文档",
+            "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md"
+          }
+        }
+      ],
+      "bridge": "这段历史把本章的两条主线连在一起：Transformer 决定了生成循环的计算形态，系统论文与本地运行框架决定了状态怎样分配、调度和回收。接下来应同时画出数据流与控制流，尤其关注取消、超时和异常释放，因为这些路径最容易让一次演示与可靠产品拉开差距。"
+    },
+    "visual": {
+      "title": "一条请求如何穿过可取消的生成循环",
+      "description": "播放器每前进一步，就同时更新请求数据、runtime 动作和可观察证据；走到 decode 后会形成循环，直到命中明确终止条件。",
+      "steps": [
+        {
+          "icon": "📨",
+          "label": "请求入站",
+          "data": "messages + max_tokens + request_id",
+          "action": "校验大小、模板与权限策略，拒绝无界请求",
+          "insight": "越早拒绝，越少占用昂贵的 context 与队列时间"
+        },
+        {
+          "icon": "🔢",
+          "label": "编码分配",
+          "data": "[BOS, 421, 87, …] + context slot",
+          "action": "tokenize，检查总 token 预算并绑定取消句柄",
+          "insight": "字符数不能代替 token 数；此时即可发现 context 溢出"
+        },
+        {
+          "icon": "🏗️",
+          "label": "Prefill",
+          "data": "prompt tokens → 每层 K/V 块",
+          "action": "批量执行 prompt 并建立首轮 KV cache",
+          "insight": "这段主要影响 TTFT，适合单独统计 prompt tokens/s"
+        },
+        {
+          "icon": "🎲",
+          "label": "采样",
+          "data": "logits → candidate distribution → token",
+          "action": "按确定顺序应用惩罚、温度与 top-k/top-p",
+          "insight": "固定种子与参数才能复现分叉位置"
+        },
+        {
+          "icon": "📡",
+          "label": "Decode 与流送",
+          "data": "new token + cached K/V → text chunk",
+          "action": "追加 KV、解码文本并向客户端发送增量",
+          "insight": "慢消费者需要背压，不能无限堆积待发送 token"
+        },
+        {
+          "icon": "🧹",
+          "label": "终止回收",
+          "data": "EOS | stop | limit | cancel | error",
+          "action": "结束状态机，归还 slot、KV 页面和网络资源",
+          "insight": "所有退出路径都应汇合到幂等清理逻辑"
+        }
+      ],
+      "loop": "若没有命中 EOS、停止串、长度上限、错误或取消，就从“Decode 与流送”回到“采样”：以上一个 token 作为新输入，复用已有 KV，并在每圈检查 deadline 与连接状态。"
+    },
+    "analogyDetail": {
+      "title": "把 Runtime 想成一间不断接单的面馆",
+      "story": "模型权重像挂在墙上的固定配方，加载一次即可复用；每位客人的 prompt 是一张新订单，prefill 像厨师一次读完所有加料要求并备好案台，KV cache 是这桌专属的半成品托盘。随后 decode 每次只做一小步、端出一个 token；采样器决定从几种合格调味中怎样选择，流式输出则让客人不必等整桌菜齐才开吃。若客人离店，取消信号必须立刻让后厨停火并归还托盘。",
+      "illustration": [
+        {
+          "icon": "📕",
+          "label": "固定配方",
+          "mapsTo": "模型权重与 tokenizer 在进程启动时加载并校验"
+        },
+        {
+          "icon": "🧾",
+          "label": "订单入队",
+          "mapsTo": "请求校验、模板化、tokenize 与 context 分配"
+        },
+        {
+          "icon": "🥣",
+          "label": "专属托盘",
+          "mapsTo": "每个会话独立持有并持续追加 KV cache"
+        },
+        {
+          "icon": "🔔",
+          "label": "叫停铃",
+          "mapsTo": "断连、超时、EOS 或用户取消触发资源回收"
+        }
+      ],
+      "boundary": "面馆类比会在并行细节上失效：GPU batch 不是多个厨师各做一碗，而是把不同请求的同类矩阵运算拼成一次执行；token 也不是独立菜品，它会改变下一步全部概率。类比只帮助理解生命周期与所有权，不能用来推导吞吐、显存布局或采样数学。"
+    }
+  },
+  {
+    "n": 12,
+    "t": "LLM 量化与 GGUF",
+    "s": "把权重压到可部署的模型文件",
+    "goal": "理解 block quantization、混合精度、权重元数据及 GGUF 容器的关系。",
+    "concept": [
+      "Q4 不等于每参数 4 bit",
+      "block scale 与额外开销",
+      "Q4_K_M/Q5_K_M/IQ 的取舍",
+      "W4A16、W8A8 与 weight-only",
+      "GGUF metadata 与 mmap"
+    ],
+    "analogy": "不是把每个字节硬截短，而是把一批数据压缩并附带解释字典；敏感层可保留更高精度。",
+    "diagram": "FP16 tensor → blocks → quantized values + scales/mins → GGUF tensor + metadata → runtime kernel",
+    "code": "python convert_hf_to_gguf.py ./model --outfile model-f16.gguf\nllama-quantize model-f16.gguf model-q4_k_m.gguf Q4_K_M\nllama-cli -m model-q4_k_m.gguf -p \"hello\"",
+    "lab": "对同一模型比较 F16/Q8/Q4 的文件大小、困惑度代理指标、首 token 延迟和峰值内存。",
+    "questions": [
+      "为什么重复量化会损伤质量？",
+      "GGUF 是容器还是量化算法？",
+      "哪些 tensor 值得保留更高精度？"
+    ],
+    "next": "推理框架",
+    "lesson": [
+      {
+        "title": "先算真实 BPW，不要被 Q4 名字迷惑",
+        "body": "块量化除低比特码值外，还要保存每块的 scale、min、对齐填充，有些格式又混用不同 tensor 精度，所以文件平均 bits per weight 通常不等于名称中的数字。验算时读取 GGUF tensor 类型和元素数，分别汇总数据字节与元数据开销，再与 FP16 基线比较。容量预算还要另加 tokenizer、KV cache 和 runtime workspace，模型文件大小不是峰值 RAM。"
+      },
+      {
+        "title": "块大小决定压缩与局部适应能力",
+        "body": "一组权重共享量化参数时，块越大，scale 开销占比越低，却越难同时覆盖小值和离群值；块越小，更能贴合局部范围，但额外参数、索引与 kernel 处理成本上升。per-tensor、per-channel 与 block-wise 不是抽象标签，而是在统计适配和存储访问之间选粒度。应查看目标格式的准确布局，不能拿通用公式硬套所有 Q4。"
+      },
+      {
+        "title": "混合精度要由敏感度与 kernel 共同决定",
+        "body": "嵌入、输出投影、注意力或某些 MoE tensor 对误差的敏感度并不一致，K-quants 的后缀往往表示一套混合配方。选择时从高精度 GGUF 生成多个候选，使用相同校准样本与任务集比较，并确认 backend 对其中每种 tensor type 都有高效 kernel。若少数层频繁回退或反量化，省下的带宽可能被边界转换抵消。"
+      },
+      {
+        "title": "GGUF 是自描述容器，不是质量证书",
+        "body": "加载器依据 magic、版本、alignment、tensor shape/type 和架构 metadata 解释文件，tokenizer 与 chat template 相关字段还决定输入语义。格式合法只说明字节可解析，不证明权重来源、量化过程或模型输出正确。部署前应保存源模型修订号、转换器 commit、量化命令与哈希，并用 dump 工具核对关键 metadata，防止“能打开但稳定答错”的静默故障。"
+      },
+      {
+        "title": "建立不可逆转换的单向发布链",
+        "body": "量化会丢失信息，从 Q4 再量化到 Q5 并不会恢复精度，反而加入第二轮舍入误差。工程仓库应保留可信 FP16/BF16 或官方原始权重，把转换和量化做成可重放构建：输入哈希固定、工具版本固定、产物另名输出。验收同时测文件大小、峰值常驻内存、PP/TG 速度、任务正确率和长输出异常，任一项退化都能追溯到配方。"
+      }
+    ],
+    "pitfall": "从已经量化的 GGUF 再量化会累积误差；应从 F16/BF16 或更高精度源产物生成各个目标量化版本。",
+    "references": [
+      [
+        "GGUF 格式规范",
+        "https://github.com/ggerganov/ggml/blob/master/docs/gguf.md"
+      ],
+      [
+        "llama.cpp llama-bench",
+        "https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "GGUF metadata 的重要用途是什么？",
+        "options": [
+          "替代所有模型权重",
+          "描述模型与量化等信息以便执行器正确加载",
+          "提高 Wi-Fi RSSI",
+          "记录训练数据原文"
+        ],
+        "answer": 1,
+        "explanation": "GGUF 的 key-value metadata 让模型包含可扩展的标识与配置；runtime 仍需读取真正的张量数据。"
+      },
+      {
+        "prompt": "“Q4”为何不必然等于每参数精确 4 bit？",
+        "options": [
+          "量化不会压缩文件",
+          "块量化还需要 scale、min 等辅助数据",
+          "GPU 不支持整数",
+          "tokenizer 会修改位数"
+        ],
+        "answer": 1,
+        "explanation": "块的编码值以低 bit 保存，但每块还有解释这些值的额外参数；实际 bits-per-weight 取决于具体格式。"
+      },
+      {
+        "prompt": "比较两种 GGUF 量化时最不充分的指标是？",
+        "options": [
+          "文件大小",
+          "固定提示下的延迟与质量代理",
+          "峰值内存",
+          "相同参数下的吞吐"
+        ],
+        "answer": 0,
+        "explanation": "文件更小不代表在目标设备上更快或质量可接受。部署决策必须同时测量质量、内存、功耗和分阶段性能。"
+      }
+    ],
+    "readingMinutes": 18,
+    "keywords": [
+      {
+        "term": "GGUF",
+        "definition": "GGML 系执行器使用的模型容器格式。",
+        "espAnalogy": "像固件镜像加可扩展的描述区。"
+      },
+      {
+        "term": "Block quantization",
+        "definition": "按块共享 scale 等参数的低比特编码。",
+        "espAnalogy": "像压缩一批采样值并附带该批量程。"
+      },
+      {
+        "term": "Weight-only",
+        "definition": "只量化权重、激活保持较高精度的策略。",
+        "espAnalogy": "像压缩固件常量而保留计算工作区精度。"
+      },
+      {
+        "term": "mmap",
+        "definition": "将文件映射到虚拟内存按需访问。",
+        "espAnalogy": "像按页读取固件资源，减少一次性复制。"
+      }
+    ],
+    "recap": "上一章建立了 runtime 生命周期与主机/MCU 分工。本章继续处理模型文件本身：怎样把高精度权重装入 GGUF，并理解量化格式的真实空间和质量代价。",
+    "nextPreview": "下一章将从单一模型文件走到不同推理框架与后端，比较 CPU/GPU/NPU 分区、预编译与 fallback 的选择。",
+    "history": {
+      "intro": "低比特模型的历史并不是把 float 简单截成整数。早期压缩研究已经把剪枝、量化与编码视作不同层次；LLM 时代又暴露出离群通道、层敏感度和专用 kernel 的问题。GGUF 则解决另一个维度：怎样把张量、量化类型和解释模型所需的元数据可靠装进一个可快速读取的容器。",
+      "milestones": [
+        {
+          "year": "2015",
+          "title": "Deep Compression 将量化放进系统化模型压缩流程",
+          "body": "Deep Compression 把剪枝、训练后量化与 Huffman 编码组合起来，说明“位宽降低”只是压缩链路的一环。它也确立了重要工程习惯：压缩后必须回到任务精度与实际存储收益验证，而不能只报告理论 bit 数。",
+          "source": {
+            "label": "Deep Compression 原始论文",
+            "url": "https://arxiv.org/abs/1510.00149"
+          }
+        },
+        {
+          "year": "2022",
+          "title": "LLM.int8 揭示大模型离群特征的代价",
+          "body": "LLM.int8 观察到部分隐藏维度出现系统性大幅值，并以混合精度路径保留这些离群计算。这推动量化从“所有权重统一降位”走向按统计特征分流，也解释了为何同为 int8，不同算法的质量和 kernel 要求会明显不同。",
+          "source": {
+            "label": "LLM.int8 原始论文",
+            "url": "https://arxiv.org/abs/2208.07339"
+          }
+        },
+        {
+          "year": "2022",
+          "title": "GPTQ 让超大模型的一次性权重量化更实用",
+          "body": "GPTQ 使用近似二阶信息逐层量化权重，在无需完整重新训练的条件下把大模型压到 3 至 4 bit 区间。它强化了“误差需按权重相互作用补偿”的认识，也让校准样本与量化顺序成为部署产物的一部分。",
+          "source": {
+            "label": "GPTQ 原始论文",
+            "url": "https://arxiv.org/abs/2210.17323"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "GGUF 统一张量容器与可扩展元数据",
+          "body": "GGUF 作为 GGML、GGMF、GGJT 的后继格式，用类型化键值元数据、对齐的 tensor 区和版本字段降低歧义，并面向 mmap 读取。它并不规定模型必须采用哪一种量化；同一容器中可以存放不同类型的张量。",
+          "source": {
+            "label": "GGUF 官方规范",
+            "url": "https://github.com/ggml-org/ggml/blob/master/docs/gguf.md"
+          }
+        },
+        {
+          "year": "2023—至今",
+          "title": "混合量化配方成为面向目标硬件的构建步骤",
+          "body": "llama.cpp 的量化工具支持 K-quants、importance matrix 与按 tensor 覆盖类型，实践由选择单个“Q4”标签转向保留敏感张量、匹配 kernel、检查困惑度代理并在目标硬件测量。重新量化低比特文件也被明确视为高风险操作。",
+          "source": {
+            "label": "llama.cpp Quantize 官方文档",
+            "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md"
+          }
+        }
+      ],
+      "bridge": "因此，本章不能把 GGUF、Q4_K_M 与“4 bit 模型”画成同义词。应拆成三层：量化算法怎样选择码值，块格式怎样保存码值与 scale，GGUF 怎样描述并定位这些张量。只有三层都被目标 runtime 正确理解，文件变小才可能转化为可用的内存、速度与质量收益。"
+    },
+    "visual": {
+      "title": "一份高精度权重如何变成可验证的 GGUF",
+      "description": "动画把“转换容器”和“量化张量”分开显示，避免将格式、算法和最终部署性能混为一步。",
+      "steps": [
+        {
+          "icon": "🔐",
+          "label": "冻结基线",
+          "data": "BF16/FP16 weights + tokenizer + revision",
+          "action": "记录来源、许可证、哈希与基线输出",
+          "insight": "后续任何低比特产物都应可回溯到同一高精度起点"
+        },
+        {
+          "icon": "🗂️",
+          "label": "转换容器",
+          "data": "named tensors + typed metadata",
+          "action": "写入 GGUF header、架构字段、词表和 tensor 目录",
+          "insight": "此时可仍是高精度；GGUF 与量化并非同一动作"
+        },
+        {
+          "icon": "📊",
+          "label": "采集敏感度",
+          "data": "calibration tokens → activation/importance stats",
+          "action": "用代表性文本统计层与权重的重要性",
+          "insight": "校准域偏离真实请求会让混合精度配方失准"
+        },
+        {
+          "icon": "🧊",
+          "label": "分块量化",
+          "data": "float block → codes + scale/min",
+          "action": "按目标类型编码，并为敏感 tensor 覆盖精度",
+          "insight": "平均 BPW 由码值和块附加数据共同组成"
+        },
+        {
+          "icon": "🔎",
+          "label": "结构核验",
+          "data": "GGUF dump + tensor inventory + hash",
+          "action": "检查版本、shape、type、alignment 与必要 metadata",
+          "insight": "解析成功只是第一关，还未证明数值质量"
+        },
+        {
+          "icon": "🏁",
+          "label": "目标机验收",
+          "data": "quality + RSS + PP/TG + energy",
+          "action": "以固定 prompt 和版本对比多个候选",
+          "insight": "只有真实 backend 能回答压缩是否转化成速度与能效收益"
+        }
+      ],
+      "loop": "若质量超限，回到“采集敏感度”扩大代表性样本或提高敏感 tensor 精度；若速度不升，回到“分块量化”检查 kernel 支持与反量化边界。始终从高精度基线重新生成，禁止串行重复量化。"
+    },
+    "analogyDetail": {
+      "title": "把量化模型想成装进航运集装箱的压缩调色板",
+      "story": "原始 FP16 权重像画室里几万种细微颜料。量化时不是随手丢掉颜色，而是把相近色按一小块分组，为每块制作有限色卡；整数码是色卡编号，scale 与最小值是还原说明。敏感层像人物眼睛，可留用更细色卡。GGUF 则是带清单的集装箱：箱头记录架构、tokenizer 和对齐规则，货位表指明每块张量在哪里、用哪种编码，runtime 才能直接搬到正确 kernel。",
+      "illustration": [
+        {
+          "icon": "🎨",
+          "label": "原始颜料",
+          "mapsTo": "FP16/BF16 基线权重与可信来源"
+        },
+        {
+          "icon": "🧩",
+          "label": "分块色卡",
+          "mapsTo": "量化值与每块共享的 scale、min 等附加参数"
+        },
+        {
+          "icon": "👁️",
+          "label": "精细局部",
+          "mapsTo": "输出层、嵌入或高敏感 tensor 保留更高精度"
+        },
+        {
+          "icon": "📦",
+          "label": "货运清单",
+          "mapsTo": "GGUF header、metadata、tensor 描述与对齐数据区"
+        }
+      ],
+      "boundary": "颜料类比没有体现矩阵乘 kernel：压缩率高并不自动加速，若硬件缺少对应解码与乘法实现，运行时可能先反量化再计算。感知上的“颜色接近”也不是语言模型质量；最终仍需困惑度或任务集、长文本稳定性和目标设备基准来判断。"
+    }
+  },
+  {
+    "n": 13,
+    "t": "端侧 LLM 推理框架",
+    "s": "比较 Runtime、Backend 与编译型框架",
+    "goal": "建立 GGUF/计算图/runtime/backend/kernel 的分层模型，知道如何选择 llama.cpp、MLC、ONNX Runtime GenAI 或 ExecuTorch。",
+    "concept": [
+      "CPU/GPU/NPU backend",
+      "layer offload 与子图切分",
+      "预编译与运行时编译",
+      "CLI、HTTP server、benchmark",
+      "fallback 与可观测性"
+    ],
+    "analogy": "框架像 RTOS + 驱动抽象：上层调度统一，下层按目标芯片替换 backend；不支持的指令需要明确回退。",
+    "diagram": "Model format → Runtime graph → Backend partition\n                         ├─ CPU kernels\n                         ├─ GPU kernels\n                         └─ NPU compiled subgraph",
+    "code": "llama-bench -m model-q4_k_m.gguf\n# 关注 pp (prompt processing) 与 tg (token generation)\n# 逐步增加 GPU layers，记录 VRAM、pp/tg 与 fallback",
+    "lab": "对同一模型分别跑 CPU、GPU offload 或 NPU delegate，整理“可用内存—吞吐—功耗”三列结果。",
+    "questions": [
+      "为什么 Prefill 与 Decode 适合不同 kernel？",
+      "子图切分如何产生额外 copy？",
+      "何时应优先选编译型框架？"
+    ],
+    "next": "性能分析",
+    "lesson": [
+      {
+        "title": "用四层模型拆解框架宣传语",
+        "body": "先分别写出模型格式、runtime、backend 与 kernel：GGUF 或导出图负责表达；runtime 管生命周期与调度；backend 接入 CPU/GPU/NPU；kernel 执行具体布局和 dtype。框架声称“支持某芯片”时，要追问哪些模型架构、哪些算子和量化类型真的走专用 kernel。只要其中一层版本不匹配，就可能加载失败、静默 fallback 或产生额外转换。"
+      },
+      {
+        "title": "Partition 的价值取决于边界而非节点占比",
+        "body": "delegate 通常选择连续且受支持的子图，边界处可能发生 device copy、layout transform、量化与反量化以及同步等待。即使 90% 节点被标记到 NPU，若剩余节点夹在每层中间，来回搬运仍会主导时延。评估时记录分区数量、每区输入输出字节和执行时间，并人工关闭 delegate 做对照；节点覆盖率只能作为线索，不能作为性能结论。"
+      },
+      {
+        "title": "AOT 与 JIT 是部署责任的重新分配",
+        "body": "AOT 在发布前完成 lowering、融合和目标代码生成，能缩小设备 runtime、减少启动抖动，却要求按芯片与形状管理产物；JIT 在现场适配更多动态情况，但带来编译时延、缓存与工具链依赖。固件或离线产品通常偏向 AOT，桌面应用可接受 JIT。无论哪种，都要把编译器版本、目标特性和生成配置纳入产物清单。"
+      },
+      {
+        "title": "先建立可解释的 CPU 正确性基线",
+        "body": "不要第一次运行就开启所有 offload。先在可移植 CPU 路径固定输入、预处理和采样，保存输出或数值容差；再一次只启用一个 backend，比较分区图、中间边界与端到端结果。若结果偏离，先检查 dtype、layout、动态 shape 和量化参数，再定位 kernel。这样能把“模型转换错”和“加速器实现错”分开，避免在黑盒性能数据里猜原因。"
+      },
+      {
+        "title": "框架选择应落到可维护的验收矩阵",
+        "body": "为候选框架列出目标 OS/芯片、模型架构、最大 context、量化格式、包体、冷启动、峰值内存、PP/TG、功耗、许可证和调试能力。再准备正常、边界与失败模型：含一个不支持算子、动态 shape 和低内存场景，观察报错与 fallback 是否可见。版本升级后重跑同一矩阵；能持续解释回归的第二名，常比一次基准领先却不可诊断的方案更适合产品。"
+      }
+    ],
+    "pitfall": "只记录“已启用 GPU/NPU”而不检查执行 provider、子图分区与 fallback，会把 CPU 运行误判成硬件加速成功。",
+    "references": [
+      [
+        "ONNX Runtime Execution Providers",
+        "https://onnxruntime.ai/docs/execution-providers/"
+      ],
+      [
+        "ExecuTorch Delegates",
+        "https://docs.pytorch.org/executorch/stable/compiler-delegate-and-partitioner.html"
+      ],
+      [
+        "llama.cpp llama-bench",
+        "https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "ONNX Runtime Execution Provider 的职责是？",
+        "options": [
+          "训练 tokenizer",
+          "识别并执行自己支持的节点或子图",
+          "生成 GitHub Pages",
+          "为 Flash 加密"
+        ],
+        "answer": 1,
+        "explanation": "EP 通过能力接口领取可执行部分，并以相同 runtime API 接入不同硬件；未支持部分可能留给 CPU。"
+      },
+      {
+        "prompt": "何时编译型 delegate/后端尤其有价值？",
+        "options": [
+          "目标硬件与支持算子固定，需要 AOT 优化与部署产物",
+          "需要随机修改模型图且不关心性能",
+          "没有任何模型文件",
+          "只需网页导航"
+        ],
+        "answer": 0,
+        "explanation": "固定目标允许预处理/编译子图为部署二进制；代价是支持矩阵和构建流程更严格，需要在部署前验证。"
+      },
+      {
+        "prompt": "为什么子图切分可能降低端到端性能？",
+        "options": [
+          "它必然删除所有算子",
+          "边界会增加设备间 copy、同步与调度开销",
+          "它会让权重变成文本",
+          "它自动禁用 cache"
+        ],
+        "answer": 1,
+        "explanation": "每个切分边界都可能搬运激活并同步执行器。少量不支持算子也能把加速路径打碎，所以要看 trace 而非宣传页。"
+      }
+    ],
+    "readingMinutes": 19,
+    "keywords": [
+      {
+        "term": "Backend",
+        "definition": "把 runtime 请求映射到特定硬件的实现层。",
+        "espAnalogy": "像统一驱动接口下的具体外设驱动。"
+      },
+      {
+        "term": "Offload",
+        "definition": "把部分层或子图交给加速器执行。",
+        "espAnalogy": "像将计算任务卸载给协处理器。"
+      },
+      {
+        "term": "Partition",
+        "definition": "按支持能力切分图的过程。",
+        "espAnalogy": "像把任务按外设能力分配到不同总线。"
+      },
+      {
+        "term": "Fallback",
+        "definition": "加速器不支持时转由默认实现执行。",
+        "espAnalogy": "像驱动缺失时回退到软件路径。"
+      }
+    ],
+    "recap": "上一章完成模型容器与权重量化选择。本章选择真正运行它的软件栈：runtime 如何把图交给 CPU、GPU 或 NPU，何时应该预编译，何时必须接受 fallback。",
+    "nextPreview": "下一章将不再凭感觉比较框架，而是建立 TTFT、tokens/s、p95、能耗等统一性能分析方法。",
+    "history": {
+      "intro": "端侧推理框架的演进，本质上是在回答同一难题：怎样把训练框架中的图，可靠地映射到不断变化的 CPU、GPU、NPU 与操作系统。开放中间表示解决交换，张量编译器解决自动优化，轻量 runtime 解决包体与依赖，delegate 则让厂商后端接入统一上层。今天的框架选择，是这些路线在具体产品约束下的组合。",
+      "milestones": [
+        {
+          "year": "2017",
+          "title": "ONNX 推动模型交换与算子版本契约",
+          "body": "ONNX 用图、节点、initializer、类型与 opset 描述模型，使训练框架和执行器可以围绕共同 IR 协作。它解决的是“表达什么”，而非自动保证目标芯片上有高效实现；这种分层后来成为比较各种 runtime 的第一把尺子。",
+          "source": {
+            "label": "ONNX 官方概念文档",
+            "url": "https://onnx.ai/onnx/intro/"
+          }
+        },
+        {
+          "year": "2018",
+          "title": "TVM 展示端到端张量编译与多后端优化",
+          "body": "TVM 将高层图优化、算子融合、硬件映射和低层 schedule 纳入自动编译流程，并覆盖低功耗 CPU、移动 GPU 等后端。它把“换硬件重写全套 kernel”的问题，改写为 IR lowering、搜索与目标代码生成问题。",
+          "source": {
+            "label": "TVM OSDI 原始论文",
+            "url": "https://www.usenix.org/conference/osdi18/presentation/chen"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "llama.cpp 证明专用轻量 Runtime 的端侧价值",
+          "body": "面向自回归 LLM 的 llama.cpp 把 GGUF、量化 kernel、KV cache 和多种 CPU/GPU backend 紧密结合，以较少依赖覆盖桌面与边缘设备。它代表另一条路线：针对主工作负载做深度垂直整合，而不是追求任意训练图通吃。",
+          "source": {
+            "label": "llama.cpp 官方仓库",
+            "url": "https://github.com/ggml-org/llama.cpp"
+          }
+        },
+        {
+          "year": "2023—2024",
+          "title": "ExecuTorch 将 AOT 准备和 Backend Delegate 明确分层",
+          "body": "ExecuTorch 把程序导出、Edge dialect、内存规划和后端 lowering 尽量前移到 AOT 阶段，设备上只保留精简 C++ runtime。被支持的子图交给 delegate，不支持部分留在可移植 kernel，端侧部署由此拥有清晰的分区与 fallback 模型。",
+          "source": {
+            "label": "ExecuTorch 官方架构文档",
+            "url": "https://docs.pytorch.org/executorch/stable/getting-started-architecture"
+          }
+        },
+        {
+          "year": "至今",
+          "title": "框架竞争转向编译产物、异构分区与可观测性",
+          "body": "MLC LLM 等系统将权重转换与目标模型库编译分开，按 WebGPU、移动 GPU 或本地平台生成推理逻辑。工程比较也从 API 风格转向：支持哪些图、何时编译、跨分区复制多少、能否回溯 fallback，以及升级后能否复现实测。",
+          "source": {
+            "label": "MLC LLM 官方编译文档",
+            "url": "https://github.com/mlc-ai/mlc-llm/blob/main/docs/compilation/compile_models.rst"
+          }
+        }
+      ],
+      "bridge": "历史说明不存在脱离模型与硬件的“最快框架”。通用 IR、编译型系统与垂直 runtime 各自把复杂度放在不同阶段。选择时应从目标模型的算子集合、部署平台、包体、动态性和调试要求反推，而不是先按品牌站队；随后用同一输入与相同精度建立 CPU 基线，再逐段验证 offload。"
+    },
+    "visual": {
+      "title": "模型图如何被切分到 CPU、GPU 与 NPU",
+      "description": "逐步播放器把抽象的“硬件加速”展开为能力查询、分区、lowering、跨边界搬运和回退证据。",
+      "steps": [
+        {
+          "icon": "🧾",
+          "label": "读取图契约",
+          "data": "ops + shape + dtype + layout + quant params",
+          "action": "验证模型版本与 I/O，并建立 CPU 可运行基线",
+          "insight": "格式可读不等于每个节点都有目标后端实现"
+        },
+        {
+          "icon": "🧩",
+          "label": "查询能力",
+          "data": "backend capability table",
+          "action": "逐节点匹配算子、属性、shape 与精度限制",
+          "insight": "只看算子名称会漏掉属性和动态维度约束"
+        },
+        {
+          "icon": "✂️",
+          "label": "形成分区",
+          "data": "CPU graph + delegated subgraphs",
+          "action": "合并连续支持节点并标记 fallback 岛",
+          "insight": "分区越碎，跨设备边界通常越昂贵"
+        },
+        {
+          "icon": "🏭",
+          "label": "Lower 与编译",
+          "data": "subgraph → backend blob/kernel plan",
+          "action": "做融合、布局选择、内存规划与目标代码生成",
+          "insight": "AOT 把复杂度移到构建期，也增加产物版本责任"
+        },
+        {
+          "icon": "🔁",
+          "label": "执行边界",
+          "data": "host buffer ⇄ device buffer",
+          "action": "复制或映射数据、同步并执行 delegate",
+          "insight": "copy 与 layout transform 必须进入端到端 trace"
+        },
+        {
+          "icon": "🔬",
+          "label": "比较证据",
+          "data": "output diff + partition log + latency + memory",
+          "action": "与 CPU 基线核对正确性，再判断收益",
+          "insight": "只有正确且边界成本可解释的 offload 才算成功"
+        }
+      ],
+      "loop": "若某分区收益为负，回到“形成分区”尝试扩大连续子图、消除布局转换或干脆让该段留在 CPU；若结果不一致，回到“读取图契约”逐边界比对。每次只改变一个 backend 或编译选项。"
+    },
+    "analogyDetail": {
+      "title": "把推理框架想成一座多式联运货运站",
+      "story": "模型图是一列写着货物依赖的车厢，runtime 是总站调度室，CPU、GPU、NPU 是公路、铁路和水运三种承运商。partitioner 检查每段货物尺寸与规则，把连续可承运的车厢编成子图；delegate 像专线合同，把整段交给某后端。若一件货物不合规，就回到 CPU 普通线路。每次换线都要卸货、改包装和同步，因此“多数车厢走高速线”仍可能输给全程普通线。",
+      "illustration": [
+        {
+          "icon": "🚆",
+          "label": "模型列车",
+          "mapsTo": "带 shape、dtype 和依赖关系的计算图"
+        },
+        {
+          "icon": "🧭",
+          "label": "调度分区",
+          "mapsTo": "按后端能力找出连续可 offload 子图"
+        },
+        {
+          "icon": "🚄",
+          "label": "专用快线",
+          "mapsTo": "GPU/NPU delegate 与预编译二进制"
+        },
+        {
+          "icon": "🔄",
+          "label": "换装站",
+          "mapsTo": "跨 backend 的 copy、layout transform 与同步"
+        }
+      ],
+      "boundary": "货运类比暗示每段成本可以简单相加，但真实 runtime 会异步执行、复用 buffer、融合算子并与 CPU 并发；后端也可能只接受特定动态 shape 或量化参数。类比适合发现边界成本，不足以预测时延，最终仍要看 trace 和设备计数器。"
+    }
+  },
+  {
+    "n": 14,
+    "t": "性能分析",
+    "s": "把“感觉慢”变成可定位的预算",
+    "goal": "用端到端指标、分阶段计时、硬件计数器和功耗测量定位瓶颈。",
+    "concept": [
+      "TTFT、tokens/s、p50/p95",
+      "算子级 profile 与 trace",
+      "CPU 利用率、cache miss、带宽",
+      "功耗、温度、降频",
+      "准确率—延迟—能耗三维权衡"
+    ],
+    "analogy": "像抓 USB/网络协议问题：先看端到端时序，再缩小到阶段、包和 handler；单看平均吞吐会掩盖尾延迟。",
+    "diagram": "Request → preprocess → prefill → decode×N → postprocess\n  | wall time | p50/p95 | bytes moved | joules/token | thermal state",
+    "code": "time_to_first_token = prefill_end - request_start\ntokens_per_second = generated_tokens / decode_seconds\njoules_per_token = energy_j / generated_tokens",
+    "lab": "建立固定 prompt/温度/线程/电源条件的 benchmark 表；至少重复 5 次，报告中位数与 p95。",
+    "questions": [
+      "为什么必须固定 prompt 与 warm-up？",
+      "tokens/s 上升但 joules/token 变差，是否算优化成功？",
+      "如何区分模型慢、内存慢和串流网络慢？"
+    ],
+    "next": "整合网站",
+    "lesson": [
+      {
+        "title": "先写实验契约，再启动计时器",
+        "body": "一次可比较基准至少固定模型与哈希、量化格式、runtime commit、线程和绑核、prompt token 数、输出上限、采样、并发、供电及散热。先 warm-up，再执行足够重复次数并保留原始样本。若两轮测试的输入长度或温度不同，p95 与 tokens/s 没有直接可比性。把这些字段保存为机器可读 manifest，可让固件或模型升级后自动复跑。"
+      },
+      {
+        "title": "TTFT 与生成速度必须拆开诊断",
+        "body": "TTFT 包含排队、模板化、tokenize、context 准备、prefill 和首轮采样；稳定 decode 则主要反映逐步读取权重与 KV、执行小批矩阵和采样输出。长 prompt 会显著拉高前者，长 context 与带宽压力会拖慢后者。应在相同请求上打单调时钟时间戳，并报告 prompt tokens/s、ITL 分布和 output tokens/s，而不是只给总耗时。"
+      },
+      {
+        "title": "用瓶颈假设驱动下一项观测",
+        "body": "看到 CPU 利用率低，不应直接断言“算力富余”：线程可能等待内存、锁、GPU 同步或网络背压。先由 trace 找最长阶段，再提出可证伪假设。若怀疑带宽，改变量化或 context 并观察速度与 bytes moved；若怀疑计算，改变核心数或频率；若怀疑 copy，记录分区边界。每次只改一个变量，让证据能区分相关性与因果。"
+      },
+      {
+        "title": "分位数、热状态和能耗共同决定稳定性",
+        "body": "短跑 benchmark 常发生在冷芯片与满电源预算下，产品却可能连续运行数小时。记录每次请求而非只留平均值，至少给出中位数与 p95，并同步采集频率、温度、功率和峰值内存。对流式体验还要看最长 token 间隔。若 tokens/s 提高但 joules/token、温升或尾延迟恶化，应回到产品场景判断，而不能自动宣称优化成功。"
+      },
+      {
+        "title": "把性能回归变成可二分的版本证据",
+        "body": "基准结果应绑定模型、数据、编译选项、runtime 和固件版本，并保存阶段 trace 摘要。设置有噪声容忍度的阈值，例如相对基线连续多轮退化才告警，避免把偶然抖动当回归。出现问题时先确认环境，再按版本二分；同时用固定正确性样本防止“关掉工作换速度”。最终报告要能指出退化发生在哪个阶段、伴随何种资源变化。"
+      }
+    ],
+    "pitfall": "只报告平均 tokens/s 会掩盖长 prompt、热降频、首次加载和 p95 尾延迟；产品体验常由这些“非平均”路径决定。",
+    "references": [
+      [
+        "NVIDIA GenAI-Perf 指标",
+        "https://docs.nvidia.com/deeplearning/triton-inference-server/archives/triton-inference-server-2700/user-guide/docs/perf_benchmark/genai-perf-README.html"
+      ],
+      [
+        "llama.cpp llama-bench",
+        "https://github.com/ggml-org/llama.cpp/blob/master/tools/llama-bench/README.md"
+      ],
+      [
+        "ESP-DL 加载、测试与性能分析",
+        "https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "Time to First Token 的定义最接近？",
+        "options": [
+          "相邻两个输出 token 间隔",
+          "请求发出到收到第一个响应 token 的时间",
+          "整个模型下载时间",
+          "每秒摄像头帧数"
+        ],
+        "answer": 1,
+        "explanation": "TTFT 是首响应延迟，包含请求与 prompt 处理路径；它不等同于 decode 阶段每秒生成 token 的速度。"
+      },
+      {
+        "prompt": "为何基准测试要 warm-up 并重复多次？",
+        "options": [
+          "让模型自动增加参数",
+          "减少首次加载/cache 与瞬态频率造成的偏差，并报告尾延迟",
+          "避免使用固定 prompt",
+          "跳过正确性检查"
+        ],
+        "answer": 1,
+        "explanation": "首次运行与热状态往往不同；多次运行可报告中位数和 p95，避免单次偶然值主导结论。"
+      },
+      {
+        "prompt": "tokens/s 上升但 joules/token 变差，是否必然是成功优化？",
+        "options": [
+          "是，速度是唯一指标",
+          "否，需按产品的延迟、能耗、温度和质量目标判断",
+          "是，因为能耗无法测量",
+          "否，因为 tokenizer 失效"
+        ],
+        "answer": 1,
+        "explanation": "端侧是多目标约束。更高吞吐若导致续航、温升或质量不达标，不能直接称为产品层优化成功。"
+      }
+    ],
+    "readingMinutes": 17,
+    "keywords": [
+      {
+        "term": "TTFT",
+        "definition": "从请求发出到首个 token 返回的时间。",
+        "espAnalogy": "像首次中断到第一条有效状态消息的延迟。"
+      },
+      {
+        "term": "p95",
+        "definition": "95% 请求不超过的尾延迟分位数。",
+        "espAnalogy": "像对最慢一小部分现场事件的时延预算。"
+      },
+      {
+        "term": "Warm-up",
+        "definition": "正式测量前预热 runtime、cache 和频率。",
+        "espAnalogy": "像设备上电稳定后再测性能。"
+      },
+      {
+        "term": "Joules/token",
+        "definition": "每生成一个 token 的能耗。",
+        "espAnalogy": "像每次执行控制动作的能量预算。"
+      }
+    ],
+    "recap": "上一章完成框架和 backend 选择。本章为这些选择建立证据链：把“感觉慢”拆成可测的请求阶段、资源计数和功耗，而不是只报一个 tokens/s。",
+    "nextPreview": "最后一章将把模型、runtime、设备 I/O、权限、OTA 和验收指标收束为一个可交付的端侧 AI 系统。",
+    "history": {
+      "intro": "性能分析远早于机器学习。它从“局部加速受整体串行部分限制”，发展到“算力与带宽共同限定上限”，再进入在线系统的尾延迟与标准化基准。LLM 又带来 prefill、decode、流式响应和每 token 能耗等阶段性指标。历史反复说明：没有工作负载、测量条件和分解视角的单个数字，几乎不能指导工程决策。",
+      "milestones": [
+        {
+          "year": "1967",
+          "title": "Amdahl 定律提醒局部加速受整体比例限制",
+          "body": "Amdahl 的工作指出，并行部分无论提速多少，未被加速的部分仍限制总收益。映射到端侧 AI：kernel 快一倍不代表请求快一倍，tokenize、copy、采样、网络与同步都可能成为新的串行主项。",
+          "source": {
+            "label": "Amdahl 原始论文",
+            "url": "https://doi.org/10.1145/1465482.1465560"
+          }
+        },
+        {
+          "year": "2009",
+          "title": "Roofline 用算术强度连接算力与带宽上限",
+          "body": "Roofline 模型把可达性能放在峰值计算能力和内存带宽两条“屋顶”下观察。它让工程师先判断 workload 是计算受限还是带宽受限，再决定优化 MAC、缓存复用或数据布局；decode 读取大量权重与 KV 的问题尤其适合这一直觉。",
+          "source": {
+            "label": "Roofline 原始论文",
+            "url": "https://escholarship.org/uc/item/6vv2j84j"
+          }
+        },
+        {
+          "year": "2013",
+          "title": "尾延迟成为交互式服务的核心指标",
+          "body": "《The Tail at Scale》说明平均值会隐藏少量但显著的慢请求，而大型交互系统必须关注延迟分布尾部。端侧 LLM 即使只有少量并发，也会受冷启动、热降频、队列和网络抖动影响，因此 p50 不能替代 p95。",
+          "source": {
+            "label": "The Tail at Scale 原始论文",
+            "url": "https://research.google/pubs/the-tail-at-scale/"
+          }
+        },
+        {
+          "year": "2019",
+          "title": "MLPerf Inference 推动可比较的推理基准",
+          "body": "MLPerf Inference 将模型、场景、准确率约束和提交规则组合成基准套件，强调性能数字必须绑定工作负载与质量门槛。它提供的工程启示是：改变模型精度、输入或正确率目标后，吞吐数字就不再属于同一次公平比较。",
+          "source": {
+            "label": "MLPerf Inference 官方文档",
+            "url": "https://docs.mlcommons.org/inference/index_gh/"
+          }
+        },
+        {
+          "year": "2023—至今",
+          "title": "生成式模型形成 TTFT、ITL 与吞吐的专门指标组",
+          "body": "生成服务将 prompt 处理与逐 token 生成拆开，分别报告首 token、输出 token 间隔、请求吞吐和输入输出长度。工具开始把这些指标与并发、分位数和端点协议共同记录，性能分析由单次命令计时转为可重放的请求实验。",
+          "source": {
+            "label": "NVIDIA GenAI-Perf 官方指标文档",
+            "url": "https://github.com/triton-inference-server/perf_analyzer/blob/main/genai-perf/README.md"
+          }
+        }
+      ],
+      "bridge": "本章将这四代思想合并成一张证据链：先定义产品体验指标，再把端到端时间拆成阶段，用 Roofline 和计数器解释瓶颈，最后用分布、功耗与热状态验证优化没有转移问题。报告任何数字时都附带输入长度、输出长度、并发、量化、线程、供电与软件版本。"
+    },
+    "visual": {
+      "title": "从一条慢请求收敛到可验证瓶颈",
+      "description": "动画不是播放漂亮曲线，而是演示性能工程的推理顺序：锁定条件、分段、提出假设、做单变量实验、再回归验证。",
+      "steps": [
+        {
+          "icon": "📌",
+          "label": "冻结条件",
+          "data": "model/config/prompt/device/power manifest",
+          "action": "校验版本与输入，完成 warm-up",
+          "insight": "没有实验契约，后续差异无法归因"
+        },
+        {
+          "icon": "⏱️",
+          "label": "端到端采样",
+          "data": "request timestamps × repeated runs",
+          "action": "收集原始延迟、TTFT、ITL 与吞吐样本",
+          "insight": "保留分布才能看见尾部，而非只看平均"
+        },
+        {
+          "icon": "🧱",
+          "label": "阶段拆分",
+          "data": "queue | preprocess | prefill | decode | network",
+          "action": "用同一单调时钟标记阶段边界",
+          "insight": "先找到时间花在哪里，再讨论为什么"
+        },
+        {
+          "icon": "🕵️",
+          "label": "提出假设",
+          "data": "utilization + bandwidth + cache + thermal counters",
+          "action": "把最长阶段关联到一个可证伪瓶颈",
+          "insight": "低利用率可能意味着等待，不等于没有瓶颈"
+        },
+        {
+          "icon": "🎛️",
+          "label": "单变量实验",
+          "data": "one change → effect size",
+          "action": "只改变线程、量化、context 或 copy 中的一项",
+          "insight": "方向符合预测且重复出现，假设才获得支持"
+        },
+        {
+          "icon": "✅",
+          "label": "回归验收",
+          "data": "quality + p50/p95 + energy + memory",
+          "action": "在长稳运行和边界输入下复测",
+          "insight": "端到端、质量与能效同时过线才是产品优化"
+        }
+      ],
+      "loop": "若单变量结果不支持假设，就回到“提出假设”选择下一项计数器；若优化只转移瓶颈，就回到“阶段拆分”重新排序热点。最终把新基线写回 manifest，并保留原始样本供版本二分。"
+    },
+    "analogyDetail": {
+      "title": "把性能分析想成追查一趟总迟到的高铁",
+      "story": "乘客只感受到总行程，这就是端到端延迟；进站安检像预处理，等首班车像 TTFT，途中每站间隔像 inter-token latency。平均到站时间看似正常，但少数暴雨天的严重晚点就是 p95。只把列车最高时速提高，若检票、换轨或进站仍占大头，总时间几乎不变；车厢空调全开还会提高每位乘客的能耗并触发温度保护。真正的优化要拿时刻表、轨迹和电表对账。",
+      "illustration": [
+        {
+          "icon": "🎫",
+          "label": "进站等待",
+          "mapsTo": "排队、tokenize、预处理和 context 分配"
+        },
+        {
+          "icon": "🚄",
+          "label": "首班发车",
+          "mapsTo": "Prefill 完成并返回首 token，即 TTFT"
+        },
+        {
+          "icon": "🚉",
+          "label": "站间节奏",
+          "mapsTo": "Decode 的 inter-token latency 与 tokens/s"
+        },
+        {
+          "icon": "🌡️",
+          "label": "暴雨限速",
+          "mapsTo": "尾延迟、功耗、温度和热降频造成的长尾"
+        }
+      ],
+      "boundary": "列车各段通常近似串行，而推理可能流水化、异步复制或将多个请求合批；单请求阶段之和也不直接等于高并发吞吐。类比用于提醒分段和长尾，不能取代 trace 时间戳、硬件计数器与排队模型。"
+    }
+  },
+  {
+    "n": 15,
+    "t": "整合：端侧 AI 工程链路",
+    "s": "把 14 天知识收束成可交付项目",
+    "goal": "完成从数据与模型到设备、主机、性能和产品约束的系统设计。",
+    "concept": [
+      "需求→模型→格式→量化→runtime→硬件",
+      "ESP32 + Linux Edge Host 分工",
+      "USB/网络 Tool Calling",
+      "故障降级、OTA、监控",
+      "验收指标与可复现报告"
+    ],
+    "analogy": "端侧 AI 产品像一套分布式嵌入式系统：ESP32 负责实时 I/O 与安全边界，Linux host 负责重推理，网络协议连接两者。",
+    "diagram": "Sensor/USB/ESP32 → framed message → Linux Edge Host\n       ↑ status/actuator ← tool policy ← LLM runtime\n                     model → backend → accelerator",
+    "code": "POST /v1/chat/completions\n{\"messages\":[{\"role\":\"user\",\"content\":\"读取温度\"}],\"stream\":true}\n\n# 验收：功能、延迟、能耗、离线、异常、升级、日志",
+    "lab": "做一个最小闭环：ESP32 采集温度并通过 USB/HTTP 发送，主机模型生成受控命令，ESP32 校验白名单后执行。",
+    "questions": [
+      "哪些命令必须在 ESP32 侧再次鉴权？",
+      "模型不可用时系统如何降级为确定性逻辑？",
+      "如何让一次性能回归可复现？"
+    ],
+    "next": null,
+    "lesson": [
+      {
+        "title": "从验收指标反推系统边界",
+        "body": "先写产品必须满足的事件、端到端时延、离线时长、误报漏报、安全状态、功耗和成本，再决定模型放在 MCU、Edge Host 或云。若断网后仍须毫秒级停机，判断与执行就不能依赖主机 LLM；若任务需要大上下文，可把解释放主机，但设备保留阈值规则。每项需求都映射到一个责任组件和可测信号，避免架构图只有箭头没有承诺。"
+      },
+      {
+        "title": "把 Host 消息定义为提案而非指令",
+        "body": "消息应使用有版本的结构化 schema，包含 device_id、request_id、sequence、deadline、action、typed params 和认证信息。ESP32 收到后验证来源、版本、去重、时效、动作白名单、参数范围与当前状态，全部通过才转成内部事件。自然语言永远不直接驱动 GPIO。对重复帧、乱序、重放、半包和未知字段做协议测试，并让拒绝原因可审计。"
+      },
+      {
+        "title": "正常路径与降级路径必须共享状态机",
+        "body": "为在线、主机慢、链路断、模型失败、传感器异常和执行器故障定义显式状态与转换；不要在异常回调里临时拼补动作。超时后取消主机请求并丢弃迟到回复，设备切回本地阈值或安全保持模式；重连需重新握手和同步序号。通过断网、重启、包丢失、Host 满载与 watchdog 复位做故障注入，确认每条路径都能回到已知状态。"
+      },
+      {
+        "title": "模型、固件、协议和配置作为一组发布",
+        "body": "模型更新可能改变 tokenizer、模板、输出 schema 与资源需求，因此不能脱离固件兼容矩阵单独替换。发布清单应记录四类版本、哈希、最低硬件、内存预算、迁移步骤与回滚目标；下载后先验签，新槽首次启动运行自检，观测期通过才标记有效。灰度阶段同时监控拒绝率、TTFT、崩溃和设备安全事件，异常时可恢复上一组已知组合。"
+      },
+      {
+        "title": "用端到端追踪完成可交付证据闭环",
+        "body": "让 ESP32 事件、协议帧、Host 请求、模型版本、tool proposal 与最终执行共享 correlation_id，并使用各自单调时钟记录阶段时间。验收报告包含功能样本、性能分布、能耗、离线与越权测试、OTA 回滚和长期稳定性；日志需去除敏感原文并设置保留策略。最终应能从一次异常执行追到原始传感器证据、所有策略判断和发布版本。"
+      }
+    ],
+    "pitfall": "只演示正常 Wi-Fi 和正常 prompt 的“happy path”会掩盖最重要的现场风险：网络抖动、模型幻觉、重复命令和升级中断。",
+    "references": [
+      [
+        "ESP-DL 入门",
+        "https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html"
+      ],
+      [
+        "llama.cpp server",
+        "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md"
+      ],
+      [
+        "NVIDIA GenAI-Perf 指标",
+        "https://docs.nvidia.com/deeplearning/triton-inference-server/archives/triton-inference-server-2700/user-guide/docs/perf_benchmark/genai-perf-README.html"
+      ]
+    ],
+    "quiz": [
+      {
+        "prompt": "ESP32 + Edge Host 架构中，哪项应留在 ESP32 的确定性边界内？",
+        "options": [
+          "LLM 的所有权重",
+          "执行器白名单、范围检查和失联降级",
+          "云端训练循环",
+          "GGUF 转换脚本"
+        ],
+        "answer": 1,
+        "explanation": "与物理世界交互的安全约束必须在本地确定性实现；Host 的模型建议只能作为受限输入。"
+      },
+      {
+        "prompt": "模型服务不可用时合理的降级策略是？",
+        "options": [
+          "无限重试并阻塞控制任务",
+          "回退到预定义阈值/状态机并上报故障",
+          "放开所有执行器权限",
+          "擦除模型分区"
+        ],
+        "answer": 1,
+        "explanation": "降级应保持可预测和安全。重试可有上限，但控制系统需要在 Host 失效时继续执行经过验证的本地策略。"
+      },
+      {
+        "prompt": "一次可复现的性能回归至少需要固定什么？",
+        "options": [
+          "仅产品名称",
+          "模型、输入/token、运行参数、硬件和测量条件",
+          "只固定屏幕分辨率",
+          "只固定 Git 分支名"
+        ],
+        "answer": 1,
+        "explanation": "任何会影响路径的变量都应记录。这样才能区分模型变化、runtime 变化、硬件热状态或网络因素。"
+      }
+    ],
+    "readingMinutes": 20,
+    "keywords": [
+      {
+        "term": "安全边界",
+        "definition": "必须由确定性组件强制执行的权限和范围限制。",
+        "espAnalogy": "像 GPIO/电机驱动前的硬件互锁与状态机。"
+      },
+      {
+        "term": "降级",
+        "definition": "依赖不可用时切换到安全且有限的功能。",
+        "espAnalogy": "像 Wi-Fi 断开后保留本地控制逻辑。"
+      },
+      {
+        "term": "OTA",
+        "definition": "远程更新固件或模型的交付机制。",
+        "espAnalogy": "像版本化的固件分区与回滚流程。"
+      },
+      {
+        "term": "验收报告",
+        "definition": "记录功能、性能、能耗和故障测试条件的证据。",
+        "espAnalogy": "像量产前的整机测试和可追溯记录。"
+      }
+    ],
+    "recap": "上一章给出了可复现的性能证据。本章把前 14 天的模型、格式、资源、runtime 与硬件知识组合为系统设计，并用故障路径验证它能在真实现场工作。",
+    "nextPreview": "课程到此收束。后续迭代应从具体产品约束重新走一遍：先定义安全和验收，再选择模型与硬件，而不是从某个热门模型倒推产品。",
+    "history": {
+      "intro": "端侧 AI 整合看似新颖，核心却来自几十年的分布式与嵌入式系统经验：正确性要放在真正理解语义的端点，重计算可以卸载到近端资源，微控制器需要专门的内存与 runtime 设计，AI 风险必须覆盖整个生命周期。把这些脉络拼起来，才能形成“ESP32 守住物理边界、Edge Host 提供推理能力”的可靠架构。",
+      "milestones": [
+        {
+          "year": "1984",
+          "title": "端到端原则明确关键正确性应由端点保证",
+          "body": "Saltzer、Reed 与 Clark 论证，一些功能即使在通信子系统中实现，最终仍需由真正掌握应用语义的端点检查。映射到 AI 控制链：传输层能保证帧完整，却不能判断“开阀 90%”是否在当前设备状态下安全。",
+          "source": {
+            "label": "End-to-End Arguments 原始论文",
+            "url": "https://groups.csail.mit.edu/ana/Publications/PubPDFs/End-to-End%20Arguments%20in%20System%20Design.pdf"
+          }
+        },
+        {
+          "year": "2009",
+          "title": "Cloudlet 描绘近端资源主机的卸载模式",
+          "body": "Cloudlet 工作提出让资源受限移动设备通过低时延局域链路使用附近、资源丰富的计算节点，避开远端 WAN 的抖动与故障。今天 ESP32 加 Linux Edge Host 的分工延续这一思想：实时 I/O 留在端点，重推理放到一跳可达主机。",
+          "source": {
+            "label": "Cloudlet 原始论文",
+            "url": "https://elijah.cs.cmu.edu/DOCS/satya-ieeepvc-cloudlets-2009.pdf"
+          }
+        },
+        {
+          "year": "2020",
+          "title": "TinyML Runtime 让微控制器成为模型执行端",
+          "body": "TensorFlow Lite Micro 的设计针对小内存、有限依赖和多类 MCU，展示模型解释器、静态内存规划与平台 kernel 如何进入固件。模型从云 API 变为设备模块，也让传感器前处理、arena、任务调度和确定性降级进入同一验收范围。",
+          "source": {
+            "label": "TensorFlow Lite Micro 原始论文",
+            "url": "https://arxiv.org/abs/2010.08678"
+          }
+        },
+        {
+          "year": "2023",
+          "title": "NIST AI RMF 将 AI 风险纳入全生命周期管理",
+          "body": "AI RMF 1.0 用 Govern、Map、Measure、Manage 组织风险管理，强调系统情境、测量与持续治理。对端侧产品而言，准确率只是证据之一；权限、隐私、韧性、监控、供应链和退役路径也必须在设计与验收阶段有负责人。",
+          "source": {
+            "label": "NIST AI RMF 1.0 官方发布",
+            "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10"
+          }
+        },
+        {
+          "year": "至今",
+          "title": "安全启动、签名 OTA 与回滚成为现场闭环",
+          "body": "ESP-IDF 的 OTA 状态与回滚机制允许新镜像首启自检后再标记有效，并可结合 Secure Boot 与 anti-rollback。模型、固件和配置都在变化时，发布链必须拥有签名、兼容矩阵、健康检查和可恢复版本，而不是只传一个新文件。",
+          "source": {
+            "label": "ESP-IDF OTA 官方文档",
+            "url": "https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html"
+          }
+        }
+      ],
+      "bridge": "这些里程碑共同给出终章架构：生成模型只提供概率性建议，端点状态机拥有最终权限；重计算可以在近端主机完成，但超时与断连必须降级；所有模型、协议和固件版本都要可度量、可追溯、可回滚。最终交付物不只是 demo，而是一套需求、接口、证据与故障恢复闭环。"
+    },
+    "visual": {
+      "title": "从传感器事件到安全动作的端到端闭环",
+      "description": "动画同时展示上行数据、主机推理、下行提案与设备端授权；最后一步把结果反馈为下一轮可观测状态。",
+      "steps": [
+        {
+          "icon": "🌡️",
+          "label": "采集成帧",
+          "data": "sensor + timestamp + device state + sequence",
+          "action": "ESP32 校准、范围检查并编码版本化消息",
+          "insight": "原始现实先经过确定性契约，不能直接拼进 prompt"
+        },
+        {
+          "icon": "📤",
+          "label": "可靠上行",
+          "data": "authenticated frame + correlation_id",
+          "action": "校验、去重、超时重试并送达 Edge Host",
+          "insight": "传输可靠性不等于业务语义正确"
+        },
+        {
+          "icon": "🧠",
+          "label": "主机推理",
+          "data": "structured context → model/tool proposal",
+          "action": "执行预处理、runtime 推理与 schema 约束",
+          "insight": "模型输出是带不确定性的候选，不拥有执行权"
+        },
+        {
+          "icon": "📥",
+          "label": "提案下行",
+          "data": "action + typed params + deadline + request_id",
+          "action": "签名或认证后返回设备，并关联原请求",
+          "insight": "迟到、重复或无法关联的回复必须拒绝"
+        },
+        {
+          "icon": "🛡️",
+          "label": "本地授权",
+          "data": "proposal + live state + safety policy",
+          "action": "ESP32 检查白名单、范围、互锁与幂等条件",
+          "insight": "最终安全判断放在最理解物理状态的端点"
+        },
+        {
+          "icon": "⚙️",
+          "label": "执行与回证",
+          "data": "actuator result + status + trace",
+          "action": "执行确定性动作、记录结果并上报健康状态",
+          "insight": "闭环证据用于监控、回归和下一轮决策"
+        }
+      ],
+      "loop": "执行结果与新传感器状态回到“采集成帧”，形成可观测闭环；若任何阶段超时或校验失败，则不继续向右，而是进入设备本地的安全降级状态，并记录同一 correlation_id 下的拒绝原因。"
+    },
+    "analogyDetail": {
+      "title": "把整套端侧 AI 想成机场塔台与飞机的协作",
+      "story": "Edge Host 上的 LLM 像塔台顾问：看得广、算得多，可以把自然语言意图整理成结构化航路建议；ESP32 像飞机上的飞控，直接读取传感器并掌握执行器。塔台发来的“下降到某高度”必须带航班号、序号和参数，飞控仍会检查高度包线、油量与当前模式。通信中断时，飞机不会失去基本控制，而会进入预先验证的本地程序。更新新模型或固件，则像更换航图：签名、版本兼容和回滚缺一不可。",
+      "illustration": [
+        {
+          "icon": "🗼",
+          "label": "塔台顾问",
+          "mapsTo": "Edge Host 上的 LLM、检索与重计算服务"
+        },
+        {
+          "icon": "✈️",
+          "label": "机载飞控",
+          "mapsTo": "ESP32 传感器、状态机、白名单与执行器互锁"
+        },
+        {
+          "icon": "📻",
+          "label": "标准通话",
+          "mapsTo": "带版本、序号、校验、超时和幂等语义的消息协议"
+        },
+        {
+          "icon": "🗺️",
+          "label": "签名航图",
+          "mapsTo": "模型、配置、固件的版本化 OTA 与可回滚发布"
+        }
+      ],
+      "boundary": "真实航空系统有严格认证与确定性程序，而 LLM 本身无法达到飞控安全等级；类比绝不意味着模型可以参与硬实时闭环。它只说明职责分离与最终授权位置。任何可能伤人、损坏设备或违反法规的动作，都应由经过验证的确定性逻辑和必要的人类审批控制。"
+    }
+  }
+]

@@ -4,88 +4,298 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Day 06 · 非 LLM 端侧模型训练与部署</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="把视觉/音频/传感器模型真正烧进设备 — 完成数据、训练、导出、量化、部署、验证的闭环，重点覆盖 MCU 常见小模型。">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/day06.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day06.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day06.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day06.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
 </head>
-<body>
+<body data-ui="%7B%22siteTitle%22%3A%22%E7%AB%AF%E4%BE%A7%20AI%20%C2%B7%2015%20%E5%A4%A9%E5%B7%A5%E7%A8%8B%E8%B7%AF%E7%BA%BF%22%2C%22siteDescription%22%3A%22%E9%9D%A2%E5%90%91%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E5%8F%8C%E8%AF%AD%E8%AF%BE%E7%A8%8B%EF%BC%9A%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E3%80%81%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%88%B0%E5%AE%8C%E6%95%B4%E7%B3%BB%E7%BB%9F%E9%AA%8C%E6%94%B6%E3%80%82%22%2C%22offlineLabel%22%3A%22%E7%A6%BB%E7%BA%BF%E9%9D%99%E6%80%81%E5%AD%A6%E4%B9%A0%E7%BD%91%E7%AB%99%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E5%88%B0%E5%8F%AF%E4%BA%A4%E4%BB%98%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E7%B3%BB%E7%BB%9F%22%2C%22heroBody%22%3A%22%E4%B8%BA%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%E3%80%81%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E8%AE%BE%E8%AE%A1%E3%80%82%E6%AF%8F%E5%A4%A9%E4%B8%80%E4%B8%AA%E4%B8%BB%E9%A2%98%EF%BC%8C%E6%B2%BF%E7%9D%80%E2%80%9C%E6%A8%A1%E5%9E%8B%20%E2%86%92%20%E8%A1%A8%E7%A4%BA%20%E2%86%92%20Runtime%20%E2%86%92%20Kernel%20%E2%86%92%20%E5%86%85%E5%AD%98%2F%E5%B8%A6%E5%AE%BD%20%E2%86%92%20%E7%A1%AC%E4%BB%B6%20%E2%86%92%20%E4%BA%A7%E5%93%81%E2%80%9D%E9%80%90%E5%B1%82%E6%94%B6%E6%9D%9F%EF%BC%9B%E6%AF%8F%E7%AB%A0%E7%94%A8%E5%8E%86%E5%8F%B2%E6%97%B6%E9%97%B4%E8%BD%B4%E8%AF%B4%E6%98%8E%E6%9D%A5%E8%B7%AF%EF%BC%8C%E7%94%A8%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%EF%BC%8C%E5%86%8D%E8%AE%A9%E6%95%B0%E6%8D%AE%E5%9C%A8%E5%8F%AF%E4%BA%A4%E4%BA%92%E5%8A%A8%E7%94%BB%E9%87%8C%E7%9C%9F%E6%AD%A3%E8%B7%91%E4%B8%80%E9%81%8D%E3%80%82%22%2C%22startCourse%22%3A%22%E4%BB%8E%20Day%201%20%E5%BC%80%E5%A7%8B%20%E2%86%92%22%2C%22cardMeta%22%3A%22%E5%8E%86%E5%8F%B2%20%2B%20%E5%9B%BE%E8%A7%A3%20%2B%20%E5%8A%A8%E7%94%BB%22%2C%22minutes%22%3A%22%E5%88%86%E9%92%9F%22%2C%22languageSwitch%22%3A%22English%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20English%22%2C%22home%22%3A%22%E7%9B%AE%E5%BD%95%E9%A6%96%E9%A1%B5%22%2C%22learningNav%22%3A%22%E5%AD%A6%E4%B9%A0%E5%AF%BC%E8%88%AA%22%2C%22suggestedReading%22%3A%22%E5%BB%BA%E8%AE%AE%E9%98%85%E8%AF%BB%EF%BC%9A%E7%BA%A6%22%2C%22learningGoal%22%3A%22%E5%AD%A6%E4%B9%A0%E7%9B%AE%E6%A0%87%22%2C%22keywords%22%3A%22%E6%9C%AC%E7%AB%A0%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22keyword%22%3A%22%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22explanation%22%3A%22%E8%A7%A3%E9%87%8A%22%2C%22espAnalogy%22%3A%22ESP32%20%E5%B7%A5%E7%A8%8B%E7%B1%BB%E6%AF%94%22%2C%22recap%22%3A%22%E6%89%BF%E4%B8%8A%EF%BC%9A%E5%9B%9E%E9%A1%BE%E4%B8%8E%E5%AE%9A%E4%BD%8D%22%2C%22historyKicker%22%3A%22%E4%BB%8E%E6%BA%90%E5%A4%B4%E7%9C%8B%E4%BB%8A%E5%A4%A9%22%2C%22historyTitle%22%3A%22%E5%8E%86%E5%8F%B2%E5%8F%91%E5%B1%95%E8%84%89%E7%BB%9C%22%2C%22historyBridge%22%3A%22%E4%BB%8A%E5%A4%A9%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BB%8D%E7%84%B6%E9%87%8D%E8%A6%81%EF%BC%9A%22%2C%22analogyKicker%22%3A%22%E5%80%9F%E7%86%9F%E6%82%89%E7%9A%84%E7%B3%BB%E7%BB%9F%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%22%2C%22analogyTitle%22%3A%22%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%22%2C%22analogyFallback%22%3A%22%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B1%BB%E6%AF%94%22%2C%22analogyBoundary%22%3A%22%E7%B1%BB%E6%AF%94%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%9A%22%2C%22lessonTitle%22%3A%22%E6%9C%AC%E7%AB%A0%E8%AE%B2%E8%A7%A3%22%2C%22processKicker%22%3A%22%E8%AE%A9%E6%95%B0%E6%8D%AE%E7%9C%9F%E6%AD%A3%E8%B7%91%E8%B5%B7%E6%9D%A5%22%2C%22processTitle%22%3A%22%E5%8A%A8%E6%80%81%E8%BF%87%E7%A8%8B%E6%BC%94%E7%A4%BA%22%2C%22pausePlayback%22%3A%22%E6%9A%82%E5%81%9C%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22reducedMotion%22%3A%22%E7%B3%BB%E7%BB%9F%E5%B7%B2%E5%87%8F%E5%B0%91%E5%8A%A8%E6%80%81%E6%95%88%E6%9E%9C%22%2C%22restartPlayback%22%3A%22%E4%BB%8E%E5%A4%B4%E6%92%AD%E6%94%BE%22%2C%22resumePlayback%22%3A%22%E7%BB%A7%E7%BB%AD%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22step%22%3A%22%E6%AD%A5%E9%AA%A4%22%2C%22observation%22%3A%22%E8%A7%82%E5%AF%9F%E7%82%B9%22%2C%22loopCondition%22%3A%22%E5%BE%AA%E7%8E%AF%20%2F%20%E8%BF%94%E5%9B%9E%E6%9D%A1%E4%BB%B6%EF%BC%9A%22%2C%22previousStep%22%3A%22%E2%86%90%20%E4%B8%8A%E4%B8%80%E6%AD%A5%22%2C%22nextStep%22%3A%22%E4%B8%8B%E4%B8%80%E6%AD%A5%20%E2%86%92%22%2C%22switchedStep%22%3A%22%E5%B7%B2%E5%88%87%E6%8D%A2%E5%88%B0%E6%AD%A5%E9%AA%A4%22%2C%22staticOverview%22%3A%22%E6%9F%A5%E7%9C%8B%E9%9D%99%E6%80%81%E5%85%A8%E6%99%AF%E5%9B%BE%22%2C%22flowchart%22%3A%22%E6%B5%81%E7%A8%8B%E5%9B%BE%22%2C%22codeExample%22%3A%22%E4%BB%A3%E7%A0%81%E6%88%96%E5%91%BD%E4%BB%A4%E7%A4%BA%E4%BE%8B%22%2C%22lab%22%3A%22%E5%8A%A8%E6%89%8B%E5%AE%9E%E9%AA%8C%22%2C%22pitfall%22%3A%22%E5%B7%A5%E7%A8%8B%E9%99%B7%E9%98%B1%22%2C%22avoidMisread%22%3A%22%E9%81%BF%E5%85%8D%E8%AF%AF%E5%88%A4%EF%BC%9A%22%2C%22quizTitle%22%3A%22%E6%A0%B8%E5%BF%83%E6%B5%8B%E8%AF%95%22%2C%22quizIntro%22%3A%22%E5%AE%8C%E6%88%90%203%20%E9%81%93%E5%8D%95%E9%80%89%E9%A2%98%E5%90%8E%E6%8F%90%E4%BA%A4%EF%BC%9B%E6%8F%90%E4%BA%A4%E5%89%8D%E4%B8%8D%E4%BC%9A%E6%98%BE%E7%A4%BA%E7%AD%94%E6%A1%88%E3%80%82%22%2C%22submitQuiz%22%3A%22%E6%8F%90%E4%BA%A4%E6%9C%AC%E7%AB%A0%E6%B5%8B%E8%AF%95%22%2C%22retryQuiz%22%3A%22%E9%87%8D%E6%96%B0%E4%BD%9C%E7%AD%94%22%2C%22completeQuestion%22%3A%22%E8%AF%B7%E5%85%88%E5%AE%8C%E6%88%90%E7%AC%AC%22%2C%22questionSuffix%22%3A%22%E9%A2%98%E3%80%82%22%2C%22correct%22%3A%22%E5%9B%9E%E7%AD%94%E6%AD%A3%E7%A1%AE%E3%80%82%22%2C%22incorrect%22%3A%22%E5%9B%9E%E7%AD%94%E9%94%99%E8%AF%AF%E3%80%82%22%2C%22correctAnswer%22%3A%22%E6%AD%A3%E7%A1%AE%E7%AD%94%E6%A1%88%EF%BC%9A%22%2C%22quizScore%22%3A%22%E6%9C%AC%E7%AB%A0%E5%BE%97%E5%88%86%EF%BC%9A%22%2C%22quizAdvice%22%3A%22%E8%AF%B7%E9%98%85%E8%AF%BB%E6%AF%8F%E9%A2%98%E8%A7%A3%E6%9E%90%EF%BC%8C%E5%86%8D%E5%86%B3%E5%AE%9A%E6%98%AF%E5%90%A6%E9%87%8D%E5%81%9A%E3%80%82%22%2C%22references%22%3A%22%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB%22%2C%22sourceSuffix%22%3A%22%EF%BC%88%E5%AE%98%E6%96%B9%2F%E5%8E%9F%E5%A7%8B%E8%B5%84%E6%96%99%EF%BC%89%22%2C%22nextPreview%22%3A%22%E5%90%AF%E4%B8%8B%EF%BC%9A%E4%B8%8B%E4%B8%80%E7%AB%A0%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E6%9C%AC%E7%AB%A0%E8%83%BD%E5%8A%9B%22%2C%22nextDay%22%3A%22%E4%B8%8B%E4%B8%80%E5%A4%A9%EF%BC%9A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22%E5%9B%9E%E5%88%B0%E9%A6%96%E9%A1%B5%22%2C%22footer%22%3A%22%E7%A6%BB%E7%BA%BF%E5%8F%AF%E7%94%A8%20%C2%B7%20%E9%9D%A2%E5%90%91%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%20%E4%B8%8E%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%22%2C%22homeFooter%22%3A%2215%20%E5%A4%A9%20%C2%B7%2015%20%E4%B8%AA%E7%8B%AC%E7%AB%8B%E9%A1%B5%E9%9D%A2%20%C2%B7%20%E4%B8%AD%E8%8B%B1%E5%8F%8C%E8%AF%AD%20%C2%B7%20%E6%97%A0%E8%BF%90%E8%A1%8C%E6%97%B6%E4%BE%9D%E8%B5%96%22%2C%22noscriptHome%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9B%E7%AB%A0%E8%8A%82%E7%9B%AE%E5%BD%95%E4%BB%8D%E5%8F%AF%E4%BD%BF%E7%94%A8%EF%BC%8C%E8%BF%9B%E5%85%A5%E7%AB%A0%E8%8A%82%E5%90%8E%E5%8F%AF%E9%98%85%E8%AF%BB%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E3%80%82%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%2C%22noscriptDay%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9A%E5%8E%86%E5%8F%B2%E3%80%81%E7%B1%BB%E6%AF%94%E3%80%81%E6%AD%A3%E6%96%87%E4%B8%8E%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E4%BB%8D%E5%8F%AF%E9%98%85%E8%AF%BB%EF%BC%9B%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%7D">
   <noscript>
     <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
     <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
   </noscript>
-  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
-  <main class="wrap day-layout">
-    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="active" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
-    <article class="content" data-day="6">
-      <div class="eyebrow">DAY 06</div>
-      <h1>非 LLM 端侧模型训练与部署</h1>
-      <p class="hero-sub">把视觉/音频/传感器模型真正烧进设备</p>
-      <p class="reading-time">建议阅读：约 19 分钟</p>
-      <section><h2>学习目标</h2><div class="callout">完成数据、训练、导出、量化、部署、验证的闭环，重点覆盖 MCU 常见小模型。</div></section>
-      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">代表性数据</th><td>覆盖真实设备工况的数据集合。</td><td>像整机测试必须覆盖温湿度、电源和负载边界。</td></tr><tr><th scope="row">Tensor arena</th><td>为 MCU 推理预分配输入、输出和中间张量的内存区。</td><td>像启动时规划好的静态工作区。</td></tr><tr><th scope="row">前处理</th><td>将原始传感器数据变成模型输入的步骤。</td><td>像协议栈的 framing、字节序和校验。</td></tr><tr><th scope="row">混淆矩阵</th><td>按真实类别与预测类别统计的表。</td><td>像按故障类型统计误报和漏报。</td></tr></tbody></table></div></section>
-      <section><h2>承上：回顾与定位</h2><p>上一章说明图最终由算子和 kernel 执行。本章把这些部件放回完整产品链路，完成一个可部署的视觉、音频或传感器小模型。</p></section>
-      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">把小模型放进 MCU，并不是把桌面推理代码缩小后复制过去。它经历了“结构更省算力—kernel 更贴硬件—runtime 更少依赖—产品验证更可重复”的共同演进，最终才形成今天从数据到固件的闭环。</p><div class="timeline"><article class="timeline-item">
-    <div class="timeline-year">1989</div>
-    <div class="timeline-content"><h3>结构化卷积网络走向真实任务</h3><p>LeCun 等人把局部连接、权重共享与反向传播用于邮政编码识别，说明可以让网络直接处理像素，同时用结构约束压低参数与计算需求。</p><a href="https://doi.org/10.1162/neco.1989.1.4.541" target="_blank" rel="noopener noreferrer">LeCun 等原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2017</div>
-    <div class="timeline-content"><h3>MobileNet 把硬件预算写进网络设计</h3><p>MobileNet 以深度可分离卷积和宽度、分辨率系数显式交换准确率与延迟，“先定设备预算再选模型”由经验做法变成可调设计方法。</p><a href="https://arxiv.org/abs/1704.04861" target="_blank" rel="noopener noreferrer">MobileNet 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2017</div>
-    <div class="timeline-content"><h3>生产级 ML 开始强调系统测试</h3><p>Google 的 ML Test Score 将数据、特征、模型、基础设施与监控拆成具体测试项，指出离线指标只是上线准备度的一部分。</p><a href="https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/" target="_blank" rel="noopener noreferrer">Google Research 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2018</div>
-    <div class="timeline-content"><h3>CMSIS-NN 让量化模型贴近 Cortex-M</h3><p>CMSIS-NN 提供面向 Cortex-M 的卷积、全连接等优化 kernel，并用部分 im2col 等办法同时降低运行时间和峰值内存。</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">CMSIS-NN 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2020</div>
-    <div class="timeline-content"><h3>TFLite Micro 固化微控制器运行时范式</h3><p>TFLite Micro 面向没有虚拟内存、资源紧张且平台碎片化的设备，采用小型解释器和预规划工作区，让同一模型能进入多种 MCU。</p><a href="https://arxiv.org/abs/2010.08678" target="_blank" rel="noopener noreferrer">TFLite Micro 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">现在</div>
-    <div class="timeline-content"><h3>ESP-DL 串起量化、格式、内存规划与分析</h3><p>当前 ESP-DL 用 ESP-PPQ、.espdl 格式、静态内存规划和设备侧 profiling 把模型转换、加载、执行与测量放进同一工具链。</p><a href="https://docs.espressif.com/projects/esp-dl/en/latest/introduction/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 官方介绍 ↗</a></div>
-  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>这条脉络留下的工程结论很明确：模型结构只决定“可能跑多快”，前处理契约、量化导出、kernel 覆盖、任务调度和板端回归测试才决定它是否真的成为产品功能。</div></section>
-      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>一座把鲜果变成果汁的微型工厂</h3><p>果园每天送来的果子并不整齐：大小、成熟度、泥点都不同。实验室先制定验收样本和清洗配方，再训练“质检员”；量产线必须照同一配方切块、称重，质检结果还要经过阈值与复核，才会真正打开装瓶阀门。</p></div><div class="analogy-illustration" aria-label="一座把鲜果变成果汁的微型工厂"><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🧺</span>
-    <strong>果筐与留样</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>真实设备采集、标签规范、训练/验证/测试切分</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🚿</span>
-    <strong>清洗切块配方</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>采样、resize、归一化、量化输入等前处理契约</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🔬</span>
-    <strong>微型质检员</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>量化后的模型、设备 kernel 与 tensor arena</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🚦</span>
-    <strong>装瓶放行灯</strong>
-    <span class="analogy-arrow" aria-hidden="true">↔</span>
-    <span>阈值、去抖、fallback 与业务事件</span>
-  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>类比能解释闭环和契约，却不能把模型当成固定规则质检机：它输出的是依赖数据分布的概率或分数。现场出现训练集未覆盖的新工况时，配方完全一致也不保证判断正确，仍需漂移监控、拒识与安全状态机。</p></div></section>
-      <section><h2>本章讲解</h2><h3>从产品事件反推数据，而不是从现成数据集寻找用途</h3><p>先写出设备最终要发布的事件、允许的漏报和误报、响应时限以及无法判断时的动作，再据此定义采样窗口和标签。训练集要按设备或采集批次切分，避免同一段连续信号泄漏到训练与测试两侧；负类不能只有“安静背景”，还要包含容易混淆的动作、噪声和传感器异常。每条样本应保留固件版本、采样率与环境元数据，才能在回归时定位数据漂移。</p><h3>把前处理做成可校验的二进制契约</h3><p>PC 训练管线与固件必须对采样率、通道顺序、裁剪窗口、插值方式、颜色空间、归一化常数、舍入和饱和规则逐项一致。不要只比较最终类别；选若干黄金样本，在原始 buffer、预处理浮点张量、量化整数张量三个边界计算摘要并抽查元素。若部署工具要求 int8 输入，还要确认 scale 与 zero-point 的方向，避免把已经量化的数据再次量化。</p><h3>把导出和转换看作编译链，而不是文件另存为</h3><p>训练 checkpoint 先切换推理语义，再导出含固定 I/O 契约的图；转换器随后折叠常量、替换算子、量化并生成目标格式。每一阶段都可能改变布局或数值，因此要锁定工具版本，保存算子清单、输入输出名称和量化参数，并用同一批输入做逐阶段差分。转换成功只证明文件可生成；目标 runtime 没有对应 kernel、发生浮点 fallback 或 shape 超界时仍会失败。</p><h3>让推理成为受调度约束的固件任务</h3><p>设备端需要同时安排传感器生产者、DMA、预处理、推理和事件消费者。采用有界队列并明确满队列策略：实时任务通常丢旧帧比无限等待更合理；推理期间若占用长时间 CPU，应分片、降低频率或喂狗，但不能用喂狗掩盖死锁。arena、模型和 I/O buffer 尽量在初始化期分配，稳态路径避免碎片化；错误分支必须归还帧并发布可观察的降级状态。</p><h3>用四层证据完成部署验收</h3><p>验收依次比较源框架、导出模型、目标 runtime 和真实板端，既测固定黄金向量，也回放整段原始采集。结果至少包含混淆矩阵、按类别阈值曲线、p50/p95 延迟、峰值 arena、长时间运行与异常输入。业务层还要验证迟滞、连续命中次数和冷却时间，避免分数在阈值附近抖动成事件风暴。升级模型或 SDK 后重跑同一清单，才能区分精度回归与系统回归。</p></section>
-      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一条样本如何变成设备事件">
-    <div class="process-heading"><div><h3>一条样本如何变成设备事件</h3><p>播放器逐步点亮数据形态和责任边界，并在最后把现场失败样本送回数据集。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
-    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%99%EF%B8%8F%22%2C%22label%22%3A%22%E9%87%87%E9%9B%86%E4%B8%8E%E6%A0%87%E6%B3%A8%22%2C%22data%22%3A%22raw%20window%20%2B%20label%20%2B%20metadata%22%2C%22action%22%3A%22%E6%8C%89%E8%AE%BE%E5%A4%87%E4%B8%8E%E5%9C%BA%E6%99%AF%E8%AE%B0%E5%BD%95%E5%8E%9F%E5%A7%8B%E6%A0%B7%E6%9C%AC%EF%BC%8C%E5%86%BB%E7%BB%93%E6%A0%87%E7%AD%BE%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E6%95%B0%E6%8D%AE%E6%9D%A5%E6%BA%90%E5%86%B3%E5%AE%9A%E6%A8%A1%E5%9E%8B%E8%83%BD%E8%AF%86%E5%88%AB%E7%9A%84%E4%B8%96%E7%95%8C%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🎙️</span><strong>采集与标注</strong><span>raw window + label + metadata</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BD%22%2C%22label%22%3A%22%E7%AD%89%E4%BB%B7%E5%89%8D%E5%A4%84%E7%90%86%22%2C%22data%22%3A%22tensor%5Bshape%2C%20dtype%2C%20range%5D%22%2C%22action%22%3A%22%E5%9C%A8%20PC%20%E4%B8%8E%E5%9B%BA%E4%BB%B6%E6%89%A7%E8%A1%8C%E5%90%8C%E4%B8%80%E8%A3%81%E5%89%AA%E3%80%81%E7%BC%A9%E6%94%BE%E5%92%8C%E9%87%8F%E5%8C%96%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E8%BE%93%E5%85%A5%E5%A5%91%E7%BA%A6%E6%AF%94%20API%20%E5%90%8D%E7%A7%B0%E6%9B%B4%E9%87%8D%E8%A6%81%22%7D"><span class="process-icon" aria-hidden="true">🧽</span><strong>等价前处理</strong><span>tensor[shape, dtype, range]</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A0%22%2C%22label%22%3A%22%E8%AE%AD%E7%BB%83%E4%B8%8E%E5%AF%BC%E5%87%BA%22%2C%22data%22%3A%22checkpoint%20%E2%86%92%20graph%20%E2%86%92%20quantized%20model%22%2C%22action%22%3A%22%E5%9B%BA%E5%AE%9A%E6%8E%A8%E7%90%86%E6%80%81%E5%B9%B6%E9%80%90%E9%98%B6%E6%AE%B5%E6%AF%94%E8%BE%83%E8%BE%93%E5%87%BA%22%2C%22insight%22%3A%22%E6%AF%8F%E6%AC%A1%E8%BD%AC%E6%8D%A2%E9%83%BD%E6%98%AF%E6%BD%9C%E5%9C%A8%E8%AF%AD%E4%B9%89%E8%BE%B9%E7%95%8C%22%7D"><span class="process-icon" aria-hidden="true">🧠</span><strong>训练与导出</strong><span>checkpoint → graph → quantized model</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9F%22%2C%22label%22%3A%22%E6%9D%BF%E7%AB%AF%E6%89%A7%E8%A1%8C%22%2C%22data%22%3A%22arena%20%2B%20kernels%20%2B%20latency%22%2C%22action%22%3A%22%E5%8A%A0%E8%BD%BD%E6%A8%A1%E5%9E%8B%E3%80%81%E8%B0%83%E5%BA%A6%20kernel%20%E5%B9%B6%E8%AE%B0%E5%BD%95%E5%86%85%E5%AD%98%E5%92%8C%E9%98%B6%E6%AE%B5%E8%80%97%E6%97%B6%22%2C%22insight%22%3A%22%E8%83%BD%E5%8A%A0%E8%BD%BD%E4%B8%8D%E7%AD%89%E4%BA%8E%E7%A8%B3%E6%80%81%E8%83%BD%E8%BF%90%E8%A1%8C%22%7D"><span class="process-icon" aria-hidden="true">📟</span><strong>板端执行</strong><span>arena + kernels + latency</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A8%22%2C%22label%22%3A%22%E4%BA%8B%E4%BB%B6%E5%86%B3%E7%AD%96%22%2C%22data%22%3A%22score%20%E2%86%92%20threshold%20%E2%86%92%20state%22%2C%22action%22%3A%22%E5%BA%94%E7%94%A8%E8%BF%9F%E6%BB%9E%E3%80%81%E5%8E%BB%E6%8A%96%E5%92%8C%20fallback%20%E5%90%8E%E5%86%8D%E9%A9%B1%E5%8A%A8%E7%89%A9%E7%90%86%E5%8A%A8%E4%BD%9C%22%2C%22insight%22%3A%22%E6%A8%A1%E5%9E%8B%E5%88%86%E6%95%B0%E4%B8%8D%E6%98%AF%E6%9C%80%E7%BB%88%E6%8E%A7%E5%88%B6%E5%91%BD%E4%BB%A4%22%7D"><span class="process-icon" aria-hidden="true">🚨</span><strong>事件决策</strong><span>score → threshold → state</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22%E7%8E%B0%E5%9C%BA%E5%9B%9E%E6%B5%81%22%2C%22data%22%3A%22false%20positive%20%2F%20false%20negative%22%2C%22action%22%3A%22%E4%BF%9D%E5%AD%98%E8%AF%AF%E6%8A%A5%E6%BC%8F%E6%8A%A5%E5%8F%8A%E5%85%B6%E5%8E%9F%E5%A7%8B%E4%B8%8A%E4%B8%8B%E6%96%87%EF%BC%8C%E8%BF%9B%E5%85%A5%E4%B8%8B%E4%B8%80%E8%BD%AE%E6%95%B0%E6%8D%AE%E5%AE%A1%E6%9F%A5%22%2C%22insight%22%3A%22%E9%97%AD%E7%8E%AF%E8%AE%A9%E9%83%A8%E7%BD%B2%E4%BB%8E%E6%BC%94%E7%A4%BA%E5%8F%98%E6%88%90%E5%8F%AF%E7%BB%B4%E6%8A%A4%E7%B3%BB%E7%BB%9F%22%7D"><span class="process-icon" aria-hidden="true">🔁</span><strong>现场回流</strong><span>false positive / false negative</span></button></li></ol>
-    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>采集与标注 · raw window + label + metadata</h3><p data-process-action>按设备与场景记录原始样本，冻结标签规则</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>数据来源决定模型能识别的世界</p></div></div>
-    <p class="process-loop"><strong>循环 / 返回条件：</strong>现场回流的样本经过人工复核后重新进入“采集与标注”，但旧测试集保持冻结，用来判断新版本是否真的改善。</p>
-    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
-    <p class="sr-only" aria-live="polite" data-process-status></p>
-  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Sensor → DMA/RingBuffer → Preprocess → Inference → Postprocess → Event/Actuator</pre></details></section>
-      <section><h2>代码或命令示例</h2><pre class="code"><code>idf.py build flash monitor
+  <header class="top">
+    <div class="brand">端侧 AI · 15 天工程路线</div>
+    <div class="top-actions">
+      <a href="/learning_ai/">目录首页</a>
+
+        <a class="language-switch" href="/learning_ai/en/day06.html" lang="en" hreflang="en" aria-label="Switch to English">English</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="学习导航">
+    <span class="eyebrow">学习导航</span>
+
+      <a class=""  href="/learning_ai/day01.html">Day 01 · 神经网络基础</a>
+
+      <a class=""  href="/learning_ai/day02.html">Day 02 · 训练与推理</a>
+
+      <a class=""  href="/learning_ai/day03.html">Day 03 · 模型格式</a>
+
+      <a class=""  href="/learning_ai/day04.html">Day 04 · 量化</a>
+
+      <a class=""  href="/learning_ai/day05.html">Day 05 · 算子</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a>
+
+      <a class=""  href="/learning_ai/day07.html">Day 07 · 内存、带宽、MCU/NPU</a>
+
+      <a class=""  href="/learning_ai/day08.html">Day 08 · 端侧视觉模型</a>
+
+      <a class=""  href="/learning_ai/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/day12.html">Day 12 · LLM 量化与 GGUF</a>
+
+      <a class=""  href="/learning_ai/day13.html">Day 13 · 端侧 LLM 推理框架</a>
+
+      <a class=""  href="/learning_ai/day14.html">Day 14 · 性能分析</a>
+
+      <a class=""  href="/learning_ai/day15.html">Day 15 · 整合：端侧 AI 工程链路</a>
+
+  </aside>
+  <article class="content" data-day="6">
+    <div class="eyebrow">DAY 06</div>
+    <h1>非 LLM 端侧模型训练与部署</h1>
+    <p class="hero-sub">把视觉/音频/传感器模型真正烧进设备</p>
+    <p class="reading-time">建议阅读：约 19 分钟</p>
+
+    <section>
+      <h2>学习目标</h2>
+      <div class="callout">完成数据、训练、导出、量化、部署、验证的闭环，重点覆盖 MCU 常见小模型。</div>
+    </section>
+
+    <section>
+      <h2>本章关键词</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">代表性数据</th><td>覆盖真实设备工况的数据集合。</td><td>像整机测试必须覆盖温湿度、电源和负载边界。</td></tr><tr><th scope="row">Tensor arena</th><td>为 MCU 推理预分配输入、输出和中间张量的内存区。</td><td>像启动时规划好的静态工作区。</td></tr><tr><th scope="row">前处理</th><td>将原始传感器数据变成模型输入的步骤。</td><td>像协议栈的 framing、字节序和校验。</td></tr><tr><th scope="row">混淆矩阵</th><td>按真实类别与预测类别统计的表。</td><td>像按故障类型统计误报和漏报。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>承上：回顾与定位</h2><p>上一章说明图最终由算子和 kernel 执行。本章把这些部件放回完整产品链路，完成一个可部署的视觉、音频或传感器小模型。</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div>
+        <p class="section-lead">把小模型放进 MCU，并不是把桌面推理代码缩小后复制过去。它经历了“结构更省算力—kernel 更贴硬件—runtime 更少依赖—产品验证更可重复”的共同演进，最终才形成今天从数据到固件的闭环。</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1989</div>
+              <div class="timeline-content"><h3>结构化卷积网络走向真实任务</h3><p>LeCun 等人把局部连接、权重共享与反向传播用于邮政编码识别，说明可以让网络直接处理像素，同时用结构约束压低参数与计算需求。</p><a href="https://doi.org/10.1162/neco.1989.1.4.541" target="_blank" rel="noopener noreferrer">LeCun 等原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>MobileNet 把硬件预算写进网络设计</h3><p>MobileNet 以深度可分离卷积和宽度、分辨率系数显式交换准确率与延迟，“先定设备预算再选模型”由经验做法变成可调设计方法。</p><a href="https://arxiv.org/abs/1704.04861" target="_blank" rel="noopener noreferrer">MobileNet 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2017</div>
+              <div class="timeline-content"><h3>生产级 ML 开始强调系统测试</h3><p>Google 的 ML Test Score 将数据、特征、模型、基础设施与监控拆成具体测试项，指出离线指标只是上线准备度的一部分。</p><a href="https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/" target="_blank" rel="noopener noreferrer">Google Research 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2018</div>
+              <div class="timeline-content"><h3>CMSIS-NN 让量化模型贴近 Cortex-M</h3><p>CMSIS-NN 提供面向 Cortex-M 的卷积、全连接等优化 kernel，并用部分 im2col 等办法同时降低运行时间和峰值内存。</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">CMSIS-NN 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2020</div>
+              <div class="timeline-content"><h3>TFLite Micro 固化微控制器运行时范式</h3><p>TFLite Micro 面向没有虚拟内存、资源紧张且平台碎片化的设备，采用小型解释器和预规划工作区，让同一模型能进入多种 MCU。</p><a href="https://arxiv.org/abs/2010.08678" target="_blank" rel="noopener noreferrer">TFLite Micro 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">现在</div>
+              <div class="timeline-content"><h3>ESP-DL 串起量化、格式、内存规划与分析</h3><p>当前 ESP-DL 用 ESP-PPQ、.espdl 格式、静态内存规划和设备侧 profiling 把模型转换、加载、执行与测量放进同一工具链。</p><a href="https://docs.espressif.com/projects/esp-dl/en/latest/introduction/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 官方介绍 ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>今天为什么仍然重要：</strong> 这条脉络留下的工程结论很明确：模型结构只决定“可能跑多快”，前处理契约、量化导出、kernel 覆盖、任务调度和板端回归测试才决定它是否真的成为产品功能。</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>一座把鲜果变成果汁的微型工厂</h3><p>果园每天送来的果子并不整齐：大小、成熟度、泥点都不同。实验室先制定验收样本和清洗配方，再训练“质检员”；量产线必须照同一配方切块、称重，质检结果还要经过阈值与复核，才会真正打开装瓶阀门。</p></div>
+          <div class="analogy-illustration" aria-label="一座把鲜果变成果汁的微型工厂">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🧺</span>
+                <strong>果筐与留样</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>真实设备采集、标签规范、训练/验证/测试切分</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🚿</span>
+                <strong>清洗切块配方</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>采样、resize、归一化、量化输入等前处理契约</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔬</span>
+                <strong>微型质检员</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>量化后的模型、设备 kernel 与 tensor arena</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🚦</span>
+                <strong>装瓶放行灯</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>阈值、去抖、fallback 与业务事件</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>类比的边界：</strong> 类比能解释闭环和契约，却不能把模型当成固定规则质检机：它输出的是依赖数据分布的概率或分数。现场出现训练集未覆盖的新工况时，配方完全一致也不保证判断正确，仍需漂移监控、拒识与安全状态机。</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>本章讲解</h2>
+      <h3>从产品事件反推数据，而不是从现成数据集寻找用途</h3><p>先写出设备最终要发布的事件、允许的漏报和误报、响应时限以及无法判断时的动作，再据此定义采样窗口和标签。训练集要按设备或采集批次切分，避免同一段连续信号泄漏到训练与测试两侧；负类不能只有“安静背景”，还要包含容易混淆的动作、噪声和传感器异常。每条样本应保留固件版本、采样率与环境元数据，才能在回归时定位数据漂移。</p><h3>把前处理做成可校验的二进制契约</h3><p>PC 训练管线与固件必须对采样率、通道顺序、裁剪窗口、插值方式、颜色空间、归一化常数、舍入和饱和规则逐项一致。不要只比较最终类别；选若干黄金样本，在原始 buffer、预处理浮点张量、量化整数张量三个边界计算摘要并抽查元素。若部署工具要求 int8 输入，还要确认 scale 与 zero-point 的方向，避免把已经量化的数据再次量化。</p><h3>把导出和转换看作编译链，而不是文件另存为</h3><p>训练 checkpoint 先切换推理语义，再导出含固定 I/O 契约的图；转换器随后折叠常量、替换算子、量化并生成目标格式。每一阶段都可能改变布局或数值，因此要锁定工具版本，保存算子清单、输入输出名称和量化参数，并用同一批输入做逐阶段差分。转换成功只证明文件可生成；目标 runtime 没有对应 kernel、发生浮点 fallback 或 shape 超界时仍会失败。</p><h3>让推理成为受调度约束的固件任务</h3><p>设备端需要同时安排传感器生产者、DMA、预处理、推理和事件消费者。采用有界队列并明确满队列策略：实时任务通常丢旧帧比无限等待更合理；推理期间若占用长时间 CPU，应分片、降低频率或喂狗，但不能用喂狗掩盖死锁。arena、模型和 I/O buffer 尽量在初始化期分配，稳态路径避免碎片化；错误分支必须归还帧并发布可观察的降级状态。</p><h3>用四层证据完成部署验收</h3><p>验收依次比较源框架、导出模型、目标 runtime 和真实板端，既测固定黄金向量，也回放整段原始采集。结果至少包含混淆矩阵、按类别阈值曲线、p50/p95 延迟、峰值 arena、长时间运行与异常输入。业务层还要验证迟滞、连续命中次数和冷却时间，避免分数在阈值附近抖动成事件风暴。升级模型或 SDK 后重跑同一清单，才能区分精度回归与系统回归。</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一条样本如何变成设备事件">
+          <div class="process-heading">
+            <div><h3>一条样本如何变成设备事件</h3><p>播放器逐步点亮数据形态和责任边界，并在最后把现场失败样本送回数据集。</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%8E%99%EF%B8%8F%22%2C%22label%22%3A%22%E9%87%87%E9%9B%86%E4%B8%8E%E6%A0%87%E6%B3%A8%22%2C%22data%22%3A%22raw%20window%20%2B%20label%20%2B%20metadata%22%2C%22action%22%3A%22%E6%8C%89%E8%AE%BE%E5%A4%87%E4%B8%8E%E5%9C%BA%E6%99%AF%E8%AE%B0%E5%BD%95%E5%8E%9F%E5%A7%8B%E6%A0%B7%E6%9C%AC%EF%BC%8C%E5%86%BB%E7%BB%93%E6%A0%87%E7%AD%BE%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E6%95%B0%E6%8D%AE%E6%9D%A5%E6%BA%90%E5%86%B3%E5%AE%9A%E6%A8%A1%E5%9E%8B%E8%83%BD%E8%AF%86%E5%88%AB%E7%9A%84%E4%B8%96%E7%95%8C%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">🎙️</span><strong>采集与标注</strong><span>raw window + label + metadata</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%BD%22%2C%22label%22%3A%22%E7%AD%89%E4%BB%B7%E5%89%8D%E5%A4%84%E7%90%86%22%2C%22data%22%3A%22tensor%5Bshape%2C%20dtype%2C%20range%5D%22%2C%22action%22%3A%22%E5%9C%A8%20PC%20%E4%B8%8E%E5%9B%BA%E4%BB%B6%E6%89%A7%E8%A1%8C%E5%90%8C%E4%B8%80%E8%A3%81%E5%89%AA%E3%80%81%E7%BC%A9%E6%94%BE%E5%92%8C%E9%87%8F%E5%8C%96%E8%A7%84%E5%88%99%22%2C%22insight%22%3A%22%E8%BE%93%E5%85%A5%E5%A5%91%E7%BA%A6%E6%AF%94%20API%20%E5%90%8D%E7%A7%B0%E6%9B%B4%E9%87%8D%E8%A6%81%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧽</span><strong>等价前处理</strong><span>tensor[shape, dtype, range]</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A0%22%2C%22label%22%3A%22%E8%AE%AD%E7%BB%83%E4%B8%8E%E5%AF%BC%E5%87%BA%22%2C%22data%22%3A%22checkpoint%20%E2%86%92%20graph%20%E2%86%92%20quantized%20model%22%2C%22action%22%3A%22%E5%9B%BA%E5%AE%9A%E6%8E%A8%E7%90%86%E6%80%81%E5%B9%B6%E9%80%90%E9%98%B6%E6%AE%B5%E6%AF%94%E8%BE%83%E8%BE%93%E5%87%BA%22%2C%22insight%22%3A%22%E6%AF%8F%E6%AC%A1%E8%BD%AC%E6%8D%A2%E9%83%BD%E6%98%AF%E6%BD%9C%E5%9C%A8%E8%AF%AD%E4%B9%89%E8%BE%B9%E7%95%8C%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧠</span><strong>训练与导出</strong><span>checkpoint → graph → quantized model</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%9F%22%2C%22label%22%3A%22%E6%9D%BF%E7%AB%AF%E6%89%A7%E8%A1%8C%22%2C%22data%22%3A%22arena%20%2B%20kernels%20%2B%20latency%22%2C%22action%22%3A%22%E5%8A%A0%E8%BD%BD%E6%A8%A1%E5%9E%8B%E3%80%81%E8%B0%83%E5%BA%A6%20kernel%20%E5%B9%B6%E8%AE%B0%E5%BD%95%E5%86%85%E5%AD%98%E5%92%8C%E9%98%B6%E6%AE%B5%E8%80%97%E6%97%B6%22%2C%22insight%22%3A%22%E8%83%BD%E5%8A%A0%E8%BD%BD%E4%B8%8D%E7%AD%89%E4%BA%8E%E7%A8%B3%E6%80%81%E8%83%BD%E8%BF%90%E8%A1%8C%22%7D">
+                  <span class="process-icon" aria-hidden="true">📟</span><strong>板端执行</strong><span>arena + kernels + latency</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A8%22%2C%22label%22%3A%22%E4%BA%8B%E4%BB%B6%E5%86%B3%E7%AD%96%22%2C%22data%22%3A%22score%20%E2%86%92%20threshold%20%E2%86%92%20state%22%2C%22action%22%3A%22%E5%BA%94%E7%94%A8%E8%BF%9F%E6%BB%9E%E3%80%81%E5%8E%BB%E6%8A%96%E5%92%8C%20fallback%20%E5%90%8E%E5%86%8D%E9%A9%B1%E5%8A%A8%E7%89%A9%E7%90%86%E5%8A%A8%E4%BD%9C%22%2C%22insight%22%3A%22%E6%A8%A1%E5%9E%8B%E5%88%86%E6%95%B0%E4%B8%8D%E6%98%AF%E6%9C%80%E7%BB%88%E6%8E%A7%E5%88%B6%E5%91%BD%E4%BB%A4%22%7D">
+                  <span class="process-icon" aria-hidden="true">🚨</span><strong>事件决策</strong><span>score → threshold → state</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%81%22%2C%22label%22%3A%22%E7%8E%B0%E5%9C%BA%E5%9B%9E%E6%B5%81%22%2C%22data%22%3A%22false%20positive%20%2F%20false%20negative%22%2C%22action%22%3A%22%E4%BF%9D%E5%AD%98%E8%AF%AF%E6%8A%A5%E6%BC%8F%E6%8A%A5%E5%8F%8A%E5%85%B6%E5%8E%9F%E5%A7%8B%E4%B8%8A%E4%B8%8B%E6%96%87%EF%BC%8C%E8%BF%9B%E5%85%A5%E4%B8%8B%E4%B8%80%E8%BD%AE%E6%95%B0%E6%8D%AE%E5%AE%A1%E6%9F%A5%22%2C%22insight%22%3A%22%E9%97%AD%E7%8E%AF%E8%AE%A9%E9%83%A8%E7%BD%B2%E4%BB%8E%E6%BC%94%E7%A4%BA%E5%8F%98%E6%88%90%E5%8F%AF%E7%BB%B4%E6%8A%A4%E7%B3%BB%E7%BB%9F%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔁</span><strong>现场回流</strong><span>false positive / false negative</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>采集与标注 · raw window + label + metadata</h3><p data-process-action>按设备与场景记录原始样本，冻结标签规则</p></div>
+            <div class="process-insight"><span>观察点</span><p data-process-insight>数据来源决定模型能识别的世界</p></div>
+          </div>
+          <p class="process-loop"><strong>循环 / 返回条件：</strong> 现场回流的样本经过人工复核后重新进入“采集与标注”，但旧测试集保持冻结，用来判断新版本是否真的改善。</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← 上一步</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>下一步 →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Sensor → DMA/RingBuffer → Preprocess → Inference → Postprocess → Event/Actuator</pre></details>
+      </section>
+
+
+    <section><h2>代码或命令示例</h2><pre class="code"><code>idf.py build flash monitor
 # 设备端关注：arena、tensor arena、输入归一化、推理耗时
 ESP_LOGI(TAG, &quot;latency=%d ms&quot;, elapsed_ms);</code></pre></section>
-      <section><h2>动手实验</h2><div class="callout">用 IMU/声音/图像任选其一，做一个 2~4 类分类器；在 PC 与 ESP32 上对比输入归一化、延迟和混淆矩阵。</div></section>
-      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>PC 端把 float 图像直接喂给模型而固件端错误地喂 RGB565 或漏掉归一化，是设备准确率突然下降的高频原因。</div></section>
-      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. 设备端精度明显低于 PC 时，最先比对什么？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>网页 CSS</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>前处理：颜色、resize、归一化与量化</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>模型文件的修改时间</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>Wi-Fi SSID</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. Tensor arena 不足通常意味着什么？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>模型一定训练过拟合</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>输入、输出或中间张量无法完成内存分配</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>Flash 分区表被删除</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>网络 API 返回 404</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 何时应把通用 LLM 放到 Linux Edge Host？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>ESP32 有 GPIO 时</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>模型与 KV cache 超出 MCU RAM/算力预算时</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>温度传感器存在时</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>只要使用 USB</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
-      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 入门（官方/原始资料）</a></li><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html" target="_blank" rel="noopener noreferrer">ESP-DL 加载、测试与性能分析（官方/原始资料）</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers（官方/原始资料）</a></li></ul></section>
-      <section><h2>启下：下一章如何使用本章能力</h2><p>下一章将解释为何模型“能跑”仍不够：Flash、SRAM、PSRAM、带宽和 DMA 限制决定它能否长期稳定地跑。</p><p>下一天：<a href="day07.html">Day 7 · 内存与带宽</a></p></section>
-      <div class="nav"><a class="button secondary" href="day05.html">← Day 5</a><a class="button" href="day07.html">Day 7 →</a></div>
-    </article>
-  </main>
+    <section><h2>动手实验</h2><div class="callout">用 IMU/声音/图像任选其一，做一个 2~4 类分类器；在 PC 与 ESP32 上对比输入归一化、延迟和混淆矩阵。</div></section>
+    <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong> PC 端把 float 图像直接喂给模型而固件端错误地喂 RGB565 或漏掉归一化，是设备准确率突然下降的高频原因。</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-6">
+      <h2 id="quiz-title-6">核心测试</h2>
+      <p>完成 3 道单选题后提交；提交前不会显示答案。</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22%E8%AE%BE%E5%A4%87%E7%AB%AF%E7%B2%BE%E5%BA%A6%E6%98%8E%E6%98%BE%E4%BD%8E%E4%BA%8E%20PC%20%E6%97%B6%EF%BC%8C%E6%9C%80%E5%85%88%E6%AF%94%E5%AF%B9%E4%BB%80%E4%B9%88%EF%BC%9F%22%2C%22options%22%3A%5B%22%E7%BD%91%E9%A1%B5%20CSS%22%2C%22%E5%89%8D%E5%A4%84%E7%90%86%EF%BC%9A%E9%A2%9C%E8%89%B2%E3%80%81resize%E3%80%81%E5%BD%92%E4%B8%80%E5%8C%96%E4%B8%8E%E9%87%8F%E5%8C%96%22%2C%22%E6%A8%A1%E5%9E%8B%E6%96%87%E4%BB%B6%E7%9A%84%E4%BF%AE%E6%94%B9%E6%97%B6%E9%97%B4%22%2C%22Wi-Fi%20SSID%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E5%90%8C%E4%B8%80%E4%B8%AA%E6%9D%83%E9%87%8D%E5%9C%A8%E4%B8%8D%E5%90%8C%E8%BE%93%E5%85%A5%E5%88%86%E5%B8%83%E4%B8%8A%E4%BC%9A%E7%BB%99%E5%87%BA%E4%B8%8D%E5%90%8C%E7%BB%93%E6%9E%9C%EF%BC%9B%E5%89%8D%E5%A4%84%E7%90%86%E5%BA%94%E9%80%9A%E8%BF%87%E4%BF%9D%E5%AD%98%E7%9A%84%E6%B5%8B%E8%AF%95%E5%90%91%E9%87%8F%E9%80%90%E9%A1%B9%E5%AF%B9%E9%BD%90%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22Tensor%20arena%20%E4%B8%8D%E8%B6%B3%E9%80%9A%E5%B8%B8%E6%84%8F%E5%91%B3%E7%9D%80%E4%BB%80%E4%B9%88%EF%BC%9F%22%2C%22options%22%3A%5B%22%E6%A8%A1%E5%9E%8B%E4%B8%80%E5%AE%9A%E8%AE%AD%E7%BB%83%E8%BF%87%E6%8B%9F%E5%90%88%22%2C%22%E8%BE%93%E5%85%A5%E3%80%81%E8%BE%93%E5%87%BA%E6%88%96%E4%B8%AD%E9%97%B4%E5%BC%A0%E9%87%8F%E6%97%A0%E6%B3%95%E5%AE%8C%E6%88%90%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%22%2C%22Flash%20%E5%88%86%E5%8C%BA%E8%A1%A8%E8%A2%AB%E5%88%A0%E9%99%A4%22%2C%22%E7%BD%91%E7%BB%9C%20API%20%E8%BF%94%E5%9B%9E%20404%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22LiteRT%20Micro%20%E5%B0%86%E5%BC%A0%E9%87%8F%E6%94%BE%E8%BF%9B%E9%A2%84%E5%88%86%E9%85%8D%20arena%EF%BC%9B%E4%B8%8D%E8%B6%B3%E4%BC%9A%E5%9C%A8%20AllocateTensors%20%E6%88%96%E8%BF%90%E8%A1%8C%E5%89%8D%E5%90%8E%E6%9A%B4%E9%9C%B2%EF%BC%8C%E6%98%AF%E6%A8%A1%E5%9E%8B%E5%B3%B0%E5%80%BC%E5%86%85%E5%AD%98%E9%A2%84%E7%AE%97%E9%97%AE%E9%A2%98%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22%E4%BD%95%E6%97%B6%E5%BA%94%E6%8A%8A%E9%80%9A%E7%94%A8%20LLM%20%E6%94%BE%E5%88%B0%20Linux%20Edge%20Host%EF%BC%9F%22%2C%22options%22%3A%5B%22ESP32%20%E6%9C%89%20GPIO%20%E6%97%B6%22%2C%22%E6%A8%A1%E5%9E%8B%E4%B8%8E%20KV%20cache%20%E8%B6%85%E5%87%BA%20MCU%20RAM%2F%E7%AE%97%E5%8A%9B%E9%A2%84%E7%AE%97%E6%97%B6%22%2C%22%E6%B8%A9%E5%BA%A6%E4%BC%A0%E6%84%9F%E5%99%A8%E5%AD%98%E5%9C%A8%E6%97%B6%22%2C%22%E5%8F%AA%E8%A6%81%E4%BD%BF%E7%94%A8%20USB%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22ESP32%20%E5%8F%AF%E4%BF%9D%E6%8C%81%E9%87%87%E9%9B%86%E3%80%81%E5%8D%8F%E8%AE%AE%E4%B8%8E%E5%AE%89%E5%85%A8%E6%8E%A7%E5%88%B6%EF%BC%9B%E9%80%9A%E7%94%A8%20LLM%20%E7%9A%84%E6%9D%83%E9%87%8D%E5%92%8C%20KV%20cache%20%E9%80%9A%E5%B8%B8%E9%9C%80%E8%A6%81%20Linux%20%E4%B8%BB%E6%9C%BA%E6%88%96%E9%80%82%E9%85%8D%E7%9A%84%E5%8A%A0%E9%80%9F%E5%99%A8%E3%80%82%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. 设备端精度明显低于 PC 时，最先比对什么？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>网页 CSS</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>前处理：颜色、resize、归一化与量化</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>模型文件的修改时间</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>Wi-Fi SSID</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. Tensor arena 不足通常意味着什么？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>模型一定训练过拟合</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>输入、输出或中间张量无法完成内存分配</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>Flash 分区表被删除</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>网络 API 返回 404</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. 何时应把通用 LLM 放到 Linux Edge Host？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>ESP32 有 GPIO 时</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>模型与 KV cache 超出 MCU RAM/算力预算时</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>温度传感器存在时</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>只要使用 USB</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">提交本章测试</button>
+        <button class="button secondary retry-quiz" type="button" hidden>重新作答</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>延伸阅读</h2>
+      <ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/getting_started/readme.html" target="_blank" rel="noopener noreferrer">ESP-DL 入门（官方/原始资料）</a></li><li><a href="https://docs.espressif.com/projects/esp-dl/en/latest/tutorials/how_to_load_test_profile_model.html" target="_blank" rel="noopener noreferrer">ESP-DL 加载、测试与性能分析（官方/原始资料）</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers（官方/原始资料）</a></li></ul>
+    </section>
+
+    <section>
+      <h2>启下：下一章如何使用本章能力</h2>
+      <p>下一章将解释为何模型“能跑”仍不够：Flash、SRAM、PSRAM、带宽和 DMA 限制决定它能否长期稳定地跑。</p>
+      <p>下一天： <a href="/learning_ai/day07.html">Day 7 · 内存与带宽</a></p>
+    </section>
+
+    <nav class="nav" aria-label="学习导航">
+      <a class="button secondary" href="/learning_ai/day05.html">← Day 5</a>
+      <a class="button" href="/learning_ai/day07.html">Day 7 →</a>
+    </nav>
+  </article>
+</main>
+
+
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
-  <script src="content/enrichment-01-05.js"></script>
-  <script src="content/enrichment-06-10.js"></script>
-  <script src="content/enrichment-11-15.js"></script>
-  <script src="app.js"></script>
+  <script src="/learning_ai/app.js" defer></script>
 </body>
 </html>

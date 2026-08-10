@@ -1,0 +1,18 @@
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">{{ copy.fieldGuide }}</div>
+    <h1>{{ copy.heroTitle }}</h1>
+    <p>{{ copy.heroBody }}</p>
+    <a class="button" href="{{ '/day01.html' | locale_url(lang) | url }}">{{ copy.startCourse }}</a>
+  </section>
+  <section class="grid" aria-label="{{ copy.learningNav }}">
+    {% for item in course %}
+      <a class="card" href="{{ ('/day' ~ (item.n | pad2) ~ '.html') | locale_url(lang) | url }}">
+        <span class="tag">DAY {{ item.n | pad2 }}</span>
+        <h2>{{ item.t }}</h2>
+        <p>{{ item.s }}</p>
+        <span class="card-meta">{{ item.readingMinutes }} {{ copy.minutes }} · {{ copy.cardMeta }}</span>
+      </a>
+    {% endfor %}
+  </section>
+</main>

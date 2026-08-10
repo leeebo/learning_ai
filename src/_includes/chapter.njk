@@ -1,0 +1,150 @@
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="{{ copy.learningNav }}">
+    <span class="eyebrow">{{ copy.learningNav }}</span>
+    {% for item in course %}
+      <a class="{% if item.n == day.n %}active{% endif %}" {% if item.n == day.n %}aria-current="page"{% endif %} href="{{ ('/day' ~ (item.n | pad2) ~ '.html') | locale_url(lang) | url }}">Day {{ item.n | pad2 }} · {{ item.t }}</a>
+    {% endfor %}
+  </aside>
+  <article class="content" data-day="{{ day.n }}">
+    <div class="eyebrow">DAY {{ day.n | pad2 }}</div>
+    <h1>{{ day.t }}</h1>
+    <p class="hero-sub">{{ day.s }}</p>
+    <p class="reading-time">{{ copy.suggestedReading }} {{ day.readingMinutes }} {{ copy.minutes }}</p>
+
+    <section>
+      <h2>{{ copy.learningGoal }}</h2>
+      <div class="callout">{{ day.goal }}</div>
+    </section>
+
+    <section>
+      <h2>{{ copy.keywords }}</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>{{ copy.keyword }}</th><th>{{ copy.explanation }}</th><th>{{ copy.espAnalogy }}</th></tr></thead>
+          <tbody>
+            {% for item in day.keywords %}<tr><th scope="row">{{ item.term }}</th><td>{{ item.definition }}</td><td>{{ item.espAnalogy }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>{{ copy.recap }}</h2><p>{{ day.recap }}</p></section>
+
+    {% if day.history %}
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">{{ copy.historyKicker }}</span><h2>{{ copy.historyTitle }}</h2></div>
+        <p class="section-lead">{{ day.history.intro }}</p>
+        <div class="timeline">
+          {% for item in day.history.milestones %}
+            <article class="timeline-item">
+              <div class="timeline-year">{{ item.year }}</div>
+              <div class="timeline-content"><h3>{{ item.title }}</h3><p>{{ item.body }}</p><a href="{{ item.source.url }}" target="_blank" rel="noopener noreferrer">{{ item.source.label }} ↗</a></div>
+            </article>
+          {% endfor %}
+        </div>
+        <div class="history-bridge"><strong>{{ copy.historyBridge }}</strong> {{ day.history.bridge }}</div>
+      </section>
+    {% endif %}
+
+    {% if day.analogyDetail %}
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">{{ copy.analogyKicker }}</span><h2>{{ copy.analogyTitle }}</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>{{ day.analogyDetail.title }}</h3><p>{{ day.analogyDetail.story }}</p></div>
+          <div class="analogy-illustration" aria-label="{{ day.analogyDetail.title }}">
+            {% for item in day.analogyDetail.illustration %}
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">{{ item.icon }}</span>
+                <strong>{{ item.label }}</strong>
+                <span class="analogy-arrow" aria-hidden="true">{% if loop.last %}↔{% else %}→{% endif %}</span>
+                <span>{{ item.mapsTo }}</span>
+              </div>
+            {% endfor %}
+          </div>
+          <p class="analogy-boundary"><strong>{{ copy.analogyBoundary }}</strong> {{ day.analogyDetail.boundary }}</p>
+        </div>
+      </section>
+    {% else %}
+      <section><h2>{{ copy.analogyFallback }}</h2><p>{{ day.analogy }}</p></section>
+    {% endif %}
+
+    <section>
+      <h2>{{ copy.lessonTitle }}</h2>
+      {% for item in day.lesson %}<h3>{{ item.title }}</h3><p>{{ item.body }}</p>{% endfor %}
+    </section>
+
+    {% if day.visual %}
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">{{ copy.processKicker }}</span><h2>{{ copy.processTitle }}</h2></div>
+        <div class="process-visual" data-process-visual data-loop="{% if day.visual.loop == false %}false{% else %}true{% endif %}" role="region" aria-label="{{ day.visual.title }}">
+          <div class="process-heading">
+            <div><h3>{{ day.visual.title }}</h3><p>{{ day.visual.description }}</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>{{ copy.pausePlayback }}</button>
+          </div>
+          <ol class="process-track" style="--step-count:{{ day.visual.steps.length }}">
+            {% for step in day.visual.steps %}
+              <li class="process-step{% if loop.first %} is-active{% endif %}" data-index="{{ loop.index0 }}">
+                <button type="button" class="process-node" data-process-select data-payload="{{ step | encodePayload }}"{% if loop.first %} aria-current="step"{% endif %}>
+                  <span class="process-icon" aria-hidden="true">{{ step.icon }}</span><strong>{{ step.label }}</strong><span>{{ step.data }}</span>
+                </button>
+              </li>
+            {% endfor %}
+          </ol>
+          {% set firstStep = day.visual.steps[0] %}
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>{{ copy.step }} 1 / {{ day.visual.steps.length }}</span><h3 data-process-title>{{ firstStep.label }} · {{ firstStep.data }}</h3><p data-process-action>{{ firstStep.action }}</p></div>
+            <div class="process-insight"><span>{{ copy.observation }}</span><p data-process-insight>{{ firstStep.insight }}</p></div>
+          </div>
+          {% if day.visual.loop is string %}<p class="process-loop"><strong>{{ copy.loopCondition }}</strong> {{ day.visual.loop }}</p>{% endif %}
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>{{ copy.previousStep }}</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:{{ 100 / day.visual.steps.length }}%"></span></div>
+            <button type="button" class="button secondary" data-process-next>{{ copy.nextStep }}</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>{{ copy.staticOverview }}</summary><pre class="diagram">{{ day.diagram }}</pre></details>
+      </section>
+    {% else %}
+      <section><h2>{{ copy.flowchart }}</h2><pre class="diagram">{{ day.diagram }}</pre></section>
+    {% endif %}
+
+    <section><h2>{{ copy.codeExample }}</h2><pre class="code"><code>{{ day.code }}</code></pre></section>
+    <section><h2>{{ copy.lab }}</h2><div class="callout">{{ day.lab }}</div></section>
+    <section><h2>{{ copy.pitfall }}</h2><div class="pitfall"><strong>{{ copy.avoidMisread }}</strong> {{ day.pitfall }}</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-{{ day.n }}">
+      <h2 id="quiz-title-{{ day.n }}">{{ copy.quizTitle }}</h2>
+      <p>{{ copy.quizIntro }}</p>
+      <form class="quiz-form" data-quiz-payload="{{ day.quiz | encodePayload }}" novalidate>
+        {% for question in day.quiz %}
+          <fieldset class="question-card" data-question="{{ loop.index0 }}">
+            <legend>{{ loop.index }}. {{ question.prompt }}</legend>
+            {% set questionIndex = loop.index0 %}
+            {% for option in question.options %}<label class="quiz-option"><input type="radio" name="question-{{ questionIndex }}" value="{{ loop.index0 }}"> <span>{{ option }}</span></label>{% endfor %}
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+        {% endfor %}
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">{{ copy.submitQuiz }}</button>
+        <button class="button secondary retry-quiz" type="button" hidden>{{ copy.retryQuiz }}</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>{{ copy.references }}</h2>
+      <ul class="reference-list">{% for ref in day.references %}<li><a href="{{ ref[1] }}" target="_blank" rel="noopener noreferrer">{{ ref[0] }}{{ copy.sourceSuffix }}</a></li>{% endfor %}</ul>
+    </section>
+
+    <section>
+      <h2>{{ copy.nextPreview }}</h2>
+      <p>{{ day.nextPreview }}</p>
+      {% if day.next %}<p>{{ copy.nextDay }} <a href="{{ ('/day' ~ ((day.n + 1) | pad2) ~ '.html') | locale_url(lang) | url }}">Day {{ day.n + 1 }} · {{ day.next }}</a></p>{% endif %}
+    </section>
+
+    <nav class="nav" aria-label="{{ copy.learningNav }}">
+      {% if day.n > 1 %}<a class="button secondary" href="{{ ('/day' ~ ((day.n - 1) | pad2) ~ '.html') | locale_url(lang) | url }}">{{ copy.previousDay }} {{ day.n - 1 }}</a>{% else %}<span></span>{% endif %}
+      {% if day.n < course.length %}<a class="button" href="{{ ('/day' ~ ((day.n + 1) | pad2) ~ '.html') | locale_url(lang) | url }}">{{ copy.followingDay }} {{ day.n + 1 }} →</a>{% else %}<a class="button" href="{{ '/' | locale_url(lang) | url }}">{{ copy.backHome }}</a>{% endif %}
+    </nav>
+  </article>
+</main>

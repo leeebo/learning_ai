@@ -2,11 +2,12 @@
 
 > 面向已具备 ESP32、FreeRTOS、DMA 和网络协议栈经验的嵌入式开发者，系统进入端侧 AI 与边缘 LLM 工程。
 
-## [进入学习网站](https://leeebo.github.io/learning_ai/)
+## 在线课程
 
-> 网站发布后，可直接从此入口开始 Day 1。若链接暂不可用，请按下方“部署到 GitHub Pages”启用 Pages。
+- [简体中文](https://leeebo.github.io/learning_ai/)
+- [English](https://leeebo.github.io/learning_ai/en/)
 
-这是一个无需构建、无需后端的中文静态学习网站。课程不把 ESP32 误写成通用 LLM 主机：ESP32 负责传感器、实时 I/O、协议与执行器安全边界；较重的推理由 Linux Edge Host 或适配的加速平台承担。
+这是一个由 Eleventy 3 构建的中英双语静态学习网站。课程不把 ESP32 误写成通用 LLM 主机：ESP32 负责传感器、实时 I/O、协议与执行器安全边界；较重的推理由 Linux Edge Host 或适配的加速平台承担。
 
 ## 课程结构
 
@@ -28,47 +29,57 @@
 14. 性能、功耗与尾延迟分析
 15. 端侧 AI 系统整合与验收
 
-每章提供：
+每章提供历史发展时间轴、具象类比与边界说明、交互式数据流动画、静态流程全景图、动手实验、工程陷阱、三道测试题和官方或原始参考资料。中文和英文页面均在构建阶段完整预渲染；禁用 JavaScript 时仍可阅读全部正文和静态流程图。
 
-- 约 16–20 分钟的渐进阅读内容
-- 关键词、解释和 ESP32 工程类比表
-- 至少 4 个带原始/官方来源的历史里程碑，说明概念如何演进到今天
-- 带图解和适用边界的生活化/嵌入式类比
-- 可自动播放、暂停和逐步查看的数据流动画，并保留静态全景图
-- 承上启下说明、动手实验和工程陷阱
-- 3 道单选测试题；提交后显示得分、正确答案和解析
-- 官方文档、项目规范或原始论文的延伸阅读
+## 本地开发
 
-## 本地预览
-
-无需安装依赖：
+需要 Node.js 18 或更新版本。
 
 ```bash
-python3 -m http.server 8000
+npm ci
+npm run serve
 ```
 
-打开 <http://localhost:8000/>，或直接访问 <http://localhost:8000/day01.html>。
+Eleventy 会在终端显示本地预览地址。站点配置了 GitHub Project Pages 的 `/learning_ai/` 路径前缀，请从该入口预览页面。
 
-章节是独立静态页面，范围为 [`day01.html`](day01.html) 到 [`day15.html`](day15.html)。
-
-## 内容更新与验证
-
-课程基础数据与交互逻辑位于 [`app.js`](app.js)，历史、类比、扩展讲解和动画步骤按章节拆分在 `content/enrichment-*.js`。修改内容后，重新生成静态章节页：
+完整验证命令：
 
 ```bash
-node scripts/generate-chapters.cjs
-node --test tests/course-data.test.cjs
+npm run check
 ```
 
-生成器会同步更新 15 个 `dayNN.html` 页面；测试会检查关键词表、章节衔接、历史来源、类比图解、动画步骤、测试题和阅读深度。动画遵循系统的“减少动态效果”设置，关闭自动播放后仍可手动逐步查看。
+该命令会检查 JavaScript 语法、构建 Eleventy、同步发布文件并运行双语数据与页面测试。
+
+## 内容与模板
+
+```text
+src/
+├── _data/
+│   ├── course/          # 中英文 15 章课程数据
+│   └── i18n.cjs         # 两种语言的界面文案
+├── _includes/           # 首页、章节和基础 HTML 模板
+├── zh-CN/               # 中文页面入口，发布到站点根路径
+├── en/                  # 英文页面入口，发布到 /en/
+└── assets/              # 共享交互脚本和样式
+```
+
+修改源数据或模板后运行：
+
+```bash
+npm run build
+npm test
+```
+
+`npm run build` 先生成 `_site/`，确认 32 个双语页面和共享资源完整后，再把部署文件同步到仓库根目录。根目录的 `index.html`、`dayNN.html`、`en/`、`app.js` 和 `styles.css` 都是生成物，不应直接修改。
+
+详细的内容约束、翻译一致性、无障碍要求和新增语言流程见 [AGENTS.md](AGENTS.md)。
 
 ## 部署到 GitHub Pages
 
-1. 将变更合并到 `master`。
-2. 在仓库 `Settings → Pages` 中选择：
-   - Source：`Deploy from a branch`
-   - Branch：`master`
-   - Folder：`/(root)`
-3. 保存并等待 GitHub 发布完成。
+仓库继续提交构建后的静态文件，因此不需要服务器端运行时：
 
-发布地址为 <https://leeebo.github.io/learning_ai/>。
+1. 合并前运行 `npm run check` 并提交同步后的生成文件。
+2. 在仓库 `Settings → Pages` 中选择 `Deploy from a branch`。
+3. 选择 `master` 分支和 `/(root)` 目录。
+
+发布地址为 <https://leeebo.github.io/learning_ai/>，英文入口为 <https://leeebo.github.io/learning_ai/en/>。

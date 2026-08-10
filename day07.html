@@ -4,90 +4,300 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Day 07 · 内存、带宽、MCU/NPU</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="从“能跑”进化到“跑得稳” — 用峰值 RAM、持续带宽和算力预算解释端侧性能，而不是只看参数量。">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/day07.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day07.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day07.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day07.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
 </head>
-<body>
+<body data-ui="%7B%22siteTitle%22%3A%22%E7%AB%AF%E4%BE%A7%20AI%20%C2%B7%2015%20%E5%A4%A9%E5%B7%A5%E7%A8%8B%E8%B7%AF%E7%BA%BF%22%2C%22siteDescription%22%3A%22%E9%9D%A2%E5%90%91%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E5%8F%8C%E8%AF%AD%E8%AF%BE%E7%A8%8B%EF%BC%9A%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E3%80%81%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%88%B0%E5%AE%8C%E6%95%B4%E7%B3%BB%E7%BB%9F%E9%AA%8C%E6%94%B6%E3%80%82%22%2C%22offlineLabel%22%3A%22%E7%A6%BB%E7%BA%BF%E9%9D%99%E6%80%81%E5%AD%A6%E4%B9%A0%E7%BD%91%E7%AB%99%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22%E4%BB%8E%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C%E5%88%B0%E5%8F%AF%E4%BA%A4%E4%BB%98%E7%9A%84%E7%AB%AF%E4%BE%A7%20AI%20%E7%B3%BB%E7%BB%9F%22%2C%22heroBody%22%3A%22%E4%B8%BA%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%E3%80%81%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E8%AE%BE%E8%AE%A1%E3%80%82%E6%AF%8F%E5%A4%A9%E4%B8%80%E4%B8%AA%E4%B8%BB%E9%A2%98%EF%BC%8C%E6%B2%BF%E7%9D%80%E2%80%9C%E6%A8%A1%E5%9E%8B%20%E2%86%92%20%E8%A1%A8%E7%A4%BA%20%E2%86%92%20Runtime%20%E2%86%92%20Kernel%20%E2%86%92%20%E5%86%85%E5%AD%98%2F%E5%B8%A6%E5%AE%BD%20%E2%86%92%20%E7%A1%AC%E4%BB%B6%20%E2%86%92%20%E4%BA%A7%E5%93%81%E2%80%9D%E9%80%90%E5%B1%82%E6%94%B6%E6%9D%9F%EF%BC%9B%E6%AF%8F%E7%AB%A0%E7%94%A8%E5%8E%86%E5%8F%B2%E6%97%B6%E9%97%B4%E8%BD%B4%E8%AF%B4%E6%98%8E%E6%9D%A5%E8%B7%AF%EF%BC%8C%E7%94%A8%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%EF%BC%8C%E5%86%8D%E8%AE%A9%E6%95%B0%E6%8D%AE%E5%9C%A8%E5%8F%AF%E4%BA%A4%E4%BA%92%E5%8A%A8%E7%94%BB%E9%87%8C%E7%9C%9F%E6%AD%A3%E8%B7%91%E4%B8%80%E9%81%8D%E3%80%82%22%2C%22startCourse%22%3A%22%E4%BB%8E%20Day%201%20%E5%BC%80%E5%A7%8B%20%E2%86%92%22%2C%22cardMeta%22%3A%22%E5%8E%86%E5%8F%B2%20%2B%20%E5%9B%BE%E8%A7%A3%20%2B%20%E5%8A%A8%E7%94%BB%22%2C%22minutes%22%3A%22%E5%88%86%E9%92%9F%22%2C%22languageSwitch%22%3A%22English%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20English%22%2C%22home%22%3A%22%E7%9B%AE%E5%BD%95%E9%A6%96%E9%A1%B5%22%2C%22learningNav%22%3A%22%E5%AD%A6%E4%B9%A0%E5%AF%BC%E8%88%AA%22%2C%22suggestedReading%22%3A%22%E5%BB%BA%E8%AE%AE%E9%98%85%E8%AF%BB%EF%BC%9A%E7%BA%A6%22%2C%22learningGoal%22%3A%22%E5%AD%A6%E4%B9%A0%E7%9B%AE%E6%A0%87%22%2C%22keywords%22%3A%22%E6%9C%AC%E7%AB%A0%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22keyword%22%3A%22%E5%85%B3%E9%94%AE%E8%AF%8D%22%2C%22explanation%22%3A%22%E8%A7%A3%E9%87%8A%22%2C%22espAnalogy%22%3A%22ESP32%20%E5%B7%A5%E7%A8%8B%E7%B1%BB%E6%AF%94%22%2C%22recap%22%3A%22%E6%89%BF%E4%B8%8A%EF%BC%9A%E5%9B%9E%E9%A1%BE%E4%B8%8E%E5%AE%9A%E4%BD%8D%22%2C%22historyKicker%22%3A%22%E4%BB%8E%E6%BA%90%E5%A4%B4%E7%9C%8B%E4%BB%8A%E5%A4%A9%22%2C%22historyTitle%22%3A%22%E5%8E%86%E5%8F%B2%E5%8F%91%E5%B1%95%E8%84%89%E7%BB%9C%22%2C%22historyBridge%22%3A%22%E4%BB%8A%E5%A4%A9%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BB%8D%E7%84%B6%E9%87%8D%E8%A6%81%EF%BC%9A%22%2C%22analogyKicker%22%3A%22%E5%80%9F%E7%86%9F%E6%82%89%E7%9A%84%E7%B3%BB%E7%BB%9F%E5%BB%BA%E7%AB%8B%E7%9B%B4%E8%A7%89%22%2C%22analogyTitle%22%3A%22%E7%B1%BB%E6%AF%94%E5%9B%BE%E8%A7%A3%22%2C%22analogyFallback%22%3A%22%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B1%BB%E6%AF%94%22%2C%22analogyBoundary%22%3A%22%E7%B1%BB%E6%AF%94%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%9A%22%2C%22lessonTitle%22%3A%22%E6%9C%AC%E7%AB%A0%E8%AE%B2%E8%A7%A3%22%2C%22processKicker%22%3A%22%E8%AE%A9%E6%95%B0%E6%8D%AE%E7%9C%9F%E6%AD%A3%E8%B7%91%E8%B5%B7%E6%9D%A5%22%2C%22processTitle%22%3A%22%E5%8A%A8%E6%80%81%E8%BF%87%E7%A8%8B%E6%BC%94%E7%A4%BA%22%2C%22pausePlayback%22%3A%22%E6%9A%82%E5%81%9C%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22reducedMotion%22%3A%22%E7%B3%BB%E7%BB%9F%E5%B7%B2%E5%87%8F%E5%B0%91%E5%8A%A8%E6%80%81%E6%95%88%E6%9E%9C%22%2C%22restartPlayback%22%3A%22%E4%BB%8E%E5%A4%B4%E6%92%AD%E6%94%BE%22%2C%22resumePlayback%22%3A%22%E7%BB%A7%E7%BB%AD%E8%87%AA%E5%8A%A8%E6%92%AD%E6%94%BE%22%2C%22step%22%3A%22%E6%AD%A5%E9%AA%A4%22%2C%22observation%22%3A%22%E8%A7%82%E5%AF%9F%E7%82%B9%22%2C%22loopCondition%22%3A%22%E5%BE%AA%E7%8E%AF%20%2F%20%E8%BF%94%E5%9B%9E%E6%9D%A1%E4%BB%B6%EF%BC%9A%22%2C%22previousStep%22%3A%22%E2%86%90%20%E4%B8%8A%E4%B8%80%E6%AD%A5%22%2C%22nextStep%22%3A%22%E4%B8%8B%E4%B8%80%E6%AD%A5%20%E2%86%92%22%2C%22switchedStep%22%3A%22%E5%B7%B2%E5%88%87%E6%8D%A2%E5%88%B0%E6%AD%A5%E9%AA%A4%22%2C%22staticOverview%22%3A%22%E6%9F%A5%E7%9C%8B%E9%9D%99%E6%80%81%E5%85%A8%E6%99%AF%E5%9B%BE%22%2C%22flowchart%22%3A%22%E6%B5%81%E7%A8%8B%E5%9B%BE%22%2C%22codeExample%22%3A%22%E4%BB%A3%E7%A0%81%E6%88%96%E5%91%BD%E4%BB%A4%E7%A4%BA%E4%BE%8B%22%2C%22lab%22%3A%22%E5%8A%A8%E6%89%8B%E5%AE%9E%E9%AA%8C%22%2C%22pitfall%22%3A%22%E5%B7%A5%E7%A8%8B%E9%99%B7%E9%98%B1%22%2C%22avoidMisread%22%3A%22%E9%81%BF%E5%85%8D%E8%AF%AF%E5%88%A4%EF%BC%9A%22%2C%22quizTitle%22%3A%22%E6%A0%B8%E5%BF%83%E6%B5%8B%E8%AF%95%22%2C%22quizIntro%22%3A%22%E5%AE%8C%E6%88%90%203%20%E9%81%93%E5%8D%95%E9%80%89%E9%A2%98%E5%90%8E%E6%8F%90%E4%BA%A4%EF%BC%9B%E6%8F%90%E4%BA%A4%E5%89%8D%E4%B8%8D%E4%BC%9A%E6%98%BE%E7%A4%BA%E7%AD%94%E6%A1%88%E3%80%82%22%2C%22submitQuiz%22%3A%22%E6%8F%90%E4%BA%A4%E6%9C%AC%E7%AB%A0%E6%B5%8B%E8%AF%95%22%2C%22retryQuiz%22%3A%22%E9%87%8D%E6%96%B0%E4%BD%9C%E7%AD%94%22%2C%22completeQuestion%22%3A%22%E8%AF%B7%E5%85%88%E5%AE%8C%E6%88%90%E7%AC%AC%22%2C%22questionSuffix%22%3A%22%E9%A2%98%E3%80%82%22%2C%22correct%22%3A%22%E5%9B%9E%E7%AD%94%E6%AD%A3%E7%A1%AE%E3%80%82%22%2C%22incorrect%22%3A%22%E5%9B%9E%E7%AD%94%E9%94%99%E8%AF%AF%E3%80%82%22%2C%22correctAnswer%22%3A%22%E6%AD%A3%E7%A1%AE%E7%AD%94%E6%A1%88%EF%BC%9A%22%2C%22quizScore%22%3A%22%E6%9C%AC%E7%AB%A0%E5%BE%97%E5%88%86%EF%BC%9A%22%2C%22quizAdvice%22%3A%22%E8%AF%B7%E9%98%85%E8%AF%BB%E6%AF%8F%E9%A2%98%E8%A7%A3%E6%9E%90%EF%BC%8C%E5%86%8D%E5%86%B3%E5%AE%9A%E6%98%AF%E5%90%A6%E9%87%8D%E5%81%9A%E3%80%82%22%2C%22references%22%3A%22%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB%22%2C%22sourceSuffix%22%3A%22%EF%BC%88%E5%AE%98%E6%96%B9%2F%E5%8E%9F%E5%A7%8B%E8%B5%84%E6%96%99%EF%BC%89%22%2C%22nextPreview%22%3A%22%E5%90%AF%E4%B8%8B%EF%BC%9A%E4%B8%8B%E4%B8%80%E7%AB%A0%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E6%9C%AC%E7%AB%A0%E8%83%BD%E5%8A%9B%22%2C%22nextDay%22%3A%22%E4%B8%8B%E4%B8%80%E5%A4%A9%EF%BC%9A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22%E5%9B%9E%E5%88%B0%E9%A6%96%E9%A1%B5%22%2C%22footer%22%3A%22%E7%A6%BB%E7%BA%BF%E5%8F%AF%E7%94%A8%20%C2%B7%20%E9%9D%A2%E5%90%91%E7%86%9F%E6%82%89%20ESP32%E3%80%81USB%20%E4%B8%8E%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%22%2C%22homeFooter%22%3A%2215%20%E5%A4%A9%20%C2%B7%2015%20%E4%B8%AA%E7%8B%AC%E7%AB%8B%E9%A1%B5%E9%9D%A2%20%C2%B7%20%E4%B8%AD%E8%8B%B1%E5%8F%8C%E8%AF%AD%20%C2%B7%20%E6%97%A0%E8%BF%90%E8%A1%8C%E6%97%B6%E4%BE%9D%E8%B5%96%22%2C%22noscriptHome%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9B%E7%AB%A0%E8%8A%82%E7%9B%AE%E5%BD%95%E4%BB%8D%E5%8F%AF%E4%BD%BF%E7%94%A8%EF%BC%8C%E8%BF%9B%E5%85%A5%E7%AB%A0%E8%8A%82%E5%90%8E%E5%8F%AF%E9%98%85%E8%AF%BB%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E3%80%82%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%2C%22noscriptDay%22%3A%22%E5%BD%93%E5%89%8D%E4%B8%BA%E9%9D%99%E6%80%81%E9%98%85%E8%AF%BB%E6%A8%A1%E5%BC%8F%EF%BC%9A%E5%8E%86%E5%8F%B2%E3%80%81%E7%B1%BB%E6%AF%94%E3%80%81%E6%AD%A3%E6%96%87%E4%B8%8E%E5%B1%95%E5%BC%80%E7%9A%84%E6%B5%81%E7%A8%8B%E5%85%A8%E6%99%AF%E5%9B%BE%E4%BB%8D%E5%8F%AF%E9%98%85%E8%AF%BB%EF%BC%9B%E5%8A%A8%E6%80%81%E6%BC%94%E7%A4%BA%E5%92%8C%E6%B5%8B%E8%AF%95%E8%AF%84%E5%88%86%E9%9C%80%E8%A6%81%E5%90%AF%E7%94%A8%20JavaScript%E3%80%82%22%7D">
   <noscript>
     <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
     <div class="noscript-banner">当前为静态阅读模式：历史、类比、正文与展开的流程全景图仍可阅读；动态演示和测试评分需要启用 JavaScript。</div>
   </noscript>
-  <header class="top"><div class="brand">端侧 AI · 15 天工程路线</div><a href="index.html">目录首页</a></header>
-  <main class="wrap day-layout">
-    <aside class="toc panel"><span class="eyebrow">学习导航</span><a class="" href="day01.html">Day 01 · 神经网络基础</a><a class="" href="day02.html">Day 02 · 训练与推理</a><a class="" href="day03.html">Day 03 · 模型格式</a><a class="" href="day04.html">Day 04 · 量化</a><a class="" href="day05.html">Day 05 · 算子</a><a class="" href="day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a><a class="active" href="day07.html">Day 07 · 内存、带宽、MCU/NPU</a><a class="" href="day08.html">Day 08 · 端侧视觉模型</a><a class="" href="day09.html">Day 09 · Tokenizer</a><a class="" href="day10.html">Day 10 · KV Cache</a><a class="" href="day11.html">Day 11 · LLM Runtime</a><a class="" href="day12.html">Day 12 · LLM 量化与 GGUF</a><a class="" href="day13.html">Day 13 · 端侧 LLM 推理框架</a><a class="" href="day14.html">Day 14 · 性能分析</a><a class="" href="day15.html">Day 15 · 整合：端侧 AI 工程链路</a></aside>
-    <article class="content" data-day="7">
-      <div class="eyebrow">DAY 07</div>
-      <h1>内存、带宽、MCU/NPU</h1>
-      <p class="hero-sub">从“能跑”进化到“跑得稳”</p>
-      <p class="reading-time">建议阅读：约 18 分钟</p>
-      <section><h2>学习目标</h2><div class="callout">用峰值 RAM、持续带宽和算力预算解释端侧性能，而不是只看参数量。</div></section>
-      <section><h2>本章关键词</h2><div class="table-scroll"><table class="keyword-table"><thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead><tbody><tr><th scope="row">峰值活跃内存</th><td>某一时刻同时需要保留的所有 buffer 总量。</td><td>像任务切换时同时占用的栈与 DMA 描述符。</td></tr><tr><th scope="row">带宽</th><td>单位时间可搬运的数据量。</td><td>像 SPI/I2S 总线吞吐，快算力也会等数据。</td></tr><tr><th scope="row">PSRAM</th><td>通过外部接口连接的大容量 RAM。</td><td>像扩展仓库，容量大但访问和 DMA 规则不同。</td></tr><tr><th scope="row">Delegate</th><td>将支持子图交给专用加速器的后端机制。</td><td>像把支持的外设请求转交给协处理器。</td></tr></tbody></table></div></section>
-      <section><h2>承上：回顾与定位</h2><p>上一章证明了一个小模型的功能闭环。本章把关注点从准确率转到资源预算：哪些 buffer 同时活着、数据搬运是否成为瓶颈、NPU delegate 是否真的被使用。</p></section>
-      <section class="history-section" id="history"><div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div><p class="section-lead">端侧性能史反复证明：乘加单元只是厨房里的炉灶，数据怎样到达炉灶、在哪里暂存、是否反复搬运，往往更决定吞吐与能耗。MCU/NPU 工程因此从“数 FLOPs”走向“联合规划计算与数据流”。</p><div class="timeline"><article class="timeline-item">
-    <div class="timeline-year">1982</div>
-    <div class="timeline-content"><h3>脉动阵列让数据在计算单元间流动</h3><p>H. T. Kung 系统阐述脉动架构：规则排列的处理单元按节拍复用并传递数据，为后来矩阵加速器的数据流设计奠定重要基础。</p><a href="https://doi.org/10.1109/MC.1982.1653825" target="_blank" rel="noopener noreferrer">Why Systolic Architectures 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2009</div>
-    <div class="timeline-content"><h3>Roofline 把算力上限与带宽上限画在一起</h3><p>Roofline 用运算强度连接峰值计算和可持续内存带宽，使“该优化算术还是减少搬运”成为可以测量和讨论的问题。</p><a href="https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf" target="_blank" rel="noopener noreferrer">UC Berkeley Roofline 原始报告 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2016</div>
-    <div class="timeline-content"><h3>Eyeriss 量化了数据移动的能耗代价</h3><p>Eyeriss 提出 row-stationary 数据流，利用局部存储和处理单元间通信复用权重、激活与部分和，强调少搬数据本身就是加速。</p><a href="https://research.nvidia.com/publication/2016-06_eyeriss-spatial-architecture-energy-efficient-dataflow-convolutional-neural" target="_blank" rel="noopener noreferrer">Eyeriss 原始论文页面 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2018</div>
-    <div class="timeline-content"><h3>MCU kernel 同时优化时间和工作区</h3><p>CMSIS-NN 展示 SIMD、定点计算与部分 im2col 如何在 Cortex-M 上提高吞吐并降低内存占用，说明 kernel 选择会改变峰值工作集。</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">CMSIS-NN 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">2020</div>
-    <div class="timeline-content"><h3>MCUNet 把网络与推理引擎协同设计</h3><p>MCUNet 用 TinyNAS 在设备约束内搜索网络，并让 TinyEngine 按整图生命周期调度内存，推动模型、runtime 和硬件联合优化。</p><a href="https://arxiv.org/abs/2007.10319" target="_blank" rel="noopener noreferrer">MCUNet 原始论文 ↗</a></div>
-  </article><article class="timeline-item">
-    <div class="timeline-year">现在</div>
-    <div class="timeline-content"><h3>内存能力与一致性成为显式 API</h3><p>ESP-IDF 通过 capability allocator 区分 DMA、字节访问等内存属性；在带 cache 与 DMA 的芯片上，还必须显式处理同步和所有权。</p><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/mem_alloc.html" target="_blank" rel="noopener noreferrer">ESP-IDF 官方内存分配文档 ↗</a></div>
-  </article></div><div class="history-bridge"><strong>今天为什么仍然重要：</strong>今天的资源分析应同时回答四个问题：哪些 buffer 同时活跃、每个字节跨过几次总线、每段子图由谁执行、测到的瓶颈是否随输入和温度变化。只报参数量或峰值 TOPS 会漏掉最昂贵的路径。</div></section>
-      <section class="analogy-section" id="analogy"><div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div><div class="analogy-card"><div class="analogy-copy"><h3>晚餐高峰期的一间小餐馆</h3><p>冷库里食材很多，不代表厨房能同时做很多桌菜。切配台面积决定多少盘子能同时摊开，狭窄过道决定服务员搬菜的速度，专用烤炉虽然很快，却只接收合适的烤盘；每次把菜改盘、送进送出都会消耗时间。</p></div><div class="analogy-illustration" aria-label="晚餐高峰期的一间小餐馆"><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🧊</span>
-    <strong>外部冷库</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>Flash/PSRAM 中容量大但访问代价更高的权重和数据</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🔪</span>
-    <strong>切配台</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>内部 SRAM 中同时活跃的输入、输出与 workspace</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🛎️</span>
-    <strong>传菜过道</strong>
-    <span class="analogy-arrow" aria-hidden="true">→</span>
-    <span>内存总线、DMA、cache line 与持续带宽</span>
-  </div><div class="analogy-piece">
-    <span class="analogy-icon" aria-hidden="true">🔥</span>
-    <strong>专用烤炉</strong>
-    <span class="analogy-arrow" aria-hidden="true">↔</span>
-    <span>只支持部分算子、布局与 dtype 的 NPU delegate</span>
-  </div></div><p class="analogy-boundary"><strong>类比的边界：</strong>餐馆类比适合解释容量、吞吐和换盘成本，但真实存储层次并非互斥房间：cache 会自动替换，DMA 与 CPU 还可能并发访问同一物理内存。是否需要 flush、invalidate 或对齐，必须以芯片手册和实测为准。</p></div></section>
-      <section><h2>本章讲解</h2><h3>峰值内存来自生命周期重叠，不是文件大小相加</h3><p>为计算图列出每个 tensor 的产生节点、最后一次消费、大小和内存能力，画出活跃区间后才能求峰值。权重常可留在映射 Flash，激活、累加器和 kernel workspace 却可能在同一层同时存在；相机双缓冲、任务栈和网络包也要纳入系统峰值。规划器能复用生命周期不重叠的区域，但动态 shape、分支与 fallback 会改变计划，必须用运行时 high-water mark 校验静态估算。</p><h3>用运算强度判断等待的是乘加器还是内存</h3><p>粗算每个算子执行的 MAC 与从慢层级搬运的字节，得到“每字节做多少运算”的直觉；低运算强度路径更可能受带宽约束。提高主频或增加 NPU 单元只有在计算受限时才直接见效，带宽受限时应优先融合算子、分块复用、避免中间张量落地和改变布局。理论带宽是上限，连续读写、cache miss、总线争用与刷新协议决定可持续值，所以必须用接近真实访问模式的基准测量。</p><h3>零拷贝是一份所有权协议，不是一处指针转换</h3><p>让相机 DMA 写入模型输入可省一次复制，但前提是 buffer 的地址能力、对齐、stride、cache 一致性和生命周期都满足双方要求。CPU 在 DMA 完成前不能读取，DMA 复用前推理也必须释放；带 cache 的系统还需在正确方向做同步。建议用明确状态机标记 FREE、FILLING、READY、IN_USE，并把超时与丢帧计数写入日志。没有这些约束的“零拷贝”常变成偶发撕裂或陈旧数据。</p><h3>NPU 加速要看整个分区边界的净收益</h3><p>delegate 会按算子、shape、dtype 和布局能力切分子图。若只有中间几层被接管，CPU→NPU 的量化、layout transform、buffer copy 与同步可能吞掉 kernel 节省的时间；不支持节点还可能静默 fallback。检查运行时分区日志，分别计时加速子图和边界转换，并与纯 CPU 基线比较。选择模型时宁可让较小网络完整落入 NPU，也不要只依据宣称 TOPS 选择产生碎片化分区的大网络。</p><h3>以稳态曲线而不是单次最快值验收资源方案</h3><p>在固定输入、频率和编译选项下预热，再记录各阶段周期、总线或 cache 计数、峰值堆和功耗；逐步改变分辨率与采样率，画出延迟和内存曲线。连续运行要覆盖 Wi‑Fi、摄像头与 OTA 等竞争负载，并观察热降频和尾延迟。优化前后若输出发生变化，应先做数值一致性检查。最终预算要留出碎片、异常日志和固件升级余量，而不是把实验室空闲内存全部承诺给模型。</p></section>
-      <section class="visual-section" id="process"><div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div><div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一块激活张量的资源旅行">
-    <div class="process-heading"><div><h3>一块激活张量的资源旅行</h3><p>每一步显示张量所在层级、发生的搬运和此刻真正限制吞吐的资源。</p></div><button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button></div>
-    <ol class="process-track" style="--step-count:6"><li class="process-step is-active" data-index="0"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%97%84%EF%B8%8F%22%2C%22label%22%3A%22%E5%8F%96%E5%BE%97%E6%9D%83%E9%87%8D%22%2C%22data%22%3A%22Flash%2FPSRAM%20%E2%86%92%20cache%22%2C%22action%22%3A%22%E6%8C%89%20tile%20%E8%AF%BB%E5%8F%96%E6%9C%AC%E8%BD%AE%E9%9C%80%E8%A6%81%E7%9A%84%E6%9D%83%E9%87%8D%22%2C%22insight%22%3A%22%E5%AE%B9%E9%87%8F%E5%A4%9F%E7%94%A8%E4%BB%8D%E5%8F%AF%E8%83%BD%E8%A2%AB%E6%85%A2%E5%B1%82%E7%BA%A7%E5%B8%A6%E5%AE%BD%E9%99%90%E5%88%B6%22%7D" aria-current="step"><span class="process-icon" aria-hidden="true">🗄️</span><strong>取得权重</strong><span>Flash/PSRAM → cache</span></button></li><li class="process-step" data-index="1"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E6%8E%A5%E6%94%B6%E8%BE%93%E5%85%A5%22%2C%22data%22%3A%22DMA%20buffer%20%E2%86%92%20SRAM%22%2C%22action%22%3A%22%E7%A1%AE%E8%AE%A4%E5%AF%B9%E9%BD%90%E3%80%81%E6%89%80%E6%9C%89%E6%9D%83%E5%B9%B6%E5%90%8C%E6%AD%A5%20cache%22%2C%22insight%22%3A%22%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%85%88%E6%98%AF%E4%B8%80%E4%BB%BD%E4%B8%80%E8%87%B4%E6%80%A7%E5%A5%91%E7%BA%A6%22%7D"><span class="process-icon" aria-hidden="true">📥</span><strong>接收输入</strong><span>DMA buffer → SRAM</span></button></li><li class="process-step" data-index="2"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22%E8%A7%84%E5%88%92%E6%B4%BB%E8%B7%83%E5%8C%BA%22%2C%22data%22%3A%22input%20%2B%20output%20%2B%20workspace%22%2C%22action%22%3A%22%E6%A0%B9%E6%8D%AE%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E5%A4%8D%E7%94%A8%E4%B8%8D%E9%87%8D%E5%8F%A0%E5%8C%BA%E5%9F%9F%22%2C%22insight%22%3A%22%E5%B3%B0%E5%80%BC%E7%94%B1%E5%90%8C%E4%B8%80%E6%97%B6%E5%88%BB%E7%9A%84%E5%B7%A5%E4%BD%9C%E9%9B%86%E5%86%B3%E5%AE%9A%22%7D"><span class="process-icon" aria-hidden="true">🧩</span><strong>规划活跃区</strong><span>input + output + workspace</span></button></li><li class="process-step" data-index="3"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22%E6%89%A7%E8%A1%8C%20kernel%22%2C%22data%22%3A%22tile%20%C3%97%20weights%20%E2%86%92%20partial%20sums%22%2C%22action%22%3A%22%E5%9C%A8%E5%AF%84%E5%AD%98%E5%99%A8%E5%92%8C%E5%B1%80%E9%83%A8%E5%AD%98%E5%82%A8%E4%B8%AD%E5%B0%BD%E9%87%8F%E5%A4%8D%E7%94%A8%E6%95%B0%E6%8D%AE%22%2C%22insight%22%3A%22%E5%B0%91%E6%90%AC%E4%B8%80%E6%AC%A1%E5%8F%AF%E8%83%BD%E6%AF%94%E5%A4%9A%E5%81%9A%E5%87%A0%E6%AC%A1%20MAC%20%E6%9B%B4%E5%88%92%E7%AE%97%22%7D"><span class="process-icon" aria-hidden="true">⚙️</span><strong>执行 kernel</strong><span>tile × weights → partial sums</span></button></li><li class="process-step" data-index="4"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A7%22%2C%22label%22%3A%22%E8%B7%A8%E5%90%8E%E7%AB%AF%E8%BE%B9%E7%95%8C%22%2C%22data%22%3A%22CPU%20layout%20%E2%86%94%20NPU%20layout%22%2C%22action%22%3A%22%E8%BD%AC%E6%8D%A2%20dtype%2F%E5%B8%83%E5%B1%80%E5%B9%B6%E5%90%8C%E6%AD%A5%E5%AD%90%E5%9B%BE%22%2C%22insight%22%3A%22delegate%20%E8%BE%B9%E7%95%8C%E6%9C%89%E5%8F%AF%E8%A7%81%E7%9A%84%E9%80%9A%E8%A1%8C%E8%B4%B9%22%7D"><span class="process-icon" aria-hidden="true">🚧</span><strong>跨后端边界</strong><span>CPU layout ↔ NPU layout</span></button></li><li class="process-step" data-index="5"><button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%88%22%2C%22label%22%3A%22%E6%B5%8B%E9%87%8F%E5%B9%B6%E9%87%8D%E6%8E%92%22%2C%22data%22%3A%22cycles%20%2B%20bytes%20%2B%20peak%20RAM%22%2C%22action%22%3A%22%E7%94%A8%E5%AE%9E%E6%B5%8B%E7%93%B6%E9%A2%88%E9%80%89%E6%8B%A9%E8%9E%8D%E5%90%88%E3%80%81%E5%88%86%E5%9D%97%E6%88%96%E9%99%8D%E5%88%86%E8%BE%A8%E7%8E%87%22%2C%22insight%22%3A%22%E4%BC%98%E5%8C%96%E5%AF%B9%E8%B1%A1%E5%BA%94%E7%94%B1%E8%AF%81%E6%8D%AE%E8%80%8C%E4%B8%8D%E6%98%AF%20TOPS%20%E5%86%B3%E5%AE%9A%22%7D"><span class="process-icon" aria-hidden="true">📈</span><strong>测量并重排</strong><span>cycles + bytes + peak RAM</span></button></li></ol>
-    <div class="process-detail"><div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>取得权重 · Flash/PSRAM → cache</h3><p data-process-action>按 tile 读取本轮需要的权重</p></div><div class="process-insight"><span>观察点</span><p data-process-insight>容量够用仍可能被慢层级带宽限制</p></div></div>
-    <p class="process-loop"><strong>循环 / 返回条件：</strong>测量结果返回内存规划：若带宽占主导就减少搬运，若工作集溢出就缩小 tile 或输入，若计算饱和才替换更快 kernel。</p>
-    <div class="process-controls"><button type="button" class="button secondary" data-process-prev>← 上一步</button><div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div><button type="button" class="button secondary" data-process-next>下一步 →</button></div>
-    <p class="sr-only" aria-live="polite" data-process-status></p>
-  </div><details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Flash weights ─mmap/copy─► RAM/PSRAM ─► cache ─► MAC unit
-                              ▲ DMA / zero-copy</pre></details></section>
-      <section><h2>代码或命令示例</h2><pre class="code"><code>peak = weights + activations + workspace + io_buffers
+  <header class="top">
+    <div class="brand">端侧 AI · 15 天工程路线</div>
+    <div class="top-actions">
+      <a href="/learning_ai/">目录首页</a>
+
+        <a class="language-switch" href="/learning_ai/en/day07.html" lang="en" hreflang="en" aria-label="Switch to English">English</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <aside class="toc panel" aria-label="学习导航">
+    <span class="eyebrow">学习导航</span>
+
+      <a class=""  href="/learning_ai/day01.html">Day 01 · 神经网络基础</a>
+
+      <a class=""  href="/learning_ai/day02.html">Day 02 · 训练与推理</a>
+
+      <a class=""  href="/learning_ai/day03.html">Day 03 · 模型格式</a>
+
+      <a class=""  href="/learning_ai/day04.html">Day 04 · 量化</a>
+
+      <a class=""  href="/learning_ai/day05.html">Day 05 · 算子</a>
+
+      <a class=""  href="/learning_ai/day06.html">Day 06 · 非 LLM 端侧模型训练与部署</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/day07.html">Day 07 · 内存、带宽、MCU/NPU</a>
+
+      <a class=""  href="/learning_ai/day08.html">Day 08 · 端侧视觉模型</a>
+
+      <a class=""  href="/learning_ai/day09.html">Day 09 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/day10.html">Day 10 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/day11.html">Day 11 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/day12.html">Day 12 · LLM 量化与 GGUF</a>
+
+      <a class=""  href="/learning_ai/day13.html">Day 13 · 端侧 LLM 推理框架</a>
+
+      <a class=""  href="/learning_ai/day14.html">Day 14 · 性能分析</a>
+
+      <a class=""  href="/learning_ai/day15.html">Day 15 · 整合：端侧 AI 工程链路</a>
+
+  </aside>
+  <article class="content" data-day="7">
+    <div class="eyebrow">DAY 07</div>
+    <h1>内存、带宽、MCU/NPU</h1>
+    <p class="hero-sub">从“能跑”进化到“跑得稳”</p>
+    <p class="reading-time">建议阅读：约 18 分钟</p>
+
+    <section>
+      <h2>学习目标</h2>
+      <div class="callout">用峰值 RAM、持续带宽和算力预算解释端侧性能，而不是只看参数量。</div>
+    </section>
+
+    <section>
+      <h2>本章关键词</h2>
+      <div class="table-scroll">
+        <table class="keyword-table">
+          <thead><tr><th>关键词</th><th>解释</th><th>ESP32 工程类比</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">峰值活跃内存</th><td>某一时刻同时需要保留的所有 buffer 总量。</td><td>像任务切换时同时占用的栈与 DMA 描述符。</td></tr><tr><th scope="row">带宽</th><td>单位时间可搬运的数据量。</td><td>像 SPI/I2S 总线吞吐，快算力也会等数据。</td></tr><tr><th scope="row">PSRAM</th><td>通过外部接口连接的大容量 RAM。</td><td>像扩展仓库，容量大但访问和 DMA 规则不同。</td></tr><tr><th scope="row">Delegate</th><td>将支持子图交给专用加速器的后端机制。</td><td>像把支持的外设请求转交给协处理器。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section><h2>承上：回顾与定位</h2><p>上一章证明了一个小模型的功能闭环。本章把关注点从准确率转到资源预算：哪些 buffer 同时活着、数据搬运是否成为瓶颈、NPU delegate 是否真的被使用。</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">从源头看今天</span><h2>历史发展脉络</h2></div>
+        <p class="section-lead">端侧性能史反复证明：乘加单元只是厨房里的炉灶，数据怎样到达炉灶、在哪里暂存、是否反复搬运，往往更决定吞吐与能耗。MCU/NPU 工程因此从“数 FLOPs”走向“联合规划计算与数据流”。</p>
+        <div class="timeline">
+
+            <article class="timeline-item">
+              <div class="timeline-year">1982</div>
+              <div class="timeline-content"><h3>脉动阵列让数据在计算单元间流动</h3><p>H. T. Kung 系统阐述脉动架构：规则排列的处理单元按节拍复用并传递数据，为后来矩阵加速器的数据流设计奠定重要基础。</p><a href="https://doi.org/10.1109/MC.1982.1653825" target="_blank" rel="noopener noreferrer">Why Systolic Architectures 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2009</div>
+              <div class="timeline-content"><h3>Roofline 把算力上限与带宽上限画在一起</h3><p>Roofline 用运算强度连接峰值计算和可持续内存带宽，使“该优化算术还是减少搬运”成为可以测量和讨论的问题。</p><a href="https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf" target="_blank" rel="noopener noreferrer">UC Berkeley Roofline 原始报告 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2016</div>
+              <div class="timeline-content"><h3>Eyeriss 量化了数据移动的能耗代价</h3><p>Eyeriss 提出 row-stationary 数据流，利用局部存储和处理单元间通信复用权重、激活与部分和，强调少搬数据本身就是加速。</p><a href="https://research.nvidia.com/publication/2016-06_eyeriss-spatial-architecture-energy-efficient-dataflow-convolutional-neural" target="_blank" rel="noopener noreferrer">Eyeriss 原始论文页面 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2018</div>
+              <div class="timeline-content"><h3>MCU kernel 同时优化时间和工作区</h3><p>CMSIS-NN 展示 SIMD、定点计算与部分 im2col 如何在 Cortex-M 上提高吞吐并降低内存占用，说明 kernel 选择会改变峰值工作集。</p><a href="https://arxiv.org/abs/1801.06601" target="_blank" rel="noopener noreferrer">CMSIS-NN 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">2020</div>
+              <div class="timeline-content"><h3>MCUNet 把网络与推理引擎协同设计</h3><p>MCUNet 用 TinyNAS 在设备约束内搜索网络，并让 TinyEngine 按整图生命周期调度内存，推动模型、runtime 和硬件联合优化。</p><a href="https://arxiv.org/abs/2007.10319" target="_blank" rel="noopener noreferrer">MCUNet 原始论文 ↗</a></div>
+            </article>
+
+            <article class="timeline-item">
+              <div class="timeline-year">现在</div>
+              <div class="timeline-content"><h3>内存能力与一致性成为显式 API</h3><p>ESP-IDF 通过 capability allocator 区分 DMA、字节访问等内存属性；在带 cache 与 DMA 的芯片上，还必须显式处理同步和所有权。</p><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/mem_alloc.html" target="_blank" rel="noopener noreferrer">ESP-IDF 官方内存分配文档 ↗</a></div>
+            </article>
+
+        </div>
+        <div class="history-bridge"><strong>今天为什么仍然重要：</strong> 今天的资源分析应同时回答四个问题：哪些 buffer 同时活跃、每个字节跨过几次总线、每段子图由谁执行、测到的瓶颈是否随输入和温度变化。只报参数量或峰值 TOPS 会漏掉最昂贵的路径。</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">借熟悉的系统建立直觉</span><h2>类比图解</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>晚餐高峰期的一间小餐馆</h3><p>冷库里食材很多，不代表厨房能同时做很多桌菜。切配台面积决定多少盘子能同时摊开，狭窄过道决定服务员搬菜的速度，专用烤炉虽然很快，却只接收合适的烤盘；每次把菜改盘、送进送出都会消耗时间。</p></div>
+          <div class="analogy-illustration" aria-label="晚餐高峰期的一间小餐馆">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🧊</span>
+                <strong>外部冷库</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Flash/PSRAM 中容量大但访问代价更高的权重和数据</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔪</span>
+                <strong>切配台</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>内部 SRAM 中同时活跃的输入、输出与 workspace</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🛎️</span>
+                <strong>传菜过道</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>内存总线、DMA、cache line 与持续带宽</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🔥</span>
+                <strong>专用烤炉</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>只支持部分算子、布局与 dtype 的 NPU delegate</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>类比的边界：</strong> 餐馆类比适合解释容量、吞吐和换盘成本，但真实存储层次并非互斥房间：cache 会自动替换，DMA 与 CPU 还可能并发访问同一物理内存。是否需要 flush、invalidate 或对齐，必须以芯片手册和实测为准。</p>
+        </div>
+      </section>
+
+
+    <section>
+      <h2>本章讲解</h2>
+      <h3>峰值内存来自生命周期重叠，不是文件大小相加</h3><p>为计算图列出每个 tensor 的产生节点、最后一次消费、大小和内存能力，画出活跃区间后才能求峰值。权重常可留在映射 Flash，激活、累加器和 kernel workspace 却可能在同一层同时存在；相机双缓冲、任务栈和网络包也要纳入系统峰值。规划器能复用生命周期不重叠的区域，但动态 shape、分支与 fallback 会改变计划，必须用运行时 high-water mark 校验静态估算。</p><h3>用运算强度判断等待的是乘加器还是内存</h3><p>粗算每个算子执行的 MAC 与从慢层级搬运的字节，得到“每字节做多少运算”的直觉；低运算强度路径更可能受带宽约束。提高主频或增加 NPU 单元只有在计算受限时才直接见效，带宽受限时应优先融合算子、分块复用、避免中间张量落地和改变布局。理论带宽是上限，连续读写、cache miss、总线争用与刷新协议决定可持续值，所以必须用接近真实访问模式的基准测量。</p><h3>零拷贝是一份所有权协议，不是一处指针转换</h3><p>让相机 DMA 写入模型输入可省一次复制，但前提是 buffer 的地址能力、对齐、stride、cache 一致性和生命周期都满足双方要求。CPU 在 DMA 完成前不能读取，DMA 复用前推理也必须释放；带 cache 的系统还需在正确方向做同步。建议用明确状态机标记 FREE、FILLING、READY、IN_USE，并把超时与丢帧计数写入日志。没有这些约束的“零拷贝”常变成偶发撕裂或陈旧数据。</p><h3>NPU 加速要看整个分区边界的净收益</h3><p>delegate 会按算子、shape、dtype 和布局能力切分子图。若只有中间几层被接管，CPU→NPU 的量化、layout transform、buffer copy 与同步可能吞掉 kernel 节省的时间；不支持节点还可能静默 fallback。检查运行时分区日志，分别计时加速子图和边界转换，并与纯 CPU 基线比较。选择模型时宁可让较小网络完整落入 NPU，也不要只依据宣称 TOPS 选择产生碎片化分区的大网络。</p><h3>以稳态曲线而不是单次最快值验收资源方案</h3><p>在固定输入、频率和编译选项下预热，再记录各阶段周期、总线或 cache 计数、峰值堆和功耗；逐步改变分辨率与采样率，画出延迟和内存曲线。连续运行要覆盖 Wi‑Fi、摄像头与 OTA 等竞争负载，并观察热降频和尾延迟。优化前后若输出发生变化，应先做数值一致性检查。最终预算要留出碎片、异常日志和固件升级余量，而不是把实验室空闲内存全部承诺给模型。</p>
+    </section>
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">让数据真正跑起来</span><h2>动态过程演示</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="一块激活张量的资源旅行">
+          <div class="process-heading">
+            <div><h3>一块激活张量的资源旅行</h3><p>每一步显示张量所在层级、发生的搬运和此刻真正限制吞吐的资源。</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>暂停自动播放</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%97%84%EF%B8%8F%22%2C%22label%22%3A%22%E5%8F%96%E5%BE%97%E6%9D%83%E9%87%8D%22%2C%22data%22%3A%22Flash%2FPSRAM%20%E2%86%92%20cache%22%2C%22action%22%3A%22%E6%8C%89%20tile%20%E8%AF%BB%E5%8F%96%E6%9C%AC%E8%BD%AE%E9%9C%80%E8%A6%81%E7%9A%84%E6%9D%83%E9%87%8D%22%2C%22insight%22%3A%22%E5%AE%B9%E9%87%8F%E5%A4%9F%E7%94%A8%E4%BB%8D%E5%8F%AF%E8%83%BD%E8%A2%AB%E6%85%A2%E5%B1%82%E7%BA%A7%E5%B8%A6%E5%AE%BD%E9%99%90%E5%88%B6%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">🗄️</span><strong>取得权重</strong><span>Flash/PSRAM → cache</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22%E6%8E%A5%E6%94%B6%E8%BE%93%E5%85%A5%22%2C%22data%22%3A%22DMA%20buffer%20%E2%86%92%20SRAM%22%2C%22action%22%3A%22%E7%A1%AE%E8%AE%A4%E5%AF%B9%E9%BD%90%E3%80%81%E6%89%80%E6%9C%89%E6%9D%83%E5%B9%B6%E5%90%8C%E6%AD%A5%20cache%22%2C%22insight%22%3A%22%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%85%88%E6%98%AF%E4%B8%80%E4%BB%BD%E4%B8%80%E8%87%B4%E6%80%A7%E5%A5%91%E7%BA%A6%22%7D">
+                  <span class="process-icon" aria-hidden="true">📥</span><strong>接收输入</strong><span>DMA buffer → SRAM</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22%E8%A7%84%E5%88%92%E6%B4%BB%E8%B7%83%E5%8C%BA%22%2C%22data%22%3A%22input%20%2B%20output%20%2B%20workspace%22%2C%22action%22%3A%22%E6%A0%B9%E6%8D%AE%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E5%A4%8D%E7%94%A8%E4%B8%8D%E9%87%8D%E5%8F%A0%E5%8C%BA%E5%9F%9F%22%2C%22insight%22%3A%22%E5%B3%B0%E5%80%BC%E7%94%B1%E5%90%8C%E4%B8%80%E6%97%B6%E5%88%BB%E7%9A%84%E5%B7%A5%E4%BD%9C%E9%9B%86%E5%86%B3%E5%AE%9A%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧩</span><strong>规划活跃区</strong><span>input + output + workspace</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%9A%99%EF%B8%8F%22%2C%22label%22%3A%22%E6%89%A7%E8%A1%8C%20kernel%22%2C%22data%22%3A%22tile%20%C3%97%20weights%20%E2%86%92%20partial%20sums%22%2C%22action%22%3A%22%E5%9C%A8%E5%AF%84%E5%AD%98%E5%99%A8%E5%92%8C%E5%B1%80%E9%83%A8%E5%AD%98%E5%82%A8%E4%B8%AD%E5%B0%BD%E9%87%8F%E5%A4%8D%E7%94%A8%E6%95%B0%E6%8D%AE%22%2C%22insight%22%3A%22%E5%B0%91%E6%90%AC%E4%B8%80%E6%AC%A1%E5%8F%AF%E8%83%BD%E6%AF%94%E5%A4%9A%E5%81%9A%E5%87%A0%E6%AC%A1%20MAC%20%E6%9B%B4%E5%88%92%E7%AE%97%22%7D">
+                  <span class="process-icon" aria-hidden="true">⚙️</span><strong>执行 kernel</strong><span>tile × weights → partial sums</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%9A%A7%22%2C%22label%22%3A%22%E8%B7%A8%E5%90%8E%E7%AB%AF%E8%BE%B9%E7%95%8C%22%2C%22data%22%3A%22CPU%20layout%20%E2%86%94%20NPU%20layout%22%2C%22action%22%3A%22%E8%BD%AC%E6%8D%A2%20dtype%2F%E5%B8%83%E5%B1%80%E5%B9%B6%E5%90%8C%E6%AD%A5%E5%AD%90%E5%9B%BE%22%2C%22insight%22%3A%22delegate%20%E8%BE%B9%E7%95%8C%E6%9C%89%E5%8F%AF%E8%A7%81%E7%9A%84%E9%80%9A%E8%A1%8C%E8%B4%B9%22%7D">
+                  <span class="process-icon" aria-hidden="true">🚧</span><strong>跨后端边界</strong><span>CPU layout ↔ NPU layout</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%88%22%2C%22label%22%3A%22%E6%B5%8B%E9%87%8F%E5%B9%B6%E9%87%8D%E6%8E%92%22%2C%22data%22%3A%22cycles%20%2B%20bytes%20%2B%20peak%20RAM%22%2C%22action%22%3A%22%E7%94%A8%E5%AE%9E%E6%B5%8B%E7%93%B6%E9%A2%88%E9%80%89%E6%8B%A9%E8%9E%8D%E5%90%88%E3%80%81%E5%88%86%E5%9D%97%E6%88%96%E9%99%8D%E5%88%86%E8%BE%A8%E7%8E%87%22%2C%22insight%22%3A%22%E4%BC%98%E5%8C%96%E5%AF%B9%E8%B1%A1%E5%BA%94%E7%94%B1%E8%AF%81%E6%8D%AE%E8%80%8C%E4%B8%8D%E6%98%AF%20TOPS%20%E5%86%B3%E5%AE%9A%22%7D">
+                  <span class="process-icon" aria-hidden="true">📈</span><strong>测量并重排</strong><span>cycles + bytes + peak RAM</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>步骤 1 / 6</span><h3 data-process-title>取得权重 · Flash/PSRAM → cache</h3><p data-process-action>按 tile 读取本轮需要的权重</p></div>
+            <div class="process-insight"><span>观察点</span><p data-process-insight>容量够用仍可能被慢层级带宽限制</p></div>
+          </div>
+          <p class="process-loop"><strong>循环 / 返回条件：</strong> 测量结果返回内存规划：若带宽占主导就减少搬运，若工作集溢出就缩小 tile 或输入，若计算饱和才替换更快 kernel。</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← 上一步</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>下一步 →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>查看静态全景图</summary><pre class="diagram">Flash weights ─mmap/copy─► RAM/PSRAM ─► cache ─► MAC unit
+                              ▲ DMA / zero-copy</pre></details>
+      </section>
+
+
+    <section><h2>代码或命令示例</h2><pre class="code"><code>peak = weights + activations + workspace + io_buffers
 if peak &gt; available_ram:
     reduce_resolution_or_batch()
     enable_streaming_or_tiling()</code></pre></section>
-      <section><h2>动手实验</h2><div class="callout">给定模型层表，估算每层 activation 与 workspace 峰值；用不同输入分辨率画 RAM/latency 曲线。</div></section>
-      <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong>把“PSRAM 容量大”当作“可替代内部 SRAM”会导致 DMA 不可用、带宽下降或 cache 一致性问题，尤其在相机和显示流同时运行时。</div></section>
-      <section class="quiz" aria-labelledby="quiz-title"><h2 id="quiz-title">核心测试</h2><p>完成 3 道单选题后提交；提交前不会显示答案。</p><form id="quiz-form" novalidate><fieldset class="question-card" data-question="0"><legend>1. 端侧推理峰值 RAM 预算应至少包含？</legend><label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>仅权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>权重、激活、workspace 与 I/O buffer</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>仅模型名称</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>仅 FreeRTOS tick</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="1"><legend>2. ESP-IDF 的 MALLOC_CAP_DMA 对经典 ESP32 的含义更接近？</legend><label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>优先分配外部 PSRAM</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>分配适合硬件 DMA 的内存，通常排除外部 PSRAM</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>强制分配 Flash</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>禁用 cache</span></label><div class="answer-explanation" hidden></div></fieldset><fieldset class="question-card" data-question="2"><legend>3. 为什么带宽受限模型增加 MAC 单元未必变快？</legend><label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>MAC 单元会删掉权重</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>处理器仍在等待权重和激活从内存搬运</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>输入 shape 自动缩小</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>量化会自动失败</span></label><div class="answer-explanation" hidden></div></fieldset><p class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite"></p><button class="button" type="submit">提交本章测试</button><button class="button secondary" id="retry-quiz" type="button" hidden>重新作答</button></form></section>
-      <section><h2>延伸阅读</h2><ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/memory-types.html" target="_blank" rel="noopener noreferrer">ESP-IDF 内存类型（官方/原始资料）</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers（官方/原始资料）</a></li></ul></section>
-      <section><h2>启下：下一章如何使用本章能力</h2><p>下一章会以相机为例把这些预算放进实时流水线，观察 DMA、frame buffer、颜色格式和后处理如何共同影响结果。</p><p>下一天：<a href="day08.html">Day 8 · 视觉模型</a></p></section>
-      <div class="nav"><a class="button secondary" href="day06.html">← Day 6</a><a class="button" href="day08.html">Day 8 →</a></div>
-    </article>
-  </main>
+    <section><h2>动手实验</h2><div class="callout">给定模型层表，估算每层 activation 与 workspace 峰值；用不同输入分辨率画 RAM/latency 曲线。</div></section>
+    <section><h2>工程陷阱</h2><div class="pitfall"><strong>避免误判：</strong> 把“PSRAM 容量大”当作“可替代内部 SRAM”会导致 DMA 不可用、带宽下降或 cache 一致性问题，尤其在相机和显示流同时运行时。</div></section>
+
+    <section class="quiz" aria-labelledby="quiz-title-7">
+      <h2 id="quiz-title-7">核心测试</h2>
+      <p>完成 3 道单选题后提交；提交前不会显示答案。</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22%E7%AB%AF%E4%BE%A7%E6%8E%A8%E7%90%86%E5%B3%B0%E5%80%BC%20RAM%20%E9%A2%84%E7%AE%97%E5%BA%94%E8%87%B3%E5%B0%91%E5%8C%85%E5%90%AB%EF%BC%9F%22%2C%22options%22%3A%5B%22%E4%BB%85%E6%9D%83%E9%87%8D%22%2C%22%E6%9D%83%E9%87%8D%E3%80%81%E6%BF%80%E6%B4%BB%E3%80%81workspace%20%E4%B8%8E%20I%2FO%20buffer%22%2C%22%E4%BB%85%E6%A8%A1%E5%9E%8B%E5%90%8D%E7%A7%B0%22%2C%22%E4%BB%85%20FreeRTOS%20tick%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E5%B3%B0%E5%80%BC%E7%94%B1%E5%90%8C%E6%97%B6%E5%AD%98%E6%B4%BB%E7%9A%84%E7%BC%93%E5%86%B2%E5%8C%BA%E5%86%B3%E5%AE%9A%E3%80%82%E6%9D%83%E9%87%8D%E5%8F%AF%E8%83%BD%E5%9C%A8%20Flash%EF%BC%8C%E6%BF%80%E6%B4%BB%E5%92%8C%E4%B8%B4%E6%97%B6%20workspace%20%E6%89%8D%E5%B8%B8%E5%B8%B8%E5%86%B3%E5%AE%9A%E8%83%BD%E5%90%A6%E7%A8%B3%E5%AE%9A%E8%BF%90%E8%A1%8C%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22ESP-IDF%20%E7%9A%84%20MALLOC_CAP_DMA%20%E5%AF%B9%E7%BB%8F%E5%85%B8%20ESP32%20%E7%9A%84%E5%90%AB%E4%B9%89%E6%9B%B4%E6%8E%A5%E8%BF%91%EF%BC%9F%22%2C%22options%22%3A%5B%22%E4%BC%98%E5%85%88%E5%88%86%E9%85%8D%E5%A4%96%E9%83%A8%20PSRAM%22%2C%22%E5%88%86%E9%85%8D%E9%80%82%E5%90%88%E7%A1%AC%E4%BB%B6%20DMA%20%E7%9A%84%E5%86%85%E5%AD%98%EF%BC%8C%E9%80%9A%E5%B8%B8%E6%8E%92%E9%99%A4%E5%A4%96%E9%83%A8%20PSRAM%22%2C%22%E5%BC%BA%E5%88%B6%E5%88%86%E9%85%8D%20Flash%22%2C%22%E7%A6%81%E7%94%A8%20cache%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E5%AE%98%E6%96%B9%E6%96%87%E6%A1%A3%E6%98%8E%E7%A1%AE%E8%AF%B4%E6%98%8E%E8%AF%A5%20capability%20%E9%80%82%E5%90%88%20DMA%20%E4%B8%94%E6%8E%92%E9%99%A4%E5%A4%96%E9%83%A8%20PSRAM%EF%BC%9B%E5%AE%9E%E9%99%85%E8%83%BD%E5%8A%9B%E4%BB%8D%E5%BA%94%E6%8C%89%E6%89%80%E7%94%A8%20SoC%2F%E5%A4%96%E8%AE%BE%E6%96%87%E6%A1%A3%E6%A0%B8%E5%AF%B9%E3%80%82%22%7D%2C%7B%22prompt%22%3A%22%E4%B8%BA%E4%BB%80%E4%B9%88%E5%B8%A6%E5%AE%BD%E5%8F%97%E9%99%90%E6%A8%A1%E5%9E%8B%E5%A2%9E%E5%8A%A0%20MAC%20%E5%8D%95%E5%85%83%E6%9C%AA%E5%BF%85%E5%8F%98%E5%BF%AB%EF%BC%9F%22%2C%22options%22%3A%5B%22MAC%20%E5%8D%95%E5%85%83%E4%BC%9A%E5%88%A0%E6%8E%89%E6%9D%83%E9%87%8D%22%2C%22%E5%A4%84%E7%90%86%E5%99%A8%E4%BB%8D%E5%9C%A8%E7%AD%89%E5%BE%85%E6%9D%83%E9%87%8D%E5%92%8C%E6%BF%80%E6%B4%BB%E4%BB%8E%E5%86%85%E5%AD%98%E6%90%AC%E8%BF%90%22%2C%22%E8%BE%93%E5%85%A5%20shape%20%E8%87%AA%E5%8A%A8%E7%BC%A9%E5%B0%8F%22%2C%22%E9%87%8F%E5%8C%96%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%A4%B1%E8%B4%A5%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22%E5%BD%93%E7%93%B6%E9%A2%88%E6%98%AF%E6%AF%8F%E7%A7%92%E5%8F%AF%E6%90%AC%E8%BF%90%E5%AD%97%E8%8A%82%E6%95%B0%EF%BC%8C%E9%A2%9D%E5%A4%96%E7%AE%97%E5%8A%9B%E5%A4%84%E4%BA%8E%E7%A9%BA%E9%97%B2%E7%AD%89%E5%BE%85%EF%BC%9B%E5%BA%94%E4%BC%98%E5%85%88%E5%87%8F%E5%B0%91%E8%AF%BB%E5%86%99%E3%80%81%E6%94%B9%E5%96%84%E5%B8%83%E5%B1%80%E6%88%96%E8%9E%8D%E5%90%88%E7%AE%97%E5%AD%90%E3%80%82%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. 端侧推理峰值 RAM 预算应至少包含？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>仅权重</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>权重、激活、workspace 与 I/O buffer</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>仅模型名称</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>仅 FreeRTOS tick</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. ESP-IDF 的 MALLOC_CAP_DMA 对经典 ESP32 的含义更接近？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>优先分配外部 PSRAM</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>分配适合硬件 DMA 的内存，通常排除外部 PSRAM</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>强制分配 Flash</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>禁用 cache</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. 为什么带宽受限模型增加 MAC 单元未必变快？</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>MAC 单元会删掉权重</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>处理器仍在等待权重和激活从内存搬运</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>输入 shape 自动缩小</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>量化会自动失败</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <button class="button" type="submit">提交本章测试</button>
+        <button class="button secondary retry-quiz" type="button" hidden>重新作答</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>延伸阅读</h2>
+      <ul class="reference-list"><li><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/memory-types.html" target="_blank" rel="noopener noreferrer">ESP-IDF 内存类型（官方/原始资料）</a></li><li><a href="https://ai.google.dev/edge/litert/microcontrollers/get_started" target="_blank" rel="noopener noreferrer">LiteRT for Microcontrollers（官方/原始资料）</a></li></ul>
+    </section>
+
+    <section>
+      <h2>启下：下一章如何使用本章能力</h2>
+      <p>下一章会以相机为例把这些预算放进实时流水线，观察 DMA、frame buffer、颜色格式和后处理如何共同影响结果。</p>
+      <p>下一天： <a href="/learning_ai/day08.html">Day 8 · 视觉模型</a></p>
+    </section>
+
+    <nav class="nav" aria-label="学习导航">
+      <a class="button secondary" href="/learning_ai/day06.html">← Day 6</a>
+      <a class="button" href="/learning_ai/day08.html">Day 8 →</a>
+    </nav>
+  </article>
+</main>
+
+
   <footer><div class="wrap">离线可用 · 面向熟悉 ESP32、USB 与网络协议栈的嵌入式工程师</div></footer>
-  <script src="content/enrichment-01-05.js"></script>
-  <script src="content/enrichment-06-10.js"></script>
-  <script src="content/enrichment-11-15.js"></script>
-  <script src="app.js"></script>
+  <script src="/learning_ai/app.js" defer></script>
 </body>
 </html>
