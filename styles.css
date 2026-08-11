@@ -139,6 +139,13 @@ summary:focus-visible {
   font-size: 1.12rem;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 .eyebrow,
 .section-kicker {
   color: var(--blue);
@@ -1449,6 +1456,37 @@ summary:focus-visible {
 
 .quiz [hidden] {
   display: none !important;
+}
+
+.discussion-section {
+  margin-top: 42px;
+  padding: clamp(18px, 4vw, 25px);
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.discussion-section .section-heading {
+  margin-top: 0;
+}
+
+.discussion-section .section-lead {
+  margin-bottom: 22px;
+}
+
+.discussion-section .giscus {
+  min-height: 180px;
+}
+
+.discussion-section .giscus-frame {
+  width: 100%;
+}
+
+.discussion-fallback {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 /* Mistake review */

@@ -3,7 +3,10 @@
     <div class="eyebrow">{{ copy.fieldGuide }}</div>
     <h1>{{ copy.heroTitle }}</h1>
     <p>{{ copy.heroBody }}</p>
-    <a class="button" href="{{ '/day01.html' | locale_url(lang) | url }}">{{ copy.startCourse }}</a>
+    <div class="hero-actions">
+      <a class="button" href="{{ '/day01.html' | locale_url(lang) | url }}">{{ copy.startCourse }}</a>
+      <a class="button secondary" href="{{ discussion.url }}" target="_blank" rel="noopener noreferrer">{{ copy.discussionLink }}</a>
+    </div>
   </section>
   <section class="learning-dashboard panel" data-learning-dashboard hidden aria-labelledby="learning-dashboard-title">
     <div class="dashboard-heading">

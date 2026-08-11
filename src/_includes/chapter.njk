@@ -28,6 +28,7 @@
       <a href="#process">{{ copy.processTitle }}</a>
       <a href="#lab">{{ copy.lab }}</a>
       <a href="#quiz">{{ copy.quizTitle }}</a>
+      <a href="#discussion">{{ copy.discussionNav }}</a>
     </nav>
 
     <section id="goal">
@@ -213,6 +214,28 @@
         <button class="button" type="submit">{{ copy.submitQuiz }}</button>
         <button class="button secondary retry-quiz" type="button" hidden>{{ copy.retryQuiz }}</button>
       </form>
+    </section>
+
+    <section class="discussion-section" id="discussion" aria-labelledby="discussion-title-{{ day.n }}">
+      <div class="section-heading"><span class="section-kicker">{{ copy.discussionKicker }}</span><h2 id="discussion-title-{{ day.n }}">{{ copy.discussionTitle }}</h2></div>
+      <p class="section-lead">{{ copy.discussionDescription }}</p>
+      <div class="giscus" aria-label="{{ copy.discussionTitle }}"></div>
+      <script src="https://giscus.app/client.js"
+              data-repo="{{ discussion.repo }}"
+              data-repo-id="{{ discussion.repoId }}"
+              data-category="{{ discussion.category }}"
+              data-category-id="{{ discussion.categoryId }}"
+              data-mapping="{{ discussion.mapping }}"
+              data-strict="0"
+              data-reactions-enabled="1"
+              data-emit-metadata="0"
+              data-input-position="bottom"
+              data-theme="light"
+              data-lang="{{ lang }}"
+              data-loading="lazy"
+              crossorigin="anonymous"
+              async></script>
+      <p class="discussion-fallback">{{ copy.discussionFallback }} <a href="{{ discussion.url }}" target="_blank" rel="noopener noreferrer">{{ copy.discussionLink }}</a></p>
     </section>
 
     <section id="references">
