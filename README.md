@@ -136,7 +136,7 @@ npm run build
 npm test
 ```
 
-`npm run build` 先生成 `_site/`，确认 40 个双语页面和 3 个共享资源完整后，再把 43 个部署文件同步到仓库根目录。根目录的 `index.html`、`review.html`、`certificate.html`、`dayNN.html`、`en/`、`app.js` 和 `styles.css` 都是生成物，不应直接修改。
+`npm run build` 先生成 `_site/`，确认 40 个双语页面、3 个共享资源和 `.nojekyll` 完整后，再把 44 个部署文件同步到仓库根目录。根目录的 `index.html`、`review.html`、`certificate.html`、`dayNN.html`、`en/`、`app.js`、`favicon.svg`、`styles.css` 和 `.nojekyll` 都是生成物，不应直接修改。
 
 详细的内容约束、翻译一致性、无障碍要求和新增语言流程见 [AGENTS.md](AGENTS.md)。
 
@@ -147,5 +147,7 @@ npm test
 1. 合并前运行 `npm run check` 并提交同步后的生成文件。
 2. 在仓库 `Settings → Pages` 中选择 `Deploy from a branch`。
 3. 选择 `master` 分支和 `/(root)` 目录。
+
+根目录的 `.nojekyll` 会让 GitHub Pages 直接提供 Eleventy 生成的静态文件，避免把 `src/` 下的 Nunjucks 模板交给 Jekyll/Liquid 渲染。
 
 发布地址为 <https://leeebo.github.io/learning_ai/>，英文入口为 <https://leeebo.github.io/learning_ai/en/>。
