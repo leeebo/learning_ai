@@ -1,11 +1,8 @@
-const firstHalf = require("./course/en-01-07.cjs");
-const secondHalf = require("./course/en-08-15.cjs");
-const finalChapters = require("./course/en-16-17.cjs");
+const course = require("./course/en-15.cjs");
 const { totalDays } = require("./courseMeta.cjs");
-const course = [...firstHalf, ...secondHalf, ...finalChapters];
 
-if (!Array.isArray(firstHalf) || !Array.isArray(secondHalf) || !Array.isArray(finalChapters) || course.length !== totalDays) {
-  throw new Error(`The English course modules must contain exactly ${totalDays} chapters in total.`);
+if (!Array.isArray(course) || course.length !== totalDays) {
+  throw new Error(`The English course plan must contain exactly ${totalDays} chapters in total.`);
 }
 
 course.forEach((day, index) => {

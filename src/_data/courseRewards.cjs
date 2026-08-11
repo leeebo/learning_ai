@@ -1,4 +1,4 @@
-const zh = [
+const legacyZh = [
   [["🧠", "张量侦察员", "你已经能沿形状与数据类型追踪一次前向计算。"], ["🔌", "契约守门人", "输入、权重和输出的接口现在逃不过你的检查。"], ["✨", "神经元点亮", "第一组连接已经建立，继续把直觉变成工程能力。"]],
   [["🎯", "训练闭环完成", "你分清了训练状态、冻结产物与推理路径。"], ["📦", "导出许可已签发", "模型离开实验室前的契约检查已经通过。"], ["🧪", "实验账本解锁", "超参数、数据与评估证据已经进入同一条链。"]],
   [["🗂️", "格式翻译官", "你能区分图、权重、元数据与运行时约束。"], ["🧭", "模型包导航员", "面对 ONNX、LiteRT 与 GGUF，你会先寻找契约而不是扩展名。"], ["🔍", "元数据彩蛋", "一个可加载文件不再能冒充一个可交付模型。"]],
@@ -15,10 +15,10 @@ const zh = [
   [["📈", "性能证据官", "TTFT、ITL、p95、能耗与热状态已经成套出现。"], ["🌡️", "热稳态观察员", "凉机峰值再也不能冒充长期产品体验。"], ["🔬", "Benchmark 显微镜", "变量被固定，均值、尾延迟与异常值都有了位置。"]],
   [["🛡️", "系统边界守护者", "模型建议与设备执行权被可靠地隔开。"], ["🚦", "验收闭环完成", "正常路径、故障降级、OTA 与回滚都已有证据。"], ["🗼", "塔台与飞控就位", "端侧 AI 已从演示成长为职责明确的系统。"]],
   [["🏗️", "集群拓扑建筑师", "你能把并行维度放进合适的互连层级。"], ["🚚", "KV 物流调度员", "Prefill、迁移和 Decode 的每一段成本都已入账。"], ["📡", "SLO 指挥台解锁", "峰值吞吐必须先通过 TTFT、ITL 与 goodput 的审问。"]],
-  [["🚐", "端侧厨房主理人", "模型、delegate、内存、能量和散热已经装进同一辆餐车。"], ["🔋", "每个 Token 都有电费单", "你会用能耗与热稳态验收持续生成，而非只看 TOPS。"], ["🌍", "十七日航线完成", "从 MCU 安全边界到集群与端侧 LLM Infra，你已拥有完整地图。"]]
+  [["🚐", "端侧厨房主理人", "模型、delegate、内存、能量和散热已经装进同一辆餐车。"], ["🔋", "每个 Token 都有电费单", "你会用能耗与热稳态验收持续生成，而非只看 TOPS。"], ["🌍", "完整航线完成", "从 MCU 安全边界到集群与端侧 LLM Infra，你已拥有完整地图。"]]
 ];
 
-const en = [
+const legacyEn = [
   [["🧠", "Tensor scout", "You can now trace a forward pass through shapes and dtypes."], ["🔌", "Contract keeper", "Inputs, weights, and outputs can no longer hide an interface mismatch."], ["✨", "Neurons online", "Your first connections are active; keep turning intuition into engineering evidence."]],
   [["🎯", "Training loop closed", "You separated training state, frozen artifacts, and inference execution."], ["📦", "Export permit granted", "The model contract passed inspection before leaving the lab."], ["🧪", "Experiment ledger unlocked", "Hyperparameters, data, and evaluation evidence now share one chain."]],
   [["🗂️", "Format translator", "You can separate graphs, weights, metadata, and runtime constraints."], ["🧭", "Model-package navigator", "For ONNX, LiteRT, or GGUF, you now inspect contracts before extensions."], ["🔍", "Metadata discovered", "A loadable file can no longer impersonate a shippable model."]],
@@ -35,7 +35,43 @@ const en = [
   [["📈", "Performance evidence officer", "TTFT, ITL, p95, energy, and thermal state now arrive together."], ["🌡️", "Thermal steady-state watcher", "A cool-device peak can no longer impersonate sustained experience."], ["🔬", "Benchmark microscope", "Variables are fixed, with averages, tails, and outliers in their places."]],
   [["🛡️", "System boundary guardian", "Model suggestions and device actuation authority are safely separated."], ["🚦", "Acceptance loop complete", "Nominal flow, degradation, OTA, and rollback all have evidence."], ["🗼", "Tower and flight control ready", "Edge AI has grown from a demo into a system with explicit responsibility."]],
   [["🏗️", "Cluster topology architect", "You can place every parallel dimension on an appropriate interconnect tier."], ["🚚", "KV logistics dispatcher", "Prefill, transfer, and decode costs have all entered the ledger."], ["📡", "SLO command desk unlocked", "Peak throughput must now answer to TTFT, ITL, and goodput."]],
-  [["🚐", "Edge kitchen operator", "Model, delegates, memory, energy, and cooling now fit one food truck."], ["🔋", "Every token gets an energy bill", "You accept sustained generation with energy and thermal evidence, not TOPS alone."], ["🌍", "Seventeen-day route complete", "From MCU safety boundaries to cluster and edge LLM infrastructure, the full map is yours."]]
+  [["🚐", "Edge kitchen operator", "Model, delegates, memory, energy, and cooling now fit one food truck."], ["🔋", "Every token gets an energy bill", "You accept sustained generation with energy and thermal evidence, not TOPS alone."], ["🌍", "Full route complete", "From MCU safety boundaries to cluster and edge LLM infrastructure, the full map is yours."]]
+];
+
+const zh = [
+  legacyZh[0],
+  legacyZh[1],
+  legacyZh[3],
+  legacyZh[4],
+  legacyZh[5],
+  legacyZh[7],
+  [["🗺️", "LLM 地图绘制者", "从语言模型起源到指令对齐，关键概念已经各归其位。"], ["🧭", "生成边界领航员", "概率生成、参数与上下文的边界现在清晰可见。"], ["📜", "语言模型史学家", "你已经能沿典型时刻解释 LLM 如何走到今天。"]],
+  legacyZh[8],
+  [["🧩", "Transformer 架构师", "Embedding、block、FFN、残差与输出头已经拼成完整模型。"], ["🏗️", "层堆叠设计师", "Encoder、Decoder 与 decoder-only 的信息流现在各归其位。"], ["🗺️", "模型总图读者", "你会先读完整架构，再进入某个子层的公式。"]],
+  [["🔎", "Attention 解构师", "Q、K、V、mask 与多头数据流已经不再神秘。"], ["📐", "对齐矩阵分析员", "缩放、softmax 与可见性边界都经得起小矩阵验证。"], ["⚡", "并行路径侦察员", "你能同时看见短依赖路径与长序列二次代价。"]],
+  legacyZh[9],
+  legacyZh[11],
+  [["🛠️", "Runtime 调度员", "加载、Prefill、Decode、采样与取消已经进入同一执行循环。"], ["🧭", "Backend 路由专家", "CPU、GPU、NPU 与 fallback 的实际路径都有证据。"], ["🔧", "框架黑盒拆解员", "编译、分区、边界复制和资源回收现在都可观测。"]],
+  legacyZh[15],
+  [["🚐", "端侧厨房主理人", "模型、backend、内存、能量和安全边界已经装进同一辆餐车。"], ["🛡️", "产品闭环守护者", "回退、故障演练、OTA 与回滚都进入了验收证据。"], ["🌍", "十五日航线完成", "从神经网络到端侧 LLM Infra，你已拥有一张完整工程地图。"]],
+];
+
+const en = [
+  legacyEn[0],
+  legacyEn[1],
+  legacyEn[3],
+  legacyEn[4],
+  legacyEn[5],
+  legacyEn[7],
+  [["🗺️", "LLM mapmaker", "From language-model origins to instruction alignment, every key concept has a place."], ["🧭", "Generation-boundary navigator", "The boundaries among probability, parameters, and context are now visible."], ["📜", "Language-model historian", "You can explain how LLMs reached today through their defining milestones."]],
+  legacyEn[8],
+  [["🧩", "Transformer architect", "Embeddings, blocks, FFNs, residuals, and the output head now form one model."], ["🏗️", "Layer-stack designer", "Encoder, decoder, and decoder-only information flows each have a clear place."], ["🗺️", "Model-map reader", "You now read the whole architecture before opening one sublayer's formula."]],
+  [["🔎", "Attention analyst", "Q, K, V, masks, and multi-head dataflow are no longer mysterious."], ["📐", "Alignment-matrix analyst", "Scaling, softmax, and visibility boundaries all survive tiny-matrix checks."], ["⚡", "Parallel-path scout", "You can see both short dependency paths and quadratic long-sequence cost."]],
+  legacyEn[9],
+  legacyEn[11],
+  [["🛠️", "Runtime dispatcher", "Loading, Prefill, Decode, sampling, and cancellation now share one loop."], ["🧭", "Backend routing expert", "CPU, GPU, NPU, and fallback paths now leave concrete evidence."], ["🔧", "Framework black box opened", "Compilation, partitioning, boundary copies, and reclamation are observable."]],
+  legacyEn[15],
+  [["🚐", "Edge kitchen operator", "Models, backends, memory, energy, and safety boundaries now fit one food truck."], ["🛡️", "Product-loop guardian", "Fallback, failure drills, OTA, and rollback all entered the acceptance evidence."], ["🌍", "Fifteen-day route complete", "From neural networks to edge LLM infrastructure, you now hold the complete engineering map."]],
 ];
 
 const normalize = entries => entries.map(day => day.map(([icon, title, message]) => ({ icon, title, message })));

@@ -1,10 +1,8 @@
-const firstFifteen = require("./course/zh-CN.json");
-const finalChapters = require("./course/zh-16-17.cjs");
+const course = require("./course/zh-15.cjs");
 const { totalDays } = require("./courseMeta.cjs");
-const course = [...firstFifteen, ...finalChapters];
 
-if (!Array.isArray(firstFifteen) || !Array.isArray(finalChapters) || course.length !== totalDays) {
-  throw new Error(`The Chinese course modules must contain exactly ${totalDays} chapters in total.`);
+if (!Array.isArray(course) || course.length !== totalDays) {
+  throw new Error(`The Chinese course plan must contain exactly ${totalDays} chapters in total.`);
 }
 
 course.forEach((day, index) => {

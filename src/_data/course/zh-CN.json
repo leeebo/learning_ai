@@ -2226,62 +2226,63 @@
     "n": 10,
     "t": "KV Cache",
     "s": "用内存换取 Decode 阶段的重复计算",
-    "goal": "理解 Prefill/Decode、K/V 张量布局、cache 量级与长上下文代价。",
+    "goal": "从《Attention Is All You Need》复现缩放点积注意力，理解 Prefill/Decode、K/V 张量布局、cache 量级与长上下文代价。",
     "concept": [
-      "Attention 的 Q/K/V",
+      "缩放点积与多头注意力",
+      "causal mask 与 positional encoding",
       "Prefill 与 autoregressive Decode",
       "cache shape 与 layer/head",
-      "paged KV、滑窗与量化"
+      "GQA/MQA、paged KV 与滑窗"
     ],
     "analogy": "像网络协议缓存已确认的 header：新 token 只带来新的 Q/K/V 增量，不必重新解析整段历史 payload。",
-    "diagram": "Prompt tokens ──Prefill──► K,V cache\nNew token ──Q + cached K,V──► attention ─► next token ─► append cache",
-    "code": "kv_bytes ≈ layers * 2 * tokens * kv_heads * head_dim * bytes_per_value\n# 2 = K + V; batch、dtype、GQA 会改变实际值",
-    "lab": "做一个 KV cache 计算器：改变 context、层数、KV heads、head_dim、dtype，观察 PSRAM/显存占用。",
+    "diagram": "Q,K,V ──scaled dot-product + causal mask──► attention\nPrompt tokens ──Prefill──► K,V cache\nNew token ──Q + cached K,V──► attention ─► next token ─► append cache",
+    "code": "def attention(Q, K, V, causal):\n    scores = Q @ K.T / sqrt(d_k)\n    if causal: scores = mask_future(scores)\n    return softmax(scores) @ V\n\nkv_bytes ≈ layers * 2 * tokens * kv_heads * head_dim * bytes_per_value\n# 2 = K + V; batch、dtype、GQA 会改变实际值",
+    "lab": "论文研读与实验：先读《Attention Is All You Need》的摘要、第 3.1–3.5 节和第 4 节；用 4 个 token 的小矩阵实现 softmax(QKᵀ/√d_k)V，分别打开和关闭 causal mask，验证未来 token 不会泄漏。再做 KV cache 计算器，改变 context、层数、KV heads、head_dim、dtype，记录每新增一个 token 的字节斜率，并把结果对照 PSRAM/显存预算。",
     "questions": [
-      "为什么 Decode 常受内存带宽限制？",
-      "GQA/MQA 如何减少 KV Cache？",
-      "滑动窗口会牺牲哪类能力？"
+      "论文为什么要把 QKᵀ 除以 √d_k？",
+      "为什么训练/Prefill 可以并行，而自回归 Decode 仍按 token 顺序进行？",
+      "GQA/MQA 如何减少 KV Cache，代价又是什么？"
     ],
     "next": "LLM Runtime",
     "lesson": [
       {
-        "title": "从一层因果注意力看懂为什么要存 K 和 V",
-        "body": "每个 token 的隐藏状态在线性投影后得到 Q、K、V。当前 Q 与所有可见历史 K 计算相似度，经 causal mask 和 softmax 加权历史 V；模型权重固定时，旧 token 在该层的 K/V 不会因新 token 到来而改变，因此可以缓存。Q 只服务当前计算，通常无需长期保存。缓存省掉的是对历史 token 重做各层 K/V 投影，却仍要读取历史 cache 并完成随上下文增长的注意力计算。"
+        "title": "论文的第一性原理：缩短串行依赖",
+        "body": "论文先把问题拆成三项：每层要花多少计算、多少步骤必须串行、远距离 token 之间要经过多长的路径。Transformer 保留 encoder–decoder 骨架，却用 multi-head self-attention 和逐位置 FFN 替代循环结构与卷积，并用 residual connection、LayerNorm 和 positional encoding 补齐训练稳定性与顺序信息。于是整段输入可以高度并行处理，远距离依赖的路径缩短；但这不等于生成也能并行，decoder 仍按已生成前缀自回归地产生下一个 token。"
       },
       {
-        "title": "Prefill 与 Decode 是两种资源画像",
-        "body": "Prefill 一次处理整段 prompt，可在 token 维度并行，常有较高计算利用率，并连续写入每层 K/V；Decode 每轮只有新 token，却要读取不断变长的历史 cache，容易转为内存带宽受限。首 token 看排队和 prefill，后续看 inter-token latency。优化时必须分开计时：缩短 prompt 主要改善 prefill，降低 KV 字节数或提高局部性更直接影响长上下文 decode。"
+        "title": "从公式看懂缩放点积、多头与因果屏蔽",
+        "body": "核心公式是 Attention(Q,K,V)=softmax(QKᵀ/√d_k)V。d_k 变大时，点积的方差也会变大，直接送入 softmax 容易饱和、梯度变小；除以 √d_k 是数值稳定措施。Multi-head attention 先用不同的线性投影进入多个表示子空间，再并行计算、拼接并投影回来；causal mask 则把未来位置的分数设为不可见。先在 4 个 token 的小矩阵上验证这三件事，再谈 kernel 或 cache。"
+      },
+      {
+        "title": "没有循环之后，位置信息必须显式进入模型",
+        "body": "注意力本身可以同时看见一组位置，却不会自动知道顺序；论文因此把正弦/余弦 positional encoding 加到 embedding 上，并比较了 learned positional embedding。这个选择是模型契约的一部分：tokenizer、位置编码、causal mask 和 cache 的 position 必须一致。端侧工程不能只搬运权重文件，改动其中任一项都要用金向量检查输出是否仍然一致。"
+      },
+      {
+        "title": "从论文的并行性落到 Prefill 与 Decode",
+        "body": "论文表中的 O(1) sequential operations 描述的是一层 self-attention 在整段序列上的计算，不是说自回归输出没有顺序。Prefill 一次处理已有 prompt，适合在 token 维并行；Decode 每轮只追加一个新 token，必须等待上一步采样结果，并读取历史 K/V。因此现代 runtime 把一次吞吐导向的 prefill 与多次低延迟 decode 分开计时，不能用论文的并行性结论掩盖 decode 的带宽瓶颈。"
+      },
+      {
+        "title": "从一层因果注意力看懂为什么要存 K 和 V",
+        "body": "每个 token 的隐藏状态在线性投影后得到 Q、K、V。当前 Q 与所有可见历史 K 计算相似度，经 causal mask 和 softmax 加权历史 V；模型权重固定时，旧 token 在该层的 K/V 不会因新 token 到来而改变，因此可以缓存。Q 只服务当前计算，通常无需长期保存。缓存省掉的是对历史 token 重做各层 K/V 投影，却仍要读取历史 cache 并完成随上下文增长的注意力计算。"
       },
       {
         "title": "先用模型结构计算 cache 斜率",
         "body": "常见近似为 batch×layers×2×tokens×kv_heads×head_dim×每元素字节数，其中 2 代表 K 和 V；实现还含对齐和分页元数据。不要用 attention heads 代替 kv_heads，GQA/MQA 模型二者不同。把公式化成“每新增一个 token、一个会话增加多少字节”，再叠加权重、临时 workspace 与 runtime 开销。若实测斜率不符，检查 cache dtype、滑窗和预分配。"
       },
       {
-        "title": "压缩与管理策略各自牺牲不同能力",
-        "body": "MQA/GQA 从模型结构上减少 KV heads，不能在任意已训练模型上无损切换；低比特 KV cache 减少容量和带宽，但需验证长上下文质量与 kernel 支持。滑动窗口限制可访问的远端历史，分页主要减少碎片而不改变每个有效 token 的张量量，prefix cache 则只在 token 与位置完全匹配时复用 prefill。策略可组合，但必须分别记录节省来自哪里，避免把分页误报成数值压缩。"
-      },
-      {
-        "title": "用增长曲线与状态破坏测试验证 runtime",
-        "body": "固定模型和采样参数，逐级增加 prompt 长度，记录 prefill、每 token 延迟、已用/预留 KV 字节和输出一致性；再提高并发，观察碎片、驱逐和尾延迟。状态测试要覆盖取消后回收、会话复位、prefix 命中与未命中、上下文移位以及 EOS。对同一 token 序列，关闭 cache 的参考路径应在容差内给出同样 logits；若编辑历史却仍命中旧 cache，则是位置或缓存键错误，而不是性能优化。"
-      },
-      {
-        "title": "用一个容量算例识别 kv_heads 误算",
-        "body": "以 32 层、8 个 KV head、head_dim 128、FP16 为例，每 token cache 为 32×2×8×128×2=131072 字节，即 128 KiB；4096 token 约 512 MiB，四会话约 2 GiB，未计对齐等开销。若误把 32 个 query head 代入，估算会放大四倍。应从模型元数据读取 layers 与 kv_heads，用 runtime 分配值校核，并区分有效占用和预留容量。"
-      },
-      {
-        "title": "把分页缓存当作并发状态机验证",
-        "body": "分页 runtime 把每个序列的逻辑位置映射到固定大小 KV block。块太大造成尾块内部碎片，太小则增加页表和调度开销；连续批处理还要在每轮为新 token 找空槽。prefix sharing 应对共享页维护引用计数，任一会话续写时采取 copy-on-write，不能覆盖别人的前缀。取消、超时和 EOS 必须走同一释放路径；压力测试可随机启动、增长、取消会话，核对空闲块总数回到基线，并验证驱逐不会串改其他序列的位置与内容。还要按不同并发记录页表查找、复制和回收耗时，避免容量优化制造新的尾延迟。"
+        "title": "用增长曲线、容量算例与状态测试验证 cache",
+        "body": "MQA/GQA 从模型结构上减少 KV heads，低比特 cache 减少容量和带宽，滑动窗口限制可访问的远端历史，而分页主要减少碎片；这些节省不能混为一谈。固定模型和采样参数，逐级增加 prompt 长度并记录 prefill、每 token 延迟和 KV 字节斜率；以 32 层、8 个 KV head、head_dim 128、FP16 为例，每 token 约 128 KiB，4096 token 约 512 MiB。再随机启动、增长和取消分页会话，核对空闲块回到基线，并用关闭 cache 的参考路径检查 logits 与位置没有被破坏。"
       }
     ],
-    "pitfall": "只按权重文件估 RAM 而忽略长 prompt 的 KV cache，会导致模型“加载成功、请求一长就 OOM”。",
+    "pitfall": "把“attention 可以并行”误读成“生成没有顺序”，或只按权重文件估 RAM 而忽略长 prompt 的 KV cache，会同时掩盖 Decode 的串行等待和真实的 OOM 风险。",
     "references": [
+      [
+        "《Attention Is All You Need》原始论文",
+        "https://arxiv.org/abs/1706.03762"
+      ],
       [
         "GQA 原始论文",
         "https://arxiv.org/pdf/2305.13245"
-      ],
-      [
-        "Prompt Cache 原始论文",
-        "https://arxiv.org/pdf/2311.04934"
       ],
       [
         "llama.cpp llama-bench",
@@ -2290,15 +2291,15 @@
     ],
     "quiz": [
       {
-        "prompt": "KV cache 的核心收益是什么？",
+        "prompt": "论文为什么要把 QKᵀ 除以 √d_k？",
         "options": [
-          "不再需要权重",
-          "避免每生成一个 token 都重算整个历史的 K/V",
+          "让所有 attention head 自动共享 K/V",
+          "避免大维度点积让 softmax 饱和并导致梯度变小",
           "自动减少 tokenizer 时间",
-          "把模型转换为 int8"
+          "把 KV cache 转换为 int8"
         ],
         "answer": 1,
-        "explanation": "cache 保存已处理 token 的 attention state；新 token 仍需计算自身状态并对历史做 attention，但不重复构造历史 K/V。"
+        "explanation": "点积的方差会随 d_k 增大；除以 √d_k 让 softmax 的输入保持合适尺度，避免进入梯度极小的饱和区域。"
       },
       {
         "prompt": "KV cache 容量与 context length 的关系通常是？",
@@ -2326,27 +2327,27 @@
     "readingMinutes": 19,
     "keywords": [
       {
-        "term": "Prefill",
-        "definition": "一次处理已有 prompt 并建立 KV cache 的阶段。",
-        "espAnalogy": "像先解析并缓存整段握手状态。"
+        "term": "Scaled dot-product attention",
+        "definition": "对 QKᵀ 按 √d_k 缩放，经 softmax 后加权 V 的注意力计算。",
+        "espAnalogy": "像先把相似度信号调到稳定量程，再按权重读取多个数据源。"
       },
       {
-        "term": "Decode",
-        "definition": "逐 token 生成并追加状态的阶段。",
-        "espAnalogy": "像持续接收增量事件的实时循环。"
+        "term": "Causal mask 与 positional encoding",
+        "definition": "前者阻止位置看到未来，后者把顺序信息注入没有循环结构的模型。",
+        "espAnalogy": "像既限制只能读已到达的报文，又给每个字段绑定序号。"
       },
       {
-        "term": "KV cache",
-        "definition": "保存历史 token 的 key/value 张量。",
-        "espAnalogy": "像缓存已解析报头，避免反复解析历史 payload。"
+        "term": "Prefill / Decode",
+        "definition": "Prefill 批量处理已有 prompt；Decode 按生成结果逐 token 追加状态。",
+        "espAnalogy": "像先批量建立连接状态，再进入等待事件的实时循环。"
       },
       {
-        "term": "GQA",
-        "definition": "多个 query head 共享较少 K/V head 的注意力设计。",
-        "espAnalogy": "像多个消费者共享一组只读索引以省内存。"
+        "term": "KV cache 与 GQA/MQA",
+        "definition": "cache 保存历史 K/V；GQA/MQA 通过减少共享的 K/V head 降低每 token 状态量。",
+        "espAnalogy": "像保留已核验索引，同时让多个消费者共用更少的只读目录。"
       }
     ],
-    "recap": "上一章把 prompt 变成 token id。本章跟踪这些 id 在生成过程中的历史状态：为什么新 token 不必重算全部前缀，却要用内存保存 K/V。",
+    "recap": "上一章把 prompt 变成 token id。本章先从 Transformer 原论文理解缩放点积、多头、位置和因果屏蔽，再跟踪这些 id 在生成过程中的历史状态：为什么新 token 不必重算全部前缀，却要用内存保存 K/V。",
     "nextPreview": "下一章会把 KV cache、模型权重和采样循环放入 LLM runtime，讨论请求取消、并发与 ESP32/Host 的责任边界。",
     "history": {
       "intro": "KV cache 的历史是自回归生成从“数学上可行”走向“系统上可承载”的缩影。Transformer 定义了注意力，随后 MQA/GQA 减少每个 token 的状态，分页、复用与量化又开始解决动态会话带来的内存管理问题。",
@@ -2354,7 +2355,7 @@
         {
           "year": "2017",
           "title": "Transformer 建立缩放点积与多头注意力",
-          "body": "Transformer 用 Q、K、V 的缩放点积注意力替代循环结构，并以 causal mask 支持解码器只访问当前位置之前的状态。",
+          "body": "《Attention Is All You Need》把序列建模的瓶颈拆成计算量、串行步骤和远距离路径长度，用 encoder–decoder、缩放点积、多头注意力、位置编码与 causal mask 替代循环结构。输入处理因此更易并行，但自回归输出仍然按前缀逐 token 生成。",
           "source": {
             "label": "Attention Is All You Need 原始论文",
             "url": "https://arxiv.org/abs/1706.03762"

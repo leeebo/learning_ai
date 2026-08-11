@@ -20,14 +20,14 @@
 
     <article class="certificate-card" data-certificate-card>
       <div class="certificate-orbit" aria-hidden="true"></div>
-      <div class="certificate-mark" aria-hidden="true">AI<span>17</span></div>
+      <div class="certificate-mark" aria-hidden="true">AI<span>{{ course.length }}</span></div>
       <p class="certificate-overline">{{ copy.certificateOverline }}</p>
       <h2>{{ copy.certificateAward }}</h2>
       <p class="certificate-presented">{{ copy.certificatePresentedTo }}</p>
       <strong class="certificate-name" data-certificate-name>{{ copy.certificateAnonymous }}</strong>
       <p class="certificate-statement">{{ copy.certificateStatement }}</p>
       <div class="certificate-metrics">
-        <div><strong>17 / 17</strong><span>{{ copy.certificateChapters }}</span></div>
+        <div><strong>{{ course.length }} / {{ course.length }}</strong><span>{{ copy.certificateChapters }}</span></div>
         <div><strong data-certificate-date></strong><span>{{ copy.certificateDate }}</span></div>
         <div><strong>100%</strong><span>{{ copy.certificateQuizStandard }}</span></div>
       </div>
