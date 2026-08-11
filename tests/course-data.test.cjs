@@ -92,18 +92,14 @@ function assertIcon(value, label) {
 
 function validateDay(day, locale, expectedNumber) {
   const label = `${locale} Day ${expectedNumber}`;
-  assertExactKeys(day, expectedNumber >= 16 ? advancedDayKeys : dayKeys, label);
+  assertExactKeys(day, day.infra ? advancedDayKeys : dayKeys, label);
   assert.equal(day.n, expectedNumber, `${label} must use contiguous numbering`);
 
   for (const field of ["t", "s", "goal", "analogy", "diagram", "code", "lab", "pitfall", "recap", "nextPreview"]) {
     assertText(day[field], `${label}.${field}`);
   }
   assert.ok(Number.isInteger(day.readingMinutes), `${label}.readingMinutes must be an integer`);
-  if (expectedNumber <= 15) {
-    assert.ok(day.readingMinutes >= 16 && day.readingMinutes <= 20, `${label} must target a 16–20 minute reading session`);
-  } else {
-    assert.ok(day.readingMinutes >= 25 && day.readingMinutes <= 30, `${label} must target a 25–30 minute reading session`);
-  }
+  assert.ok(day.readingMinutes >= 16 && day.readingMinutes <= 20, `${label} must target a 16–20 minute reading session`);
 
   assert.ok(Array.isArray(day.concept) && day.concept.length >= 4 && day.concept.length <= 5, `${label}.concept must contain 4–5 items`);
   day.concept.forEach((item, index) => assertText(item, `${label}.concept[${index}]`));
@@ -198,7 +194,7 @@ function validateDay(day, locale, expectedNumber) {
     assertText(item.mapsTo, `${itemLabel}.mapsTo`);
   });
 
-  if (expectedNumber >= 16) {
+  if (day.infra) {
     assertExactKeys(day.infra, ["verifiedOn", "intro", "layers", "matrix"], `${label}.infra`);
     assert.equal(day.infra.verifiedOn, courseMeta.verifiedOn, `${label}.infra.verifiedOn must use the course verification date`);
     assertText(day.infra.intro, `${label}.infra.intro`, locale === "en" ? 120 : 45);
@@ -276,14 +272,66 @@ function listPublishedHtml(base) {
   return [...topLevel, ...english].sort();
 }
 
-test("Chinese and English courses expose 17 chapters with a strict nested schema", () => {
-  assert.equal(courseMeta.totalDays, 17);
-  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: 17 }, (_, index) => index + 1));
+test("Chinese and English courses expose 15 chapters with a strict nested schema", () => {
+  assert.equal(courseMeta.totalDays, 15);
+  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: 15 }, (_, index) => index + 1));
   assert.equal(courseZh.length, courseMeta.totalDays);
   assert.equal(courseEn.length, courseMeta.totalDays);
 
   courseZh.forEach((day, index) => validateDay(day, "zh-CN", index + 1));
   courseEn.forEach((day, index) => validateDay(day, "en", index + 1));
+});
+
+test("the 15-day curriculum keeps Day 7 as the LLM boundary and Attention on Day 10", () => {
+  assert.deepEqual(courseZh.map(day => day.t), [
+    "神经网络基础",
+    "训练与推理",
+    "模型量化",
+    "算子与 Kernel",
+    "端侧模型部署",
+    "端侧视觉流水线",
+    "LLM 基础",
+    "Tokenizer",
+    "Transformer 架构",
+    "Attention 机制",
+    "KV Cache",
+    "LLM 量化与 GGUF",
+    "LLM Runtime",
+    "LLM 性能与 Infra",
+    "端侧 LLM 产品化",
+  ]);
+  assert.deepEqual(courseEn.map(day => day.t), [
+    "Neural Network Foundations",
+    "Training and Inference",
+    "Model Quantization",
+    "Operators and Kernels",
+    "Edge Model Deployment",
+    "Edge Vision Pipelines",
+    "LLM Foundations",
+    "Tokenizer",
+    "Transformer Architecture",
+    "Attention Mechanisms",
+    "KV Cache",
+    "LLM Quantization and GGUF",
+    "LLM Runtime",
+    "LLM Performance and Infrastructure",
+    "Shipping Edge LLMs",
+  ]);
+  assert.match(courseZh[5].nextPreview, /课程分界点/u);
+  assert.match(courseZh[6].goal, /发展脉络/u);
+  assert.match(courseZh[6].history.intro, /典型时刻/u);
+  assert.doesNotMatch(courseZh[9].t, /Transformer/u);
+  assert.doesNotMatch(courseEn[9].t, /Transformer/u);
+  courseZh.forEach(day => {
+    assert.ok([...day.t].length <= 16, `zh-CN Day ${day.n} main title is too long`);
+    assert.doesNotMatch(day.t, /[：:]/u, `zh-CN Day ${day.n} must keep scope in the subtitle`);
+    assert.notEqual(day.t, day.s, `zh-CN Day ${day.n} needs a distinct subtitle`);
+  });
+  courseEn.forEach(day => {
+    assert.ok(day.t.split(/\s+/u).length <= 5, `en Day ${day.n} main title is too long`);
+    assert.doesNotMatch(day.t, /:/u, `en Day ${day.n} must keep scope in the subtitle`);
+    assert.notEqual(day.t, day.s, `en Day ${day.n} needs a distinct subtitle`);
+  });
 });
 
 test("localized chapters remain structurally aligned and preserve answer indices, sources, and icons", () => {
@@ -441,7 +489,7 @@ test("Eleventy registers strict i18n, escaping, filters, passthrough assets, and
   assert.ok(manifest.scripts?.build?.includes("sync:pages"), "the production build must sync verified static pages");
 });
 
-test("the root publication tree and _site each contain exactly 40 bilingual HTML pages", () => {
+test("the root publication tree and _site each contain exactly 36 localized HTML pages", () => {
   const expected = [...pageFiles].sort();
   assert.deepEqual(listPublishedHtml(ROOT), expected, "repository-root publication pages are incomplete or contain stale HTML");
   assert.deepEqual(listPublishedHtml(SITE_ROOT), expected, "_site pages are incomplete or contain stale HTML");
@@ -487,7 +535,7 @@ test("every generated page has correct language, title, canonical URL, hreflang 
   }
 });
 
-test("home pages and all 34 chapter pages retain useful no-JavaScript content", () => {
+test("home pages and all 30 chapter pages retain useful no-JavaScript content", () => {
   for (const base of [ROOT, SITE_ROOT]) {
     for (const relativePath of ["index.html", "en/index.html"]) {
       const html = read(base, relativePath);
@@ -570,7 +618,7 @@ test("learning-loop pages pre-render dashboards, archives, chapter tools, review
       assert.ok(html.includes("data-certificate-unlocked"), `${relativePath} needs an unlocked certificate state`);
       assert.ok(html.includes("data-certificate-name-input"), `${relativePath} needs a local learner-name input`);
       assert.ok(html.includes("data-print-certificate"), `${relativePath} needs a print/PDF action`);
-      assert.ok(html.includes("17 / 17"), `${relativePath} must state the completion threshold`);
+      assert.ok(html.includes(`${courseMeta.totalDays} / ${courseMeta.totalDays}`), `${relativePath} must state the completion threshold`);
     }
   }
 });
@@ -600,9 +648,9 @@ test("all chapter pages render complete quiz markup and six-stage interactive pr
   }
 });
 
-test("Day 16 and Day 17 render dual history tracks, layered project maps, and verification metadata", () => {
+test("Day 14 and Day 15 render dual history tracks, layered project maps, and verification metadata", () => {
   for (const base of [ROOT, SITE_ROOT]) {
-    for (const relativePath of ["day16.html", "day17.html", "en/day16.html", "en/day17.html"]) {
+    for (const relativePath of ["day14.html", "day15.html", "en/day14.html", "en/day15.html"]) {
       const html = read(base, relativePath);
       const { course, number } = pageContext(relativePath);
       const day = course[number - 1];

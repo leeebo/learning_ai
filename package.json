@@ -2,7 +2,7 @@
   "name": "learning-ai",
   "version": "1.0.0",
   "private": true,
-  "description": "A bilingual 17-day edge AI and LLM infrastructure course built with Eleventy.",
+  "description": "A bilingual 15-day edge AI and LLM infrastructure course built with Eleventy.",
   "scripts": {
     "build:site": "eleventy",
     "sync:pages": "node scripts/sync-eleventy-output.cjs",

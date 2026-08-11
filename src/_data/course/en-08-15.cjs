@@ -504,62 +504,63 @@ module.exports = [
     "n": 10,
     "t": "KV Cache",
     "s": "Trade memory for less repeated work during decoding",
-    "goal": "Understand prefill and decode, K/V tensor layouts, cache sizing, and the cost of long contexts.",
+    "goal": "Reproduce scaled dot-product attention from Attention Is All You Need, then understand prefill and decode, K/V tensor layouts, cache sizing, and the cost of long contexts.",
     "concept": [
-      "Attention Q, K, and V",
+      "Scaled dot-product and multi-head attention",
+      "Causal masks and positional encoding",
       "Prefill and autoregressive decode",
       "Cache shape by layer and head",
-      "Paged KV, sliding windows, and quantization"
+      "GQA/MQA, paged KV, and sliding windows"
     ],
     "analogy": "It is like caching already validated protocol headers: a new token contributes only its new Q/K/V increment, so the complete historical payload does not need to be parsed again.",
-    "diagram": "Prompt tokens ──Prefill──► K,V cache\nNew token ──Q + cached K,V──► attention ─► next token ─► append cache",
-    "code": "kv_bytes ≈ layers * 2 * tokens * kv_heads * head_dim * bytes_per_value\n# 2 = K + V; batch, dtype, and GQA change the actual value",
-    "lab": "Build a KV-cache calculator: vary context length, layer count, KV heads, head dimension, and dtype, then observe PSRAM or VRAM usage.",
+    "diagram": "Q,K,V ──scaled dot-product + causal mask──► attention\nPrompt tokens ──Prefill──► K,V cache\nNew token ──Q + cached K,V──► attention ─► next token ─► append cache",
+    "code": "def attention(Q, K, V, causal):\n    scores = Q @ K.T / sqrt(d_k)\n    if causal: scores = mask_future(scores)\n    return softmax(scores) @ V\n\nkv_bytes ≈ layers * 2 * tokens * kv_heads * head_dim * bytes_per_value\n# 2 = K + V; batch, dtype, and GQA change the actual value",
+    "lab": "Paper reading and experiment: read the abstract, Sections 3.1–3.5, and Section 4 of Attention Is All You Need. Implement softmax(QKᵀ/√d_k)V with tiny matrices and four tokens; run it with and without a causal mask to verify that future tokens cannot leak into the result. Then build a KV-cache calculator, vary context length, layer count, KV heads, head dimension, and dtype, record the bytes-per-new-token slope, and compare it with the PSRAM or VRAM budget.",
     "questions": [
-      "Why is decode often limited by memory bandwidth?",
-      "How do GQA and MQA reduce KV-cache size?",
-      "What capabilities does a sliding window sacrifice?"
+      "Why does the paper divide QKᵀ by √d_k?",
+      "Why can training and prefill be parallel while autoregressive decode still follows token order?",
+      "How do GQA and MQA reduce the KV cache, and what do they trade away?"
     ],
     "next": "LLM Runtime",
     "lesson": [
       {
-        "title": "Use one layer of causal attention to see why K and V are stored",
-        "body": "Linear projections turn each token's hidden state into Q, K, and V. The current Q is compared with all visible historical K values; after the causal mask and softmax, the resulting scores weight historical V values. With fixed model weights, an old token's K/V at that layer does not change when a new token arrives, so it can be cached. Q serves only the current computation and normally need not be retained. The cache avoids recomputing historical K/V projections, but attention still reads the historical cache and its cost grows with context length."
+        "title": "The paper's first principle: shorten serial dependencies",
+        "body": "The paper frames three design questions: how much computation each layer needs, how many steps must remain sequential, and how long the path is between distant positions. The Transformer keeps an encoder–decoder skeleton but replaces recurrence and convolution with multi-head self-attention and position-wise feed-forward networks, then adds residual connections, LayerNorm, and positional encoding for stable training and order. The whole input can therefore be processed with high parallelism and shorter long-range paths. That does not make generation parallel: the decoder still emits the next token autoregressively from the generated prefix."
       },
       {
-        "title": "Prefill and decode have different resource profiles",
-        "body": "Prefill processes the entire prompt at once, can parallelize across tokens, often achieves high compute utilization, and writes each layer's K/V contiguously. Decode handles only one new token per round but reads an ever-growing history, so it often becomes memory-bandwidth bound. Time to first token reflects queuing and prefill, while later responsiveness reflects inter-token latency. Measure them separately: shortening a prompt mainly helps prefill, whereas reducing KV bytes or improving locality affects long-context decode more directly."
+        "title": "Read scaling, heads, and causal masking from the formula",
+        "body": "The core formula is Attention(Q,K,V)=softmax(QKᵀ/√d_k)V. As d_k grows, the dot-product variance grows too; feeding large values directly into softmax can saturate it and shrink gradients, so division by √d_k stabilizes the scores. Multi-head attention uses different learned projections to enter several representation subspaces, computes attention in parallel, concatenates the results, and projects them again. A causal mask makes future positions unavailable. Verify all three behaviors with four-token toy matrices before discussing kernels or caches."
+      },
+      {
+        "title": "Once recurrence is gone, order must enter explicitly",
+        "body": "Attention can see a set of positions at once but does not know their order by itself. The paper therefore adds sinusoidal positional encodings to the embeddings and compares them with learned positional embeddings. This choice is part of the model contract: tokenizer, position encoding, causal mask, and cache positions must agree. Edge engineering cannot copy only the weight file; any change to these interfaces needs golden-vector checks to prove that outputs remain consistent."
+      },
+      {
+        "title": "Carry the paper's parallelism into prefill and decode",
+        "body": "The paper's O(1) sequential-operation entry describes one self-attention layer processing a complete sequence; it does not mean autoregressive output has no ordering. Prefill handles an existing prompt at once and can parallelize across tokens. Decode adds one new token per round, must wait for the previous sampled result, and reads historical K/V. Modern runtimes therefore measure one throughput-oriented prefill separately from many latency-sensitive decode rounds; the paper's parallelism must not be used to hide decode's bandwidth bottleneck."
+      },
+      {
+        "title": "Use one layer of causal attention to see why K and V are stored",
+        "body": "Linear projections turn each token's hidden state into Q, K, and V. The current Q is compared with all visible historical K values; after the causal mask and softmax, the resulting scores weight historical V values. With fixed model weights, an old token's K/V at that layer does not change when a new token arrives, so it can be cached. Q serves only the current computation and normally need not be retained. The cache avoids recomputing historical K/V projections, but attention still reads the historical cache and its cost grows with context length."
       },
       {
         "title": "Calculate the cache slope from the model architecture first",
         "body": "A common approximation is batch×layers×2×tokens×kv_heads×head_dim×bytes per element, where 2 represents K and V; implementations add alignment and paging metadata. Do not substitute attention heads for kv_heads, because they differ in GQA/MQA models. Express the formula as “bytes added per new token per session,” then add weights, temporary workspace, and runtime overhead. If the measured slope differs, inspect the cache dtype, sliding-window policy, and preallocation."
       },
       {
-        "title": "Compression and management policies sacrifice different things",
-        "body": "MQA and GQA reduce KV heads in the model architecture and cannot be switched on losslessly for any trained model. Low-bit KV caches reduce capacity and bandwidth, but long-context quality and kernel support must be validated. A sliding window limits access to distant history; paging primarily reduces fragmentation without changing the tensor volume per valid token; a prefix cache reuses prefill only when tokens and positions match exactly. These strategies can be combined, but record the source of each saving so paging is not misreported as numerical compression."
-      },
-      {
-        "title": "Validate the runtime with growth curves and state-disruption tests",
-        "body": "Hold the model and sampling parameters fixed, increase prompt length in steps, and record prefill time, per-token latency, used and reserved KV bytes, and output consistency. Then raise concurrency and observe fragmentation, eviction, and tail latency. State tests must cover reclamation after cancellation, session reset, prefix hits and misses, context shifting, and EOS. For the same token sequence, a reference path with caching disabled should produce the same logits within tolerance. If an edited history still hits the old cache, the position or cache key is wrong—it is not a performance optimization."
-      },
-      {
-        "title": "Use a capacity example to catch a kv_heads error",
-        "body": "For 32 layers, 8 KV heads, head_dim 128, and FP16, each token consumes 32×2×8×128×2=131072 bytes, or 128 KiB. A 4096-token context is about 512 MiB, and four sessions are about 2 GiB before alignment and other overhead. Substituting 32 query heads would overestimate the total fourfold. Read layers and kv_heads from model metadata, compare the formula with runtime allocations, and distinguish live usage from reserved capacity."
-      },
-      {
-        "title": "Validate a paged cache as a concurrent state machine",
-        "body": "A paged runtime maps each sequence's logical positions to fixed-size KV blocks. Large blocks waste space in the final partially used block; small blocks increase page-table and scheduling overhead. Continuous batching must find a free slot for every new token on every round. Prefix sharing needs reference counts on shared pages and copy-on-write when any session continues, so one sequence cannot overwrite another's prefix. Cancellation, timeout, and EOS must use the same release path. Randomly start, grow, and cancel sessions under stress; verify that the free-block count returns to baseline and eviction never corrupts another sequence's positions or contents. Also measure page lookup, copy, and reclamation time across concurrency levels so a capacity optimization does not create new tail latency."
+        "title": "Validate compression, capacity, and state together",
+        "body": "MQA and GQA reduce KV heads, low-bit caches reduce capacity and bandwidth, sliding windows limit access to distant history, and paging primarily reduces fragmentation; these savings must not be conflated. Hold the model and sampling parameters fixed while increasing prompt length, and record prefill time, per-token latency, and KV bytes. For 32 layers, 8 KV heads, head_dim 128, and FP16, each token is about 128 KiB, so 4096 tokens are about 512 MiB before other overhead. Stress a paged cache with random start, growth, and cancellation, verify that free blocks return to baseline, and compare logits with a cache-disabled reference to catch position or eviction corruption."
       }
     ],
-    "pitfall": "Budgeting RAM from the weight file alone and ignoring the KV cache for a long prompt produces a model that loads successfully but runs out of memory as soon as the request grows.",
+    "pitfall": "Reading “attention can be parallel” as “generation has no ordering,” or budgeting RAM from the weight file alone, hides both decode's serial wait and the real KV-cache OOM risk for long prompts.",
     "references": [
+      [
+        "Original Attention Is All You Need paper",
+        "https://arxiv.org/abs/1706.03762"
+      ],
       [
         "Original GQA paper",
         "https://arxiv.org/pdf/2305.13245"
-      ],
-      [
-        "Original Prompt Cache paper",
-        "https://arxiv.org/pdf/2311.04934"
       ],
       [
         "llama.cpp llama-bench",
@@ -568,15 +569,15 @@ module.exports = [
     ],
     "quiz": [
       {
-        "prompt": "What is the main benefit of a KV cache?",
+        "prompt": "Why does the paper divide QKᵀ by √d_k?",
         "options": [
-          "It removes the need for weights",
-          "It avoids recomputing the entire history's K/V for every generated token",
+          "It makes every attention head share K/V automatically",
+          "It prevents large-dimensional dot products from saturating softmax and shrinking gradients",
           "It automatically reduces tokenization time",
-          "It converts the model to int8"
+          "It converts the KV cache to int8"
         ],
         "answer": 1,
-        "explanation": "The cache preserves attention state for processed tokens. A new token still computes its own state and attends to history, but historical K/V is not rebuilt."
+        "explanation": "The dot-product variance grows with d_k. Dividing by √d_k keeps softmax inputs at a useful scale instead of pushing them into a low-gradient saturation region."
       },
       {
         "prompt": "How does KV-cache capacity usually relate to context length?",
@@ -604,27 +605,27 @@ module.exports = [
     "readingMinutes": 19,
     "keywords": [
       {
-        "term": "Prefill",
-        "definition": "The phase that processes the existing prompt at once and builds the KV cache.",
-        "espAnalogy": "Like parsing and caching the complete handshake state up front."
+        "term": "Scaled dot-product attention",
+        "definition": "Attention that scales QKᵀ by √d_k, applies softmax, and uses the result to weight V.",
+        "espAnalogy": "Like bringing a similarity signal into a stable range before reading several data sources by weight."
       },
       {
-        "term": "Decode",
-        "definition": "The phase that generates one token at a time and appends state.",
-        "espAnalogy": "Like a real-time loop continuously receiving incremental events."
+        "term": "Causal mask and positional encoding",
+        "definition": "The mask prevents a position from seeing the future; positional encoding injects order into a model without recurrence.",
+        "espAnalogy": "Like allowing a packet to read only arrived data while binding a sequence number to every field."
       },
       {
-        "term": "KV cache",
-        "definition": "Key/value tensors retained for historical tokens.",
-        "espAnalogy": "Like caching parsed headers to avoid reparsing the historical payload."
+        "term": "Prefill / decode",
+        "definition": "Prefill batches the existing prompt; decode appends state one token at a time as generation proceeds.",
+        "espAnalogy": "Like establishing connection state in a batch, then entering a real-time event loop."
       },
       {
-        "term": "GQA",
-        "definition": "An attention design in which multiple query heads share fewer K/V heads.",
-        "espAnalogy": "Like several consumers sharing one set of read-only indexes to save memory."
+        "term": "KV cache and GQA/MQA",
+        "definition": "The cache retains historical K/V; GQA and MQA reduce state per token by sharing fewer K/V heads.",
+        "espAnalogy": "Like retaining validated indexes while several consumers share a smaller read-only directory."
       }
     ],
-    "recap": "The previous chapter turned a prompt into token IDs. This chapter follows the historical state of those IDs during generation: why a new token need not recompute the entire prefix, yet requires memory to retain K/V.",
+    "recap": "The previous chapter turned a prompt into token IDs. This chapter first reads the original Transformer paper for scaling, heads, order, and causal masking, then follows those IDs through generation: why a new token need not recompute the entire prefix, yet requires memory to retain K/V.",
     "nextPreview": "The next chapter places the KV cache, model weights, and sampling loop inside an LLM runtime and examines cancellation, concurrency, and the responsibility boundary between an ESP32 and its host.",
     "history": {
       "intro": "The history of the KV cache reflects autoregressive generation's transition from mathematical feasibility to system scalability. The Transformer defined attention; MQA and GQA then reduced state per token, while paging, reuse, and quantization began addressing the memory-management problems of dynamic sessions.",
@@ -632,7 +633,7 @@ module.exports = [
         {
           "year": "2017",
           "title": "The Transformer establishes scaled dot-product and multi-head attention",
-          "body": "The Transformer replaced recurrence with scaled dot-product attention over Q, K, and V, and used a causal mask so a decoder could access only positions up to the current one.",
+          "body": "Attention Is All You Need frames the bottleneck as computation, sequential steps, and long-range path length, then replaces recurrence with an encoder–decoder built from scaled dot-product attention, multiple heads, positional encoding, and a causal mask. Input processing becomes easier to parallelize, while autoregressive output still emits one token from the prefix at a time.",
           "source": {
             "label": "Original Attention Is All You Need paper",
             "url": "https://arxiv.org/abs/1706.03762"

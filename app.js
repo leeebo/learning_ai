@@ -6,7 +6,7 @@
   const STORAGE_KEY = "learning-ai-progress-v1";
   const ARCHIVE_FORMAT = "learning-ai-progress";
   const MAX_ARCHIVE_BYTES = 6_000_000;
-  const TOTAL_DAYS = Number(document.body.dataset.totalDays) || 17;
+  const TOTAL_DAYS = Number(document.body.dataset.totalDays) || 15;
 
   const emptyLearningState = () => ({ version: 1, profileName: "", lastDay: null, streak: { count: 0, lastDate: null }, days: {} });
   const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
