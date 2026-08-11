@@ -12,6 +12,7 @@ const courseZh = require(path.join(ROOT, "src/_data/courseZh.cjs"));
 const courseEn = require(path.join(ROOT, "src/_data/courseEn.cjs"));
 const courseMeta = require(path.join(ROOT, "src/_data/courseMeta.cjs"));
 const courseRewards = require(path.join(ROOT, "src/_data/courseRewards.cjs"));
+const discussion = require(path.join(ROOT, "src/_data/discussion.cjs"));
 const i18n = require(path.join(ROOT, "src/_data/i18n.cjs"));
 
 const dayFiles = Array.from(
@@ -350,6 +351,29 @@ test("the UI dictionary has complete, non-empty keys for both locales", () => {
   }
 });
 
+test("the GitHub Discussions integration has a valid public repository and localized chapter fallback", () => {
+  assert.deepEqual(Object.keys(discussion).sort(), ["category", "categoryId", "mapping", "repo", "repoId", "url"]);
+  assert.equal(discussion.repo, "leeebo/learning_ai");
+  assert.match(discussion.repoId, /^R_/u);
+  assert.equal(discussion.category, "Q&A");
+  assert.match(discussion.categoryId, /^DIC_/u);
+  assert.equal(discussion.mapping, "pathname");
+  assert.equal(discussion.url, "https://github.com/leeebo/learning_ai/discussions");
+
+  for (const base of [ROOT, SITE_ROOT]) {
+    for (const relativePath of pageFiles.filter(filename => filename.includes("day"))) {
+      const html = read(base, relativePath);
+      assert.ok(html.includes('id="discussion"'), `${relativePath} needs a chapter discussion section`);
+      assert.ok(html.includes('src="https://giscus.app/client.js"'), `${relativePath} needs the Giscus client`);
+      assert.ok(html.includes(`data-repo="${discussion.repo}"`), `${relativePath} needs the configured discussion repository`);
+      assert.ok(html.includes(`data-repo-id="${discussion.repoId}"`), `${relativePath} needs the configured discussion repository ID`);
+      assert.ok(html.includes(`data-category="${escapeHtml(discussion.category)}"`), `${relativePath} needs the configured discussion category`);
+      assert.ok(html.includes(`data-category-id="${discussion.categoryId}"`), `${relativePath} needs the configured discussion category ID`);
+      assert.ok(html.includes(`href="${discussion.url}"`), `${relativePath} needs a no-JavaScript GitHub Discussions fallback`);
+    }
+  }
+});
+
 test("every chapter has a distinct localized pool of three completion rewards", () => {
   assert.deepEqual(Object.keys(courseRewards).sort(), ["en", "zh-CN"]);
   for (const locale of ["zh-CN", "en"]) {
@@ -470,6 +494,7 @@ test("home pages and all 34 chapter pages retain useful no-JavaScript content", 
       const { copy, english } = pageContext(relativePath);
       assert.ok(html.includes("<noscript>"), `${relativePath} needs a noscript block`);
       assert.ok(html.includes(escapeHtml(copy.noscriptHome)), `${relativePath} needs a localized no-JavaScript explanation`);
+      assert.ok(html.includes(`href="${discussion.url}"`), `${relativePath} needs a GitHub Discussions entry point`);
       for (const dayFile of dayFiles) {
         const expectedLink = publicUrl(english ? `en/${dayFile}` : dayFile);
         assert.ok(html.includes(`href="${expectedLink}"`), `${relativePath} is missing ${expectedLink}`);
@@ -516,6 +541,7 @@ test("learning-loop pages pre-render dashboards, archives, chapter tools, review
       assert.ok(html.includes("data-export-progress"), `${relativePath} needs learning-archive export`);
       assert.ok(html.includes("data-import-progress"), `${relativePath} needs learning-archive restore`);
       assert.ok(html.includes("data-reset-progress"), `${relativePath} needs an explicit local reset control`);
+      assert.ok(html.includes("discussion"), `${relativePath} needs a course discussion entry point`);
     }
 
     for (const relativePath of pageFiles.filter(filename => filename.includes("day"))) {

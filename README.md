@@ -84,6 +84,8 @@
 
 这些数据只使用版本化的 `localStorage` 键保存在当前浏览器：**不上传、不追踪、不要求账号**。你可以主动导出学习档案进行备份；清理站点数据仍会清除尚未导出的进度、错题和实验笔记。完课证书是基于本机记录生成的个人纪念，不是第三方可验证的资质证书。
 
+GitHub 登录评论区使用 Giscus 和 GitHub Discussions；公开学习者墙与学习打卡暂未启用，后续设计记录见 [学习打卡与公开学习者墙](docs/learning-check-in.md)。
+
 <p align="center">
   <a href="https://leeebo.github.io/learning_ai/"><strong>现在开始 Day 1</strong></a>
   &nbsp;·&nbsp;
