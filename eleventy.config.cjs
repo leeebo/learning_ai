@@ -40,6 +40,7 @@ async function configureEleventy(eleventyConfig) {
     "src/assets/app.js": "app.js",
     "src/assets/favicon.svg": "favicon.svg",
     "src/assets/styles.css": "styles.css",
+    "src/.nojekyll": ".nojekyll",
   });
 
   return {

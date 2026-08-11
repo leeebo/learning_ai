@@ -28,7 +28,7 @@ const pageFiles = [
   "en/certificate.html",
   ...dayFiles.map(filename => `en/${filename}`),
 ];
-const syncedFiles = [...pageFiles, "app.js", "favicon.svg", "styles.css"];
+const syncedFiles = [...pageFiles, "app.js", "favicon.svg", "styles.css", ".nojekyll"];
 const dayKeys = [
   "analogy",
   "analogyDetail",
@@ -405,6 +405,7 @@ test("Eleventy registers strict i18n, escaping, filters, passthrough assets, and
     "src/assets/app.js": "app.js",
     "src/assets/favicon.svg": "favicon.svg",
     "src/assets/styles.css": "styles.css",
+    "src/.nojekyll": ".nojekyll",
   }]);
   assert.deepEqual(result.dir, { input: "src", output: "_site", includes: "_includes", data: "_data" });
   assert.equal(result.htmlTemplateEngine, "njk");

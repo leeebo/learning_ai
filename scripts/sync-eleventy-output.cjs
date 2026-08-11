@@ -6,6 +6,7 @@ const output = path.join(root, "_site");
 const { totalDays } = require("../src/_data/courseMeta.cjs");
 const dayFiles = Array.from({ length: totalDays }, (_, index) => `day${String(index + 1).padStart(2, "0")}.html`);
 const generatedFiles = [
+  ".nojekyll",
   "index.html",
   "review.html",
   "certificate.html",
