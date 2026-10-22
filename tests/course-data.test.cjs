@@ -272,9 +272,9 @@ function listPublishedHtml(base) {
   return [...topLevel, ...english].sort();
 }
 
-test("Chinese and English courses expose 15 chapters with a strict nested schema", () => {
-  assert.equal(courseMeta.totalDays, 15);
-  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: 15 }, (_, index) => index + 1));
+test("Chinese and English courses expose 16 chapters with a strict nested schema", () => {
+  assert.equal(courseMeta.totalDays, 16);
+  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: 16 }, (_, index) => index + 1));
   assert.equal(courseZh.length, courseMeta.totalDays);
   assert.equal(courseEn.length, courseMeta.totalDays);
 
@@ -282,7 +282,7 @@ test("Chinese and English courses expose 15 chapters with a strict nested schema
   courseEn.forEach((day, index) => validateDay(day, "en", index + 1));
 });
 
-test("the 15-day curriculum keeps Day 7 as the LLM boundary and Attention on Day 10", () => {
+test("the 16-day curriculum places Jev after Attention and before KV Cache", () => {
   assert.deepEqual(courseZh.map(day => day.t), [
     "神经网络基础",
     "训练与推理",
@@ -294,6 +294,7 @@ test("the 15-day curriculum keeps Day 7 as the LLM boundary and Attention on Day
     "Tokenizer",
     "Transformer 架构",
     "Attention 机制",
+    "Jev 决策模型",
     "KV Cache",
     "LLM 量化与 GGUF",
     "LLM Runtime",
@@ -311,6 +312,7 @@ test("the 15-day curriculum keeps Day 7 as the LLM boundary and Attention on Day
     "Tokenizer",
     "Transformer Architecture",
     "Attention Mechanisms",
+    "Jev Decision Models",
     "KV Cache",
     "LLM Quantization and GGUF",
     "LLM Runtime",
@@ -322,6 +324,10 @@ test("the 15-day curriculum keeps Day 7 as the LLM boundary and Attention on Day
   assert.match(courseZh[6].history.intro, /典型时刻/u);
   assert.doesNotMatch(courseZh[9].t, /Transformer/u);
   assert.doesNotMatch(courseEn[9].t, /Transformer/u);
+  assert.match(courseZh[10].s, /并行/u);
+  assert.match(courseEn[10].s, /parallel/u);
+  assert.match(courseZh[10].references[0][1], /jevtypesafeai\.com/u);
+  assert.match(courseEn[10].references[0][1], /jevtypesafeai\.com/u);
   courseZh.forEach(day => {
     assert.ok([...day.t].length <= 16, `zh-CN Day ${day.n} main title is too long`);
     assert.doesNotMatch(day.t, /[：:]/u, `zh-CN Day ${day.n} must keep scope in the subtitle`);
@@ -489,7 +495,7 @@ test("Eleventy registers strict i18n, escaping, filters, passthrough assets, and
   assert.ok(manifest.scripts?.build?.includes("sync:pages"), "the production build must sync verified static pages");
 });
 
-test("the root publication tree and _site each contain exactly 36 localized HTML pages", () => {
+test("the root publication tree and _site each contain exactly 38 localized HTML pages", () => {
   const expected = [...pageFiles].sort();
   assert.deepEqual(listPublishedHtml(ROOT), expected, "repository-root publication pages are incomplete or contain stale HTML");
   assert.deepEqual(listPublishedHtml(SITE_ROOT), expected, "_site pages are incomplete or contain stale HTML");
@@ -535,7 +541,7 @@ test("every generated page has correct language, title, canonical URL, hreflang 
   }
 });
 
-test("home pages and all 30 chapter pages retain useful no-JavaScript content", () => {
+test("home pages and all 32 chapter pages retain useful no-JavaScript content", () => {
   for (const base of [ROOT, SITE_ROOT]) {
     for (const relativePath of ["index.html", "en/index.html"]) {
       const html = read(base, relativePath);
@@ -648,9 +654,9 @@ test("all chapter pages render complete quiz markup and six-stage interactive pr
   }
 });
 
-test("Day 14 and Day 15 render dual history tracks, layered project maps, and verification metadata", () => {
+test("Day 15 and Day 16 render dual history tracks, layered project maps, and verification metadata", () => {
   for (const base of [ROOT, SITE_ROOT]) {
-    for (const relativePath of ["day14.html", "day15.html", "en/day14.html", "en/day15.html"]) {
+    for (const relativePath of ["day15.html", "day16.html", "en/day15.html", "en/day16.html"]) {
       const html = read(base, relativePath);
       const { course, number } = pageContext(relativePath);
       const day = course[number - 1];
