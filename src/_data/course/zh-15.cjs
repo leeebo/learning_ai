@@ -214,7 +214,7 @@ const day10 = revise(old[9], 10, {
   code: "scores = Q @ K.T / sqrt(d_k)\nscores = scores + causal_mask\nweights = softmax(scores, axis=-1)\ncontext = weights @ V\noutput = concat(heads) @ W_o",
   lab: "读《Attention Is All You Need》的摘要、第 3.1–3.5 节与第 4 节。用 4 个 token、2 维向量手算并实现 softmax(QKᵀ/√d_k)V；切换 causal mask，确认位置 i 的输出不依赖未来位置。最后将序列长度从 4 翻倍到 8、16，记录 attention score 矩阵元素数如何增长。",
   questions: ["为什么点积要除以 √d_k？", "多头注意力相比单头增加了什么表达自由度？", "为什么 Transformer 训练可并行，而自回归生成仍有顺序？"],
-  next: "KV Cache",
+  next: "Jev 与 System One 决策模型",
   lesson: old[9].lesson.slice(0, 4).concat([
     { title: "一个 Transformer block 不只有 Attention", body: "Attention 负责让位置之间交换信息，逐位置 FFN 则对每个位置应用相同的非线性变换；残差连接为深层网络保留短路径，LayerNorm 稳定各层数值尺度。工程分析应把 QKV 投影、attention score、value 聚合、输出投影和 FFN 分开记账。现代 LLM 中 FFN 权重往往占据大量参数，而长上下文下 attention 的中间矩阵和 K/V 状态又成为显著内存与带宽来源。" },
     { title: "Self-attention 的优势来自路径与并行，不是免费计算", body: "论文用每层复杂度、必须串行的操作数和任意位置间最大路径长度比较循环、卷积与 self-attention。Self-attention 缩短远距离依赖路径并允许训练时并行处理序列，却需构造随序列长度平方增长的相关性矩阵。短到中等序列时优势明显；长上下文中则需要稀疏、分块、滑窗或 I/O-aware kernel 等优化，而且这些方法各自改变计算、可见范围或数据移动，不能混称为同一种加速。" },
@@ -235,7 +235,7 @@ const day10 = revise(old[9], 10, {
     { term: "Positional encoding", definition: "向无循环的注意力网络注入 token 顺序或相对距离信息。", espAnalogy: "像给每个环形缓冲区元素附带单调序号。" },
   ],
   recap: "上一章先建立了完整 Transformer 架构，明确 Attention 只是 block 中负责跨位置通信的子层。本章把这个大概念单独展开，追踪 Q、K、V、mask、多头和位置如何共同决定信息聚合。",
-  nextPreview: "下一章只讨论 KV Cache：旧 token 的 K/V 为什么可复用、每新增 token 需要多少内存，以及 GQA、分页和量化如何改变容量与带宽。",
+  nextPreview: "下一章比较开放式自回归生成与 Jev 的类型受限 System One 决策：何时可并行回答固定问题，何时仍必须保留 MCU 的确定性安全边界。",
   history: {
     intro: "Attention 从改善 encoder–decoder 对长句的压缩瓶颈开始，随后成为 Transformer 的核心数据流，并扩展到双向预训练、跨模态与 I/O-aware kernel。结构创新与系统优化共同决定它今天能处理多长的上下文。",
     milestones: [
@@ -274,7 +274,106 @@ const day10 = revise(old[9], 10, {
   },
 });
 
-const day11 = revise(old[9], 11, {
+const day11Jev = {
+  n: 11,
+  t: "Jev 决策模型",
+  s: "System One：用并行、类型受限且可校准的决策替代自由文本生成",
+  goal: "区分自回归 LLM 的逐 token 生成与 Jev 公开的并行、类型受限决策接口；能把 choice、score、noul 与校准置信度放进 ESP32—Edge Host 的安全架构，并用标注数据验证阈值。",
+  concept: ["自回归生成与并行决策", "共享 state 与独立 typed questions", "choice、score 与 noul 输出", "置信度、校准与阈值", "ESP32 安全边界与 Edge Host"],
+  analogy: "把它看作一块由主机完成的“并行判定协处理器”：MCU 发送经过校验的状态快照，协处理器同时回答若干固定格式的问题；MCU 仍像安全继电器一样只执行白名单、范围和联锁都通过的动作。",
+  diagram: "ESP32 sensors/state machine ──validated snapshot──► Edge Host\n                                                    │\n                    shared state ─► typed question map ─► choice / score / noul\n                                                    │\nESP32 policy + allowlist + range/interlock ◄── typed decision + confidence\n        │ valid                                      │ timeout / low confidence / invalid\n        └──────────────► actuator              safe degraded state ◄──────────────┘",
+  code: "request = { state: validated_snapshot, questions: typed_questions }\nreply = jev_decide(request)  # choice / score / noul + confidence\nif reply.valid && calibrated(reply.confidence) && policy_allows(reply):\n    esp32_execute(reply.choice)\nelse:\n    esp32_enter_safe_degraded_state()",
+  lab: "选择一个有边界的路由或评分任务，例如“把设备诊断快照分为本地恢复、请求人工、禁止动作三类”。为每个选项写明有限集合、输入字段、真实标签和不可越过的安全规则；在留出的标注样本上画出置信度—正确率曲线，选择阈值并统计 false accept / false reject。最后注入超时、低置信度、未知选项和畸形字段，确认 ESP32 一律保持安全降级。",
+  questions: ["自回归语言模型与 Jev 的公开决策接口在输出依赖和形状上有何不同？", "为什么高置信度不能直接等同于设备可以执行？", "在 ESP32 与 Edge Host 的协作中，哪一层应保留最终的动作联锁？"],
+  next: "KV Cache",
+  lesson: [
+    {
+      title: "先把问题分成两类：生成内容，还是在有限选项中做决定",
+      body: "Attention 章节已经说明，decoder-only LLM 通常按 P(y|x)=∏ₜP(yₜ|x,y₍ₜ₎) 逐 token 产生文本：第 t 个 token 依赖先前已经选择的 token。这正像 UART 发出可变长度报文：后一字节要等前一字节确定，输出形状和长度在运行前并不固定。它适合解释、摘要、对话和代码草拟，却把延迟、tokenizer、采样、停止条件与 KV 状态带进服务路径。Jev 的公开资料描述的不是另一套已公开权重和层配置的 Transformer 替代物，而是一种 System One 决策服务契约：给定一份共享 state，再提出多个有类型、有限输出空间的问题，各问题可独立评估。它不承诺自由文本续写；它的价值在于把“应该选哪一个预定义动作或等级”从开放式生成缩成可验证的接口。因而不要把它宣传成对所有 LLM 工作负载都更快的通用架构：公开的 40–200× 说法针对受约束的决策工作负载，必须与相同输入、输出、硬件和质量标准比较。",
+    },
+    {
+      title: "共享 state 加问题映射，像一次 DMA 快照被多个外设并行消费",
+      body: "在公开的 Jev 架构描述中，调用方提交一份 shared state 和一组 questions。每个问题定义自己需要的答案类型和允许值；系统不必先生成一段自然语言，再让后续问题去解析那段文字。对于嵌入式工程师，这更像把一次传感器/DMA 快照放进只读缓冲区，再由多个独立外设同时读取：温度风险问题、网络恢复问题和维护优先级问题都从同一份快照取字段，但一个问题的答案不应成为另一个问题的隐式 token 前缀。并行不等于没有依赖：state 的采样时刻、版本、单位、缺失字段和有效期必须固定；若第二个决定真的依赖第一个决定，应把这种依赖显式写成主机侧流程或下一轮请求，而不是假装它仍是独立问题。这样可观察性也更好：每个问题可拥有输入 schema、选项集合、答案、置信度、耗时和版本记录，而不是在一段自由文本里反向猜测模型究竟作了什么决定。",
+    },
+    {
+      title: "把 choice、score、noul 当成接口类型，而不是自然语言标签",
+      body: "Jev 公开接口列出 choice、score 和 noul 三类输出。choice 用于从有限候选项中选择，例如 {继续采样、请求人工、进入安全模式}；score 表示一个数值评分，适合排序、优先级或风险等级，但必须同时定义量纲、范围、方向和阈值；noul 表示“不确定/没有足够依据”的受支持结果，使系统不必伪造一个看似完整的选择。它们相当于 C 的 enum、带范围的数值以及显式 error code：调用者可以编译期或运行期验证形状，再将其送入确定性策略。类型受限能防止“返回了未定义动作名、JSON 少字段、单位写错”的接口错误，却不能证明语义正确。例如模型可以合法地输出 `continue`，但对异常温度模式判断错误。因此 schema 验证只是第一道门；状态新鲜度、物理范围、设备模式、速率限制、互锁和人工升级规则仍必须独立执行。也不要把 noul 当作异常后偷偷改成默认执行，它应触发已设计好的保守路径和可观测事件。",
+    },
+    {
+      title: "置信度需要校准：0.9 是可检验的频率声明，不是九成真理",
+      body: "决策接口能返回分数或 confidence，但分数集中、排序稳定或模型自称“确定”，并不自动等于正确。工程上所谓校准，是在与实际部署相近且带真实标签的样本中，把预测置信度分桶后观察：所有约 0.9 的预测是否真的约九成正确？这类似 ADC 标定：寄存器读出 900 并不意味着物理量准确，必须对照已知标准、温度和批次误差。为每个任务保留训练外、时间上分离的验证集，记录 reliability diagram、覆盖率、错误代价与阈值下的 false accept / false reject。若“错误执行”代价远高于“请求人工”，阈值应偏保守，并允许 noul、超时和状态过期直接走降级。校准也会漂移：传感器换型、固件升级、环境季节变化或问题选项修改后，旧阈值不再自动可信。把模型版本、question schema、输入分布和阈值版本一起记录，才有条件复现一次动作为什么被允许或拒绝。",
+    },
+    {
+      title: "速度比较必须匹配工作负载，不能用受限决策替换开放式对话的账本",
+      body: "自回归 LLM 的延迟常包含 tokenizer、prefill、逐 token decode、采样和流式传输；回答越长，decode 的串行依赖和 KV 读写越明显。一个并行的有限决策接口避开了自由文本逐 token 输出，当然可能在“同一快照回答多个固定问题”的测量中拥有很低延迟。但这不表示它能生成解释、写故障报告、处理任意新选项，或无代价吸收超长上下文。比较时要固定 state 大小、问题数、选项数、硬件、并发、预热状态、p50/p95、超时策略和质量验收；若 LLM 的输出还需解析成动作，也要把解析、重试和拒绝成本计入。对 ESP32 项目，最有价值的指标通常不是某个供应商的单点速度，而是从采样时间戳到安全决策返回的端到端尾延迟、过期率、网络失败率与错误动作风险。这样才能决定一个任务应留在本地状态机、交给 Edge Host 的类型受限决策，还是确实需要自由文本模型。",
+    },
+    {
+      title: "职责边界：Edge Host 可以建议，ESP32 必须掌握确定性执行权",
+      body: "把 Jev 放在 Edge Host，不是因为 ESP32 不重要，而是为了把职责放回资源和安全边界：ESP32 采集传感器、维护实时状态机、做本地阈值和联锁、验证消息完整性并驱动执行器；Edge Host 汇集更丰富的 state、运行受限决策服务、记录审计和更新模型版本；云端若存在，只能作为明确的非实时回退或离线分析路径。通信契约应包含消息版本、单调序号、时间戳、单位、完整性校验、deadline 和重放规则。MCU 收到 reply 后仍要验证 schema、choice 是否在允许集、score 是否在范围、confidence 是否过校准阈值、state 是否尚未过期、当前模式是否允许该动作。任何一项失败都进入已测试的 fail-closed 或安全降级状态。这个设计与下一章 KV Cache 的关系也很清楚：只有当你选择自回归 LLM 生成时，才要承担随 token 增长的会话缓存；受限决策并没有把所有问题变简单，却改变了状态和延迟的成本模型。",
+    },
+    {
+      title: "从一个可验收的小任务开始，而不是把所有控制逻辑交给模型",
+      body: "第一版不要让模型直接控制电机、继电器或安全关键阀门。选择一个本来就有人工复核或可回退的任务，例如诊断工单路由、告警合并优先级、测试报告分级或建议下一步检查项。先写出有限答案表、每个答案的含义、输入 schema、ground truth 获取方式和失败动作；再收集包含正常、边界、传感器故障、网络抖动和未知状态的样本。离线测量准确率之外，还要计算每个阈值的拒绝率、错放行率、错拒绝率和延迟分位数；在线采取影子模式，让系统记录建议而不执行，比较人工或规则结果后再逐步放开低风险路径。每次变更问题文本、选项、state 字段、模型或阈值，都应像修改通信协议一样版本化并回归测试。这样“更快”才成为可审计的系统性质，而不是演示视频里的印象。",
+    },
+  ],
+  pitfall: "把 Jev 说成已公开内部结构的“Transformer 替代品”，把类型受限误当作语义零错误，或让带 confidence 的 reply 绕过 MCU 联锁。公开资料描述的是服务契约；置信度须用本地标注数据校准，最终执行权必须留在确定性安全边界。",
+  references: [
+    ["Jev 官方架构说明", "https://www.jevtypesafeai.com/jev/architecture"],
+    ["TypeSafe AI：System One Models 与 Jev 公告", "https://typesafe.ai/blog/introducing-system-one-models-and-jev?featured_on=pythonbytes"],
+  ],
+  quiz: [
+    { prompt: "哪项最准确地描述 Jev 公开的 System One 决策接口？", options: ["生成任意长度文本并把每个 token 作为下一步输入", "对共享 state 中多个独立、类型受限的问题并行给出决策", "在 ESP32 上直接接管所有执行器", "保证任何语义判断都不会错误"], answer: 1, explanation: "公开资料描述 shared state 加独立 typed questions 的并行决策契约；它不是自由文本逐 token 生成，也不能保证语义永远正确。" },
+    { prompt: "为什么设备动作前仍要对高 confidence 的 choice 执行确定性策略？", options: ["因为 choice 一定不是有限集合", "因为高置信度无需标定", "因为合法输出形状仍可能对应语义错误或过期状态", "因为 ESP32 不能验证 schema"], answer: 2, explanation: "类型和 schema 防止接口形状错误，但不能证明模型判断、输入新鲜度或物理条件正确；MCU 必须继续检查白名单、范围、联锁和 deadline。" },
+    { prompt: "比较 Jev 与自回归 LLM 的速度时，哪个做法可信？", options: ["直接比较厂商给出的单个倍数", "固定相同的受限任务、输入大小、质量、硬件和尾延迟指标", "忽略解析与安全策略的时间", "用自由文本长度代替有限问题数"], answer: 1, explanation: "速度只有绑定同一工作负载和验收标准才可解释；受限并行决策与开放式逐 token 生成的输出契约不同。" },
+  ],
+  readingMinutes: 20,
+  keywords: [
+    { term: "System One 决策", definition: "把共享状态映射到有限、预定义且有类型的答案，而非生成自由文本的快速决策工作负载。", espAnalogy: "像一个固定 opcode 表的协处理器：输入寄存器快照，输出枚举结果或状态码。" },
+    { term: "choice / score / noul", definition: "Jev 公开的答案类别：有限选项、数值评分与显式不确定/无足够依据结果。", espAnalogy: "像 enum、带单位的测量值和明确错误码，调用方可分别校验和处理。" },
+    { term: "校准", definition: "用带标签样本检验预测置信度与实际正确频率是否匹配，并据此选择阈值。", espAnalogy: "像用标准源校准 ADC；读数看似精细不代表物理量准确。" },
+    { term: "确定性安全边界", definition: "独立于模型建议执行 schema、范围、互锁、时限和降级策略的硬规则层。", espAnalogy: "像驱动执行器前的硬件保护、看门狗和状态机，而不是对自然语言的信任。" },
+  ],
+  recap: "Day 9 建立 Transformer 总图，Day 10 把 Attention 的并行训练与自回归生成边界讲清。本章在进入 KV Cache 前插入另一条路线：当产品只需有限、可审计的决策时，是否应避免把开放式文本生成带入控制路径。",
+  nextPreview: "下一章回到自回归 LLM 的工程代价：若任务确实需要逐 token 生成，历史 K/V 为什么可复用、会话内存如何线性增长，以及服务如何回收状态。",
+  history: {
+    intro: "今天的类型受限决策不是凭空出现：形式化计算、有限状态控制、统计分类、概率校准和现代生成模型共同塑造了“让系统在不确定性下输出可验证接口”的工程语言。Jev 的公开资料披露的是其 System One 服务语义，而不是底层层数、权重或训练细节。",
+    milestones: [
+      { year: "1943", title: "形式神经元把阈值决策写成可计算单元", body: "McCulloch 与 Pitts 用形式化神经元连接逻辑与神经活动，早期说明学习系统也可被描述为受限的输入—输出决策。", source: { label: "McCulloch–Pitts 原始论文", url: "https://www.cs.cmu.edu/~epxing/Class/10715/reading/McCulloch.and.Pitts.pdf" } },
+      { year: "1956", title: "人工智能研究把推理与控制作为独立问题提出", body: "Dartmouth 提案把学习、语言和抽象等问题列为可研究的机器智能主题，为后来区分符号规则、统计分类和生成模型留下问题框架。", source: { label: "Dartmouth Proposal 原始文本", url: "https://jmc.stanford.edu/articles/dartmouth/dartmouth.pdf" } },
+      { year: "1960", title: "感知机展示数据驱动的有限分类输出", body: "Rosenblatt 以感知机讨论可学习的模式分类，强调模型输出可以是有限类别而不必是一段自由语言。", source: { label: "Rosenblatt 原始论文", url: "https://psycnet.apa.org/record/1960-09807-001" } },
+      { year: "1983", title: "概率预测的校准成为可检验性质", body: "Dawid 讨论概率预测的校准与检验，为把“模型的把握”变成可由观测频率反证的工程主张提供了基础。", source: { label: "Dawid 校准论文", url: "https://doi.org/10.1214/aos/1176346325" } },
+      { year: "2017", title: "Transformer 把大规模条件生成推向主流", body: "Attention Is All You Need 展示以 Attention 为主干的序列到序列架构，后续自回归系统由此把开放式 token 生成带入工程主线。", source: { label: "Transformer 原始论文", url: "https://arxiv.org/abs/1706.03762" } },
+      { year: "近年", title: "Jev 公开 System One 的并行类型受限服务契约", body: "TypeSafe AI 的公开架构材料说明 shared state、独立 typed questions、choice/score/noul 与并行非自回归评估；其内部模型结构未公开，工程评估应以可观察接口和真实任务为准。", source: { label: "Jev 官方架构说明", url: "https://www.jevtypesafeai.com/jev/architecture" } },
+    ],
+    bridge: "对 ESP32 工程师而言，这条历史的关键不是把每种模型塞进 MCU，而是把任务先分类：确定性控制留在固件；有限不确定决策可以交给带类型、阈值和审计的主机服务；确实需要开放表达时，才进入后续的 tokenizer、KV 与 runtime 成本账本。",
+  },
+  visual: {
+    title: "一次类型受限决策如何穿过 ESP32—Edge Host 安全链",
+    description: "六步流程把状态采集、并行决策、置信度校准与最终执行权分开，避免把模型的建议误读为执行许可。",
+    steps: [
+      { icon: "📡", label: "采集状态快照", data: "sensors + mode + timestamp", action: "ESP32 固化单位、序号和新鲜度", insight: "输入契约先于任何模型调用" },
+      { icon: "🧱", label: "验证并封包", data: "schema + checksum + deadline", action: "拒绝缺失、越界或过期字段", insight: "坏 state 不能靠更聪明的模型修复" },
+      { icon: "🗂️", label: "提出类型问题", data: "shared state + question map", action: "定义有限选项、score 范围或 noul", insight: "输出空间应在调用前可检查" },
+      { icon: "⚡", label: "并行评估", data: "independent answers", action: "Edge Host 对独立问题并发决策", insight: "不需要逐 token 自由文本 decode" },
+      { icon: "📏", label: "校准与策略检查", data: "confidence + threshold + interlock", action: "按验证集阈值和设备状态判断", insight: "高分不是自动执行许可" },
+      { icon: "🛡️", label: "执行或安全降级", data: "allowlisted command / safe state", action: "ESP32 保留最终执行与故障处理", insight: "超时、noul 与异常必须有保守路径" },
+    ],
+    loop: "每个新状态快照重新开始；模型不会持有 MCU 的执行权。若问题之间存在依赖，显式创建下一轮状态和请求，而不是隐藏在自由文本里。",
+  },
+  analogyDetail: {
+    title: "一块带安全继电器的并行诊断协处理板",
+    story: "主控 MCU 把带时间戳的传感器快照送到协处理板。协处理板同时回答“是否需要维护”“哪条网络路径可用”“告警等级如何”，每题只能写入规定寄存器或返回明确的无结论码。安全继电器并不关心协处理板说得多流畅；它只接受在当前模式、范围和联锁都满足时的白名单命令。",
+    illustration: [
+      { icon: "📥", label: "只读快照 SRAM", mapsTo: "shared state 与版本化输入 schema" },
+      { icon: "🔀", label: "并行诊断单元", mapsTo: "独立 typed questions 的非自回归评估" },
+      { icon: "📐", label: "状态寄存器", mapsTo: "choice、score、noul 与 confidence" },
+      { icon: "🛡️", label: "安全继电器", mapsTo: "ESP32 的 allowlist、范围检查、联锁与降级" },
+    ],
+    boundary: "Jev 不是已公开硬件协处理器，公开资料也未披露其内部神经网络层结构；类比只解释受限接口、并行问题和确定性执行权的分离。",
+  },
+};
+
+const day12 = revise(old[9], 12, {
   t: "KV Cache",
   s: "用会话内存换取 Decode 阶段的历史投影复用",
   goal: "理解 Prefill 与 Decode 的工作负载差异、K/V 为什么可缓存、cache 张量布局和容量斜率，并能比较 MHA、GQA、MQA、分页与低精度策略。",
@@ -299,7 +398,7 @@ const day11 = revise(old[9], 11, {
     { term: "KV cache", definition: "保存历史 token 在每层产生的 Key 与 Value 投影的会话状态。", espAnalogy: "像按层保存已核验字段的索引与数据描述符。" },
     { term: "GQA / MQA", definition: "让多组 Query head 共享更少 K/V head，从结构上降低每 token cache 宽度。", espAnalogy: "像多个消费者共享较少的只读索引表。" },
   ],
-  recap: "上一章把 Attention 的 Q/K/V、causal mask 与多头聚合拆成显式数据流。本章只研究生成阶段如何复用历史 K/V，以及这种复用产生的会话内存、带宽与回收责任。",
+  recap: "上一章区分了类型受限的并行决策与开放式自回归生成；本章回到后者，研究生成阶段如何复用历史 K/V，以及这种复用产生的会话内存、带宽与回收责任。",
   nextPreview: "下一章进入 LLM 量化与 GGUF：把权重、张量类型、block 开销、metadata 与输出质量连成可验证的模型包。",
 });
 
@@ -358,9 +457,10 @@ const course = [
   revise(old[8], 8, { next: "Transformer 架构", recap: "上一章建立了 LLM 的概率目标、发展脉络与状态术语；本章从输入端开始，固定字符、字节、token、特殊标记和消息模板的精确契约。", nextPreview: "下一章把 Transformer 作为完整架构单独展开，先建立 token、位置、block、FFN、残差、归一化与 logits 的全局路径。" }),
   day9,
   day10,
-  day11,
-  revise(old[11], 12, { t: "LLM 量化与 GGUF", s: "把低比特权重与 metadata 封装成可部署模型包", next: "LLM Runtime", recap: "上一章已经为逐 token 增长的 KV 状态建立容量账本；本章进一步压缩跨请求复用的权重，并把 GGUF metadata 视为可验证的模型包契约。", nextPreview: "下一章把模型包真正交给 runtime 和端侧推理框架，检查加载、采样、调度、backend 分区、fallback 与取消路径。" }),
-  revise(old[10], 13, {
+  day11Jev,
+  day12,
+  revise(old[11], 13, { t: "LLM 量化与 GGUF", s: "把低比特权重与 metadata 封装成可部署模型包", next: "LLM Runtime", recap: "上一章已经为逐 token 增长的 KV 状态建立容量账本；本章进一步压缩跨请求复用的权重，并把 GGUF metadata 视为可验证的模型包契约。", nextPreview: "下一章把模型包真正交给 runtime 和端侧推理框架，检查加载、采样、调度、backend 分区、fallback 与取消路径。" }),
+  revise(old[10], 14, {
     t: "LLM Runtime",
     s: "把模型包、生成循环与异构 backend 组织成可观测执行路径",
     goal: "理解 runtime 如何加载模型、管理会话、调度 Prefill/Decode、执行采样与流式取消，并能用分层验收矩阵比较 CPU、GPU、NPU backend、编译方式、子图分区和 fallback。",
@@ -377,7 +477,7 @@ const course = [
     quiz: [old[10].quiz[0], old[12].quiz[0], old[12].quiz[2]],
     readingMinutes: 20,
     keywords: [old[10].keywords[0], old[10].keywords[3], old[12].keywords[0], old[12].keywords[1]],
-    recap: "前六天建立传统端侧模型执行链，Day 7–12 又补齐 LLM 的输入、架构、Attention、KV 与模型包。本章把这些静态契约放进真实 runtime，请求调度与异构 backend 从此成为一条可追踪的数据和控制路径。",
+    recap: "前六天建立传统端侧模型执行链，Day 7–13 又补齐 LLM 的输入、架构、Attention、受限决策、KV 与模型包。本章把这些静态契约放进真实 runtime，请求调度与异构 backend 从此成为一条可追踪的数据和控制路径。",
     nextPreview: "下一章从单机 benchmark 扩展到芯片、互连、并行训练、在线服务与 SLO，建立跨尺度性能证据。",
     history: {
       intro: "LLM runtime 与端侧框架共同承接模型语义和硬件现实：前者管理生成状态与请求生命周期，后者通过图变换、编译和 delegate 把算子映射到异构设备。两条历史最终汇合为一条必须可观测、可回退的执行路径。",
@@ -387,7 +487,7 @@ const course = [
     visual: old[12].visual,
     analogyDetail: old[10].analogyDetail,
   }),
-  revise(old[15], 14, {
+  revise(old[15], 15, {
     t: "LLM 性能与 Infra",
     s: "从单机 TTFT/ITL 追到集群数据移动、并行拓扑与 SLO",
     goal: "用可复现实验定位单机推理瓶颈，并理解训练并行、KV 调度、Prefill/Decode 解耦与服务 SLO 如何把同一资源账本扩展到集群。",
@@ -404,11 +504,11 @@ const course = [
     quiz: [old[13].quiz[0], old[15].quiz[1], old[15].quiz[2]],
     readingMinutes: 20,
     keywords: [old[13].keywords[0], old[13].keywords[1], old[15].keywords[0], old[15].keywords[3]],
-    recap: "Day 13 已能证明请求实际经过哪些 backend；本章把正确性基线升级为跨尺度性能账本，从单设备测量延伸到集群通信、状态调度和服务目标。",
+    recap: "Day 14 已能证明请求实际经过哪些 backend；本章把正确性基线升级为跨尺度性能账本，从单设备测量延伸到集群通信、状态调度和服务目标。",
     nextPreview: "终章把模型包、runtime、异构 backend、MCU/Host 安全边界、能耗、回退、OTA 与可观测性收束成可交付的端侧 LLM 产品。",
     analogyDetail: old[13].analogyDetail,
   }),
-  revise(old[16], 15, {
+  revise(old[16], 16, {
     t: "端侧 LLM 产品化",
     s: "把模型、异构硬件、MCU/Host 边界与运营证据收束为可交付系统",
     goal: "完成端侧 LLM 的三级职责边界、模型包契约、异构执行、容量与能耗预算、故障降级、版本发布和验收报告。",
@@ -425,8 +525,8 @@ const course = [
     quiz: [old[14].quiz[0], old[16].quiz[0], old[16].quiz[1]],
     readingMinutes: 20,
     keywords: [old[14].keywords[0], old[16].keywords[0], old[16].keywords[1], old[16].keywords[3]],
-    recap: "前十四天已从神经网络基础走到 LLM 结构、运行时、量化、框架和跨尺度性能。本章把全部知识压回一个真实产品：谁有执行权、每个字节和每焦耳花在哪里、失败时如何保持安全、版本如何发布与回滚。",
-    nextPreview: "15 天路线已经完成。下一次项目从目标设备和真实工作负载开始：先写安全与验收边界，再选择模型与 runtime，并让每次优化都留下可复现证据。",
+    recap: "前十五天已从神经网络基础走到 LLM 结构、受限决策、运行时、量化、框架和跨尺度性能。本章把全部知识压回一个真实产品：谁有执行权、每个字节和每焦耳花在哪里、失败时如何保持安全、版本如何发布与回滚。",
+    nextPreview: "16 天路线已经完成。下一次项目从目标设备和真实工作负载开始：先写安全与验收边界，再选择模型与 runtime，并让每次优化都留下可复现证据。",
   }),
 ];
 

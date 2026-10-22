@@ -1,4 +1,4 @@
-const totalDays = 15;
+const totalDays = 16;
 
 module.exports = Object.freeze({
   totalDays,
