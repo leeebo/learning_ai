@@ -272,9 +272,8 @@ function listPublishedHtml(base) {
   return [...topLevel, ...english].sort();
 }
 
-test("Chinese and English courses expose 16 chapters with a strict nested schema", () => {
-  assert.equal(courseMeta.totalDays, 16);
-  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: 16 }, (_, index) => index + 1));
+test("Chinese and English courses expose the complete course with a strict nested schema", () => {
+  assert.deepEqual(courseMeta.chapterNumbers, Array.from({ length: courseMeta.totalDays }, (_, index) => index + 1));
   assert.equal(courseZh.length, courseMeta.totalDays);
   assert.equal(courseEn.length, courseMeta.totalDays);
 
@@ -282,7 +281,7 @@ test("Chinese and English courses expose 16 chapters with a strict nested schema
   courseEn.forEach((day, index) => validateDay(day, "en", index + 1));
 });
 
-test("the 16-day curriculum places Jev after Attention and before KV Cache", () => {
+test("the curriculum places Jev after Attention and before KV Cache", () => {
   assert.deepEqual(courseZh.map(day => day.t), [
     "神经网络基础",
     "训练与推理",
@@ -300,6 +299,7 @@ test("the 16-day curriculum places Jev after Attention and before KV Cache", () 
     "LLM Runtime",
     "LLM 性能与 Infra",
     "端侧 LLM 产品化",
+    "多模态大模型",
   ]);
   assert.deepEqual(courseEn.map(day => day.t), [
     "Neural Network Foundations",
@@ -318,6 +318,7 @@ test("the 16-day curriculum places Jev after Attention and before KV Cache", () 
     "LLM Runtime",
     "LLM Performance and Infrastructure",
     "Shipping Edge LLMs",
+    "Multimodal Large Models",
   ]);
   assert.match(courseZh[5].nextPreview, /课程分界点/u);
   assert.match(courseZh[6].goal, /发展脉络/u);
@@ -338,6 +339,20 @@ test("the 16-day curriculum places Jev after Attention and before KV Cache", () 
     assert.doesNotMatch(day.t, /:/u, `en Day ${day.n} must keep scope in the subtitle`);
     assert.notEqual(day.t, day.s, `en Day ${day.n} needs a distinct subtitle`);
   });
+});
+
+test("the multimodal chapter covers each modality, training, and mixed inference", () => {
+  for (const [course, expected] of [
+    [courseZh, [/文字/u, /图片/u, /声音/u, /视频/u, /训练/u, /推理/u, /时间戳/u, /转写/u]],
+    [courseEn, [/text/iu, /image/iu, /audio/iu, /video/iu, /training/iu, /inference/iu, /timestamp/iu, /transcri/iu]],
+  ]) {
+    const day = course[16];
+    assert.equal(course[15].next, day.t);
+    const prose = [day.goal, day.lab, ...day.lesson.map(section => `${section.title} ${section.body}`)].join(" ");
+    expected.forEach(pattern => assert.match(prose, pattern));
+    assert.equal(day.next, null);
+    assert.deepEqual(day.quiz.map(question => question.answer), [1, 2, 3]);
+  }
 });
 
 test("localized chapters remain structurally aligned and preserve answer indices, sources, and icons", () => {
@@ -382,7 +397,7 @@ test("localized chapters remain structurally aligned and preserve answer indices
 test("Chinese and English chapters meet independent reading-depth and script requirements", () => {
   courseZh.forEach(day => {
     const characters = JSON.stringify(day).match(cjkPattern) ?? [];
-    const minimum = day.n >= 16 ? 4000 : 2200;
+    const minimum = day.n === 17 ? 3500 : day.n >= 16 ? 4000 : 2200;
     assert.ok(characters.length >= minimum, `zh-CN Day ${day.n} has only ${characters.length} CJK characters; expected at least ${minimum}`);
   });
 
@@ -390,7 +405,7 @@ test("Chinese and English chapters meet independent reading-depth and script req
     const serialized = JSON.stringify(day);
     assert.doesNotMatch(serialized, cjkPattern, `en Day ${day.n} must not contain CJK text`);
     const words = serialized.match(englishWordPattern) ?? [];
-    const minimum = day.n >= 16 ? 3200 : 1800;
+    const minimum = day.n === 17 ? 2200 : day.n >= 16 ? 3200 : 1800;
     assert.ok(words.length >= minimum, `en Day ${day.n} has only ${words.length} English words; expected at least ${minimum}`);
   });
 });

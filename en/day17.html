@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Day 17 · Multimodal Large Models</title>
+  <meta name="description" content="From text, images, audio, and video to mixed-content understanding — Explain how different modalities are represented, trained, and supplied to a model; trace a mixed text, image, audio, and video inference request; and compare text responses, speech output, real-time operation, and reliability limits.">
+  <link rel="canonical" href="https://leeebo.github.io/learning_ai/en/day17.html">
+  <link rel="alternate" hreflang="en" href="https://leeebo.github.io/learning_ai/en/day17.html">
+  <link rel="alternate" hreflang="zh-CN" href="https://leeebo.github.io/learning_ai/day17.html">
+  <link rel="alternate" hreflang="x-default" href="https://leeebo.github.io/learning_ai/day17.html">
+  <link rel="icon" href="/learning_ai/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/learning_ai/styles.css">
+</head>
+<body data-ui="%7B%22siteTitle%22%3A%22Edge%20AI%20%C2%B7%20A%2017-Day%20Engineering%20Path%22%2C%22siteDescription%22%3A%22A%20bilingual%20edge%20AI%20course%20for%20embedded%20engineers%2C%20from%20neural%20networks%20and%20deployment%20to%20complete%20system%20validation.%22%2C%22offlineLabel%22%3A%22Offline-first%20static%20course%22%2C%22fieldGuide%22%3A%22EMBEDDED%20AI%20FIELD%20GUIDE%22%2C%22heroTitle%22%3A%22From%20Neural%20Networks%20to%20a%20Shippable%20Edge%20AI%20System%22%2C%22heroBody%22%3A%22Built%20for%20engineers%20who%20already%20know%20ESP32%2C%20USB%2C%20and%20networking%20stacks.%20Each%20day%20follows%20one%20layer%20of%20the%20path%E2%80%94model%20%E2%86%92%20representation%20%E2%86%92%20runtime%20%E2%86%92%20kernel%20%E2%86%92%20memory%20and%20bandwidth%20%E2%86%92%20hardware%20%E2%86%92%20product%E2%80%94then%20connects%20its%20history%2C%20an%20illustrated%20analogy%2C%20and%20an%20interactive%20data-flow%20walkthrough.%22%2C%22startCourse%22%3A%22Start%20with%20Day%201%20%E2%86%92%22%2C%22learningDashboardKicker%22%3A%22SAVED%20ON%20THIS%20DEVICE%20ONLY%22%2C%22learningDashboardTitle%22%3A%22Your%20learning%20progress%22%2C%22localProgressNote%22%3A%22Progress%2C%20mistakes%2C%20and%20lab%20notes%20stay%20in%20this%20browser%20and%20are%20never%20uploaded.%22%2C%22chaptersCompleted%22%3A%22chapters%20completed%22%2C%22learningStreak%22%3A%22day%20learning%20streak%22%2C%22questionsToReview%22%3A%22questions%20to%20review%22%2C%22courseProgress%22%3A%22Course%20completion%20progress%22%2C%22continueLearning%22%3A%22Continue%20learning%22%2C%22reviewMistakes%22%3A%22Review%20mistakes%22%2C%22viewCertificate%22%3A%22Course%20certificate%22%2C%22learningArchiveTitle%22%3A%22Learning%20archive%20and%20privacy%22%2C%22learningArchiveDescription%22%3A%22Export%20an%20archive%20to%20carry%20progress%2C%20mistakes%2C%20and%20lab%20notes%20between%20browsers.%20Restoring%20replaces%20the%20learning%20state%20in%20this%20browser.%22%2C%22exportProgress%22%3A%22Export%20learning%20archive%22%2C%22importProgress%22%3A%22Restore%20learning%20archive%22%2C%22resetProgress%22%3A%22Reset%20local%20progress%22%2C%22progressExported%22%3A%22The%20learning%20archive%20was%20exported.%22%2C%22progressImported%22%3A%22The%20learning%20archive%20was%20restored.%20Reloading%20now.%22%2C%22progressImportError%22%3A%22Restore%20failed.%20Choose%20a%20valid%20JSON%20learning%20archive%20exported%20by%20this%20course.%22%2C%22resetProgressConfirm%22%3A%22Clear%20all%20course%20progress%2C%20mistakes%2C%20name%2C%20and%20lab%20notes%20in%20this%20browser%3F%20This%20cannot%20be%20undone.%22%2C%22badgesTitle%22%3A%22Stage%20badges%22%2C%22badgeFoundations%22%3A%22Neural%20foundations%22%2C%22badgeDeployment%22%3A%22Edge%20deployment%22%2C%22badgeIntegration%22%3A%22LLM%20foundations%22%2C%22badgeInfrastructure%22%3A%22LLM%20engineering%22%2C%22badgeStreak%22%3A%22Three-day%20streak%22%2C%22days%22%3A%22Days%22%2C%22streakDays%22%3A%22days%22%2C%22searchCourse%22%3A%22Search%20all%20chapters%22%2C%22searchPlaceholder%22%3A%22Search%20a%20topic%2C%20keyword%2C%20or%20engineering%20problem%22%2C%22clearSearch%22%3A%22Clear%22%2C%22searchResults%22%3A%22%7Bcount%7D%20chapters%20found%22%2C%22completedStatus%22%3A%22Completed%22%2C%22inProgressStatus%22%3A%22In%20progress%22%2C%22notStartedStatus%22%3A%22Not%20started%22%2C%22cardMeta%22%3A%22history%20%2B%20visual%20analogy%20%2B%20animation%22%2C%22minutes%22%3A%22min%22%2C%22languageSwitch%22%3A%22%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%22%2C%22languageSwitchLabel%22%3A%22Switch%20to%20Simplified%20Chinese%22%2C%22home%22%3A%22Course%20home%22%2C%22learningNav%22%3A%22COURSE%20NAVIGATION%22%2C%22suggestedReading%22%3A%22Suggested%20reading%3A%20about%22%2C%22readingProgress%22%3A%22Chapter%20reading%20progress%22%2C%22resumeReading%22%3A%22Return%20to%20saved%20position%22%2C%22dismissResume%22%3A%22Dismiss%20the%20reading-position%20prompt%22%2C%22resumeAt%22%3A%22Last%20read%20to%20about%20%7Bpercent%7D%25%22%2C%22chapterSections%22%3A%22Chapter%20section%20navigation%22%2C%22learningGoal%22%3A%22Learning%20goal%22%2C%22keywords%22%3A%22Chapter%20keywords%22%2C%22keyword%22%3A%22Keyword%22%2C%22explanation%22%3A%22Explanation%22%2C%22espAnalogy%22%3A%22ESP32%20engineering%20analogy%22%2C%22recap%22%3A%22Bridge%20from%20the%20previous%20chapter%22%2C%22historyKicker%22%3A%22HOW%20WE%20GOT%20HERE%22%2C%22historyTitle%22%3A%22Historical%20development%22%2C%22historyBridge%22%3A%22Why%20it%20still%20matters%20today%3A%22%2C%22analogyKicker%22%3A%22BUILD%20INTUITION%20FROM%20A%20FAMILIAR%20SYSTEM%22%2C%22analogyTitle%22%3A%22Illustrated%20analogy%22%2C%22analogyFallback%22%3A%22Embedded-systems%20analogy%22%2C%22analogyBoundary%22%3A%22Where%20the%20analogy%20stops%3A%22%2C%22lessonTitle%22%3A%22Chapter%20walkthrough%22%2C%22infraKicker%22%3A%22PLACE%20PROJECTS%20IN%20THE%20RIGHT%20LAYER%22%2C%22infraTitle%22%3A%22Infrastructure%20map%20and%20cross-scale%20lessons%22%2C%22verifiedOn%22%3A%22Technical%20status%20verified%20on%3A%22%2C%22projectProblem%22%3A%22Problem%22%2C%22projectMechanism%22%3A%22Core%20mechanism%22%2C%22projectBoundary%22%3A%22Scope%20and%20boundary%22%2C%22infraMatrixTitle%22%3A%22Source%20mechanism%2C%20engineering%20lesson%2C%20and%20boundary%22%2C%22matrixSource%22%3A%22Source%20mechanism%22%2C%22matrixLesson%22%3A%22Engineering%20lesson%22%2C%22matrixBoundary%22%3A%22Scope%20and%20boundary%22%2C%22processKicker%22%3A%22WATCH%20THE%20DATA%20MOVE%22%2C%22processTitle%22%3A%22Interactive%20process%22%2C%22pausePlayback%22%3A%22Pause%20autoplay%22%2C%22reducedMotion%22%3A%22Reduced%20motion%20is%20enabled%22%2C%22restartPlayback%22%3A%22Play%20from%20the%20start%22%2C%22resumePlayback%22%3A%22Resume%20autoplay%22%2C%22step%22%3A%22Step%22%2C%22observation%22%3A%22Watch%20for%22%2C%22loopCondition%22%3A%22Loop%20%2F%20return%20condition%3A%22%2C%22previousStep%22%3A%22%E2%86%90%20Previous%22%2C%22nextStep%22%3A%22Next%20%E2%86%92%22%2C%22switchedStep%22%3A%22Switched%20to%20step%22%2C%22staticOverview%22%3A%22View%20the%20complete%20static%20diagram%22%2C%22flowchart%22%3A%22Process%20diagram%22%2C%22codeExample%22%3A%22Code%20or%20command%20example%22%2C%22lab%22%3A%22Hands-on%20lab%22%2C%22labNotesTitle%22%3A%22Lab%20notes%20and%20export%22%2C%22labNotesPrompt%22%3A%22Record%20the%20environment%2C%20procedure%2C%20measurements%2C%20anomalies%2C%20and%20conclusion%22%2C%22labNotesPlaceholder%22%3A%22For%20example%3A%20device%2Fversion%2C%20full%20command%2C%20expectation%2C%20observation%2C%20anomaly%2C%20next%20step%E2%80%A6%22%2C%22notesTemplate%22%3A%22Device%20and%20versions%3A%5CnFull%20command%20%2F%20configuration%3A%5CnExpected%20result%3A%5CnMeasured%20result%3A%5CnAnomalies%20and%20boundaries%3A%5CnConclusion%20and%20next%20step%3A%22%2C%22saveNotes%22%3A%22Save%20on%20this%20device%22%2C%22exportMarkdown%22%3A%22Export%20Markdown%22%2C%22notesSaved%22%3A%22Lab%20notes%20were%20saved%20in%20this%20browser.%22%2C%22notesExported%22%3A%22The%20Markdown%20lab%20record%20was%20exported.%22%2C%22notesError%22%3A%22This%20browser%20could%20not%20save%20or%20export%20the%20notes.%20Copy%20the%20text%20manually.%22%2C%22notesMarkdownTitle%22%3A%22Lab%20record%22%2C%22notesMarkdownLab%22%3A%22Lab%20requirement%22%2C%22notesMarkdownNotes%22%3A%22My%20notes%22%2C%22notesMarkdownSaved%22%3A%22Exported%22%2C%22pitfall%22%3A%22Engineering%20pitfall%22%2C%22avoidMisread%22%3A%22Avoid%20this%20mistake%3A%22%2C%22quizTitle%22%3A%22Knowledge%20check%22%2C%22quizIntro%22%3A%22Answer%20all%20three%20multiple-choice%20questions%2C%20then%20submit.%20Answers%20stay%20hidden%20until%20submission.%22%2C%22submitQuiz%22%3A%22Submit%20this%20quiz%22%2C%22retryQuiz%22%3A%22Try%20again%22%2C%22completeQuestion%22%3A%22Please%20answer%20question%22%2C%22questionSuffix%22%3A%22.%22%2C%22correct%22%3A%22Correct.%22%2C%22incorrect%22%3A%22Not%20quite.%22%2C%22correctAnswer%22%3A%22Correct%20answer%3A%22%2C%22quizScore%22%3A%22Chapter%20score%3A%22%2C%22quizAdvice%22%3A%22Read%20each%20explanation%20before%20deciding%20whether%20to%20retry.%22%2C%22discussionNav%22%3A%22Discussion%22%2C%22discussionKicker%22%3A%22LEARN%20TOGETHER%22%2C%22discussionTitle%22%3A%22Discuss%20this%20chapter%20on%20GitHub%22%2C%22discussionDescription%22%3A%22Sign%20in%20with%20GitHub%20to%20ask%20a%20question%2C%20share%20measurements%2C%20or%20compare%20implementations.%20Comments%20are%20stored%20in%20this%20course&#39;s%20GitHub%20Discussions.%22%2C%22discussionFallback%22%3A%22The%20embedded%20comments%20need%20JavaScript.%20You%20can%20also%20open%20the%20GitHub%20discussion%20area%20directly%3A%22%2C%22discussionLink%22%3A%22Open%20GitHub%20Discussions%20%E2%86%97%22%2C%22rewardKicker%22%3A%22Perfect%20chapter%20%C2%B7%20Random%20reward%20unlocked%22%2C%22certificateKicker%22%3A%22THE%20END%20OF%2017%20DAYS%20%C2%B7%20THE%20START%20OF%20THE%20NEXT%20BUILD%22%2C%22certificateTitle%22%3A%22Course%20completion%20keepsake%22%2C%22certificateDescription%22%3A%22Unlock%20this%20page%20by%20completing%20all%2017%20chapters%20with%20a%20perfect%20quiz%20score%20in%20each.%20It%20is%20generated%20only%20from%20learning%20records%20in%20this%20browser.%22%2C%22certificateLockedTitle%22%3A%22The%20certificate%20is%20still%20locked%22%2C%22certificateLockedBody%22%3A%22Complete%20every%20chapter%20that%20does%20not%20yet%20have%20a%20perfect%20quiz.%20Visiting%20or%20scrolling%20never%20counts%20as%20completion.%22%2C%22certificateProgress%22%3A%22%7Bcount%7D%20%2F%20%7Btotal%7D%20chapters%20completed%22%2C%22certificateNameLabel%22%3A%22Certificate%20name%20(saved%20in%20this%20browser%20only)%22%2C%22certificateNamePlaceholder%22%3A%22Enter%20your%20name%22%2C%22certificateAnonymous%22%3A%22An%20engineer%20who%20completed%20the%20path%22%2C%22printCertificate%22%3A%22Print%20%2F%20Save%20as%20PDF%22%2C%22certificateOverline%22%3A%22EDGE%20AI%20%C2%B7%2017-DAY%20ENGINEERING%20PATH%22%2C%22certificateAward%22%3A%22Course%20Completion%20Keepsake%22%2C%22certificatePresentedTo%22%3A%22Presented%20to%22%2C%22certificateStatement%22%3A%22for%20completing%20the%20full%20engineering%20path%20from%20neural%20networks%2C%20model%20representations%2C%20runtimes%2C%20kernels%2C%20memory%2C%20and%20hardware%20to%20edge%20and%20large-scale%20LLM%20infrastructure.%22%2C%22certificateChapters%22%3A%22perfect%20chapters%22%2C%22certificateDate%22%3A%22completion%20date%22%2C%22certificateQuizStandard%22%3A%22quiz%20standard%22%2C%22certificateLocalProof%22%3A%22local%20learning%20record%22%2C%22certificateDisclaimer%22%3A%22This%20is%20a%20personal%20course%20keepsake%20generated%20from%20local%20learning%20records.%20It%20is%20not%20an%20institutional%20credential%20and%20cannot%20be%20independently%20verified.%22%2C%22reviewKicker%22%3A%22REBUILD%20EVIDENCE%20FROM%20MISTAKES%22%2C%22reviewTitle%22%3A%22Mistake%20review%22%2C%22reviewDescription%22%3A%22This%20page%20collects%20questions%20not%20yet%20answered%20correctly%20in%20this%20browser.%20A%20correct%20review%20removes%20the%20question%20automatically%3B%20the%20full%20lesson%20and%20explanation%20remain%20available%20in%20its%20chapter.%22%2C%22noMistakesTitle%22%3A%22No%20questions%20need%20review%22%2C%22noMistakesBody%22%3A%22After%20a%20chapter%20quiz%2C%20incorrect%20answers%20will%20appear%20here%20automatically.%22%2C%22submitReview%22%3A%22Submit%20this%20review%22%2C%22reviewCount%22%3A%22%7Bcount%7D%20questions%20in%20this%20round%22%2C%22reviewIncomplete%22%3A%22Answer%20every%20visible%20review%20question%20first.%22%2C%22reviewScore%22%3A%22Correct%3A%20%7Bscore%7D%20%2F%20%7Bcount%7D.%20Mastered%20questions%20will%20be%20removed%20from%20the%20next%20review.%22%2C%22references%22%3A%22Further%20reading%22%2C%22sourceSuffix%22%3A%22%20(official%20or%20primary%20source)%22%2C%22nextPreview%22%3A%22Bridge%20to%20the%20next%20chapter%22%2C%22nextDay%22%3A%22Next%3A%22%2C%22previousDay%22%3A%22%E2%86%90%20Day%22%2C%22followingDay%22%3A%22Day%22%2C%22backHome%22%3A%22Back%20to%20course%20home%22%2C%22footer%22%3A%22Offline-ready%20%C2%B7%20For%20engineers%20familiar%20with%20ESP32%2C%20USB%2C%20and%20networking%20stacks%22%2C%22homeFooter%22%3A%2217%20days%20%C2%B7%2017%20standalone%20pages%20%C2%B7%20Chinese%20and%20English%20%C2%B7%20zero%20runtime%20dependencies%22%2C%22noscriptHome%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20chapter%20directory%20still%20works%2C%20and%20every%20chapter%20includes%20an%20expanded%20process%20diagram.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptDay%22%3A%22You%20are%20in%20static%20reading%20mode.%20The%20history%2C%20analogy%2C%20lesson%2C%20and%20expanded%20process%20overview%20remain%20readable.%20Enable%20JavaScript%20for%20animation%20and%20quiz%20scoring.%22%2C%22noscriptReview%22%3A%22The%20mistake%20notebook%20is%20stored%20in%20this%20browser%20and%20requires%20JavaScript.%20Every%20full%20lesson%20remains%20available%20from%20the%20course%20directory.%22%2C%22noscriptCertificate%22%3A%22The%20course%20certificate%20requires%20JavaScript%20to%20read%20completion%20records%20in%20this%20browser.%20Every%20lesson%20remains%20available%20from%20the%20course%20directory.%22%7D" data-locale="en" data-page-kind="chapter" data-total-days="17">
+  <noscript>
+    <style>.visual-toggle,.process-controls,.quiz .button{display:none!important}.process-node{pointer-events:none;cursor:default}</style>
+    <div class="noscript-banner">You are in static reading mode. The history, analogy, lesson, and expanded process overview remain readable. Enable JavaScript for animation and quiz scoring.</div>
+  </noscript>
+  <header class="top">
+    <div class="brand">Edge AI · A 17-Day Engineering Path</div>
+    <div class="top-actions">
+      <a href="/learning_ai/en/">Course home</a>
+
+        <a class="language-switch" href="/learning_ai/day17.html" lang="zh-CN" hreflang="zh-CN" aria-label="Switch to Simplified Chinese">简体中文</a>
+
+    </div>
+  </header>
+
+<main class="wrap day-layout">
+  <div class="reading-progress-bar" data-reading-progress role="progressbar" aria-label="Chapter reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+  <aside class="toc panel" aria-label="COURSE NAVIGATION">
+    <span class="eyebrow">COURSE NAVIGATION</span>
+
+      <a class=""  href="/learning_ai/en/day01.html">Day 01 · Neural Network Foundations</a>
+
+      <a class=""  href="/learning_ai/en/day02.html">Day 02 · Training and Inference</a>
+
+      <a class=""  href="/learning_ai/en/day03.html">Day 03 · Model Quantization</a>
+
+      <a class=""  href="/learning_ai/en/day04.html">Day 04 · Operators and Kernels</a>
+
+      <a class=""  href="/learning_ai/en/day05.html">Day 05 · Edge Model Deployment</a>
+
+      <a class=""  href="/learning_ai/en/day06.html">Day 06 · Edge Vision Pipelines</a>
+
+      <a class=""  href="/learning_ai/en/day07.html">Day 07 · LLM Foundations</a>
+
+      <a class=""  href="/learning_ai/en/day08.html">Day 08 · Tokenizer</a>
+
+      <a class=""  href="/learning_ai/en/day09.html">Day 09 · Transformer Architecture</a>
+
+      <a class=""  href="/learning_ai/en/day10.html">Day 10 · Attention Mechanisms</a>
+
+      <a class=""  href="/learning_ai/en/day11.html">Day 11 · Jev Decision Models</a>
+
+      <a class=""  href="/learning_ai/en/day12.html">Day 12 · KV Cache</a>
+
+      <a class=""  href="/learning_ai/en/day13.html">Day 13 · LLM Quantization and GGUF</a>
+
+      <a class=""  href="/learning_ai/en/day14.html">Day 14 · LLM Runtime</a>
+
+      <a class=""  href="/learning_ai/en/day15.html">Day 15 · LLM Performance and Infrastructure</a>
+
+      <a class=""  href="/learning_ai/en/day16.html">Day 16 · Shipping Edge LLMs</a>
+
+      <a class="active" aria-current="page" href="/learning_ai/en/day17.html">Day 17 · Multimodal Large Models</a>
+
+  </aside>
+  <article class="content" data-day="17" data-title="Multimodal Large Models">
+    <div class="eyebrow">DAY 17</div>
+    <h1>Multimodal Large Models</h1>
+    <p class="hero-sub">From text, images, audio, and video to mixed-content understanding</p>
+    <p class="reading-time">Suggested reading: about 20 min</p>
+
+    <div class="resume-reading" data-resume-reading hidden>
+      <span data-resume-label></span>
+      <button type="button" class="button secondary" data-resume-button>Return to saved position</button>
+      <button type="button" class="resume-dismiss" data-resume-dismiss aria-label="Dismiss the reading-position prompt">×</button>
+    </div>
+
+    <nav class="section-nav" aria-label="Chapter section navigation">
+      <a href="#goal">Learning goal</a>
+      <a href="#keywords">Chapter keywords</a>
+      <a href="#history">Historical development</a>
+      <a href="#analogy">Illustrated analogy</a>
+      <a href="#lesson">Chapter walkthrough</a>
+
+      <a href="#process">Interactive process</a>
+      <a href="#lab">Hands-on lab</a>
+      <a href="#quiz">Knowledge check</a>
+      <a href="#discussion">Discussion</a>
+    </nav>
+
+    <section id="goal">
+      <h2>Learning goal</h2>
+      <div class="callout">Explain how different modalities are represented, trained, and supplied to a model; trace a mixed text, image, audio, and video inference request; and compare text responses, speech output, real-time operation, and reliability limits.</div>
+    </section>
+
+    <section id="keywords">
+      <h2>Chapter keywords</h2>
+      <div class="table-scroll responsive-cards">
+        <table class="keyword-table">
+          <thead><tr><th>Keyword</th><th>Explanation</th><th>ESP32 engineering analogy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row" data-label="Keyword">Modality encoder</th><td data-label="Explanation">A network that converts signals such as images or audio into representations usable by later computation.</td><td data-label="ESP32 engineering analogy">Like the front end and driver dedicated to each sensor.</td></tr><tr><th scope="row" data-label="Keyword">Cross-modal alignment</th><td data-label="Explanation">Making corresponding information from different modalities associable or jointly usable within a model.</td><td data-label="ESP32 engineering analogy">Like defining a common contract for different interfaces.</td></tr><tr><th scope="row" data-label="Keyword">Fusion</th><td data-label="Explanation">How a model combines text and other modality representations for a task, potentially at different network stages.</td><td data-label="ESP32 engineering analogy">Like sending multiple sensor streams to a fusion task rather than simply joining raw voltage levels.</td></tr><tr><th scope="row" data-label="Keyword">Temporal alignment</th><td data-label="Explanation">Preserving and relating the times of video frames, audio segments, and associated text.</td><td data-label="ESP32 engineering analogy">Like using a shared clock to associate camera frames with microphone samples.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="recap"><h2>Bridge from the previous chapter</h2><p>The first sixteen chapters moved from neural networks to language models and deployment. This chapter extends input from text to images, audio, and video, applying Transformer, prefill, decode, and resource accounting to mixed content.</p></section>
+
+
+      <section class="history-section" id="history">
+        <div class="section-heading"><span class="section-kicker">HOW WE GOT HERE</span><h2>Historical development</h2></div>
+        <p class="section-lead">Multimodal models build on several lines of research in vision representations, speech recognition, cross-modal alignment, and generative modeling. These milestones show how different inputs entered shared tasks; they do not imply that every model uses the same architecture.</p>
+
+          <div class="timeline">
+
+              <article class="timeline-item">
+                <div class="timeline-year">2014</div>
+                <div class="timeline-content"><h3>Image captioning connects vision and language generation</h3><p>Show and Tell combined image encoding with language generation to describe pictures, demonstrating an early end-to-end visual-to-text path.</p><a href="https://arxiv.org/abs/1411.4555" target="_blank" rel="noopener noreferrer">Original Show and Tell paper ↗</a></div>
+              </article>
+
+              <article class="timeline-item">
+                <div class="timeline-year">2020</div>
+                <div class="timeline-content"><h3>Vision Transformers treat image patches as a sequence</h3><p>ViT divides an image into patches and processes them with a Transformer, demonstrating a sequential image representation with spatial information.</p><a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener noreferrer">Original ViT paper ↗</a></div>
+              </article>
+
+              <article class="timeline-item">
+                <div class="timeline-year">2021</div>
+                <div class="timeline-content"><h3>CLIP supervises vision with paired text</h3><p>CLIP learns image–text correspondence with a contrastive objective, allowing textual descriptions to support image recognition and retrieval.</p><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener noreferrer">Original CLIP paper ↗</a></div>
+              </article>
+
+              <article class="timeline-item">
+                <div class="timeline-year">2022</div>
+                <div class="timeline-content"><h3>Whisper expands audio–text supervision</h3><p>Whisper trains speech recognition on large-scale audio–text pairs, demonstrating sequence modeling for transcription and related speech tasks.</p><a href="https://arxiv.org/abs/2212.04356" target="_blank" rel="noopener noreferrer">Original Whisper paper ↗</a></div>
+              </article>
+
+              <article class="timeline-item">
+                <div class="timeline-year">2023</div>
+                <div class="timeline-content"><h3>Visual instruction tuning connects images and dialogue</h3><p>LLaVA connects a vision encoder and a language model, and uses visual instruction data to train image-and-text dialogue.</p><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener noreferrer">Original LLaVA paper ↗</a></div>
+              </article>
+
+              <article class="timeline-item">
+                <div class="timeline-year">2024</div>
+                <div class="timeline-content"><h3>Temporal alignment enters long-video multimodal architectures</h3><p>Mirasol3B models time-aligned audio-video and contextual modalities separately, showing why timing and fusion placement need explicit design.</p><a href="https://arxiv.org/abs/2311.05698" target="_blank" rel="noopener noreferrer">Original Mirasol3B paper ↗</a></div>
+              </article>
+
+          </div>
+
+        <div class="history-bridge"><strong>Why it still matters today:</strong> These studies address representation, alignment, speech, or temporal fusion in different ways. A product must establish its supported modalities and input protocol, then evaluate target data rather than generalizing one paper&#39;s architecture to every system.</div>
+      </section>
+
+
+
+      <section class="analogy-section" id="analogy">
+        <div class="section-heading"><span class="section-kicker">BUILD INTUITION FROM A FAMILIAR SYSTEM</span><h2>Illustrated analogy</h2></div>
+        <div class="analogy-card">
+          <div class="analogy-copy"><h3>Multiple evidence streams enter a control room</h3><p>A control room receives a written report, a photograph, and surveillance video with sound. An intake operator preserves each source, its order, and its time so the coordinator can answer: &#39;What was the light doing when the alarm sounded?&#39; If only dialogue was transcribed, nobody can claim to have heard the alarm; if the camera supplies a frame only every few seconds, a flashing light may be missed.</p></div>
+          <div class="analogy-illustration" aria-label="Multiple evidence streams enter a control room">
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📝</span>
+                <strong>Written report</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Tokenizer and text context</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">📷</span>
+                <strong>Site photograph</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Image preprocessing and visual features</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🎙️</span>
+                <strong>Surveillance audio</strong>
+                <span class="analogy-arrow" aria-hidden="true">→</span>
+                <span>Audio encoding or lossy speech transcription</span>
+              </div>
+
+              <div class="analogy-piece">
+                <span class="analogy-icon" aria-hidden="true">🕒</span>
+                <strong>Shared event timeline</strong>
+                <span class="analogy-arrow" aria-hidden="true">↔</span>
+                <span>Video frames, audio segments, and temporal alignment</span>
+              </div>
+
+          </div>
+          <p class="analogy-boundary"><strong>Where the analogy stops:</strong> The model is not a conscious coordinator and may misunderstand any input. Architectures fuse representations differently; timestamps and citations still need independent verification.</p>
+        </div>
+      </section>
+
+
+    <section id="lesson">
+      <h2>Chapter walkthrough</h2>
+      <h3>Four inputs, four information structures</h3><p>Text is converted by the model&#39;s tokenizer into token IDs and then embeddings; its order is normally one-dimensional. Images carry two-dimensional spatial and color information. They are often resized, normalized, divided into patches, and processed by a vision encoder for local and global features. Higher resolution or multiple crops generally increase the number of visual representations and compute. Audio is a waveform changing over time; it may be resampled, framed, and converted to a spectrogram before an audio encoder processes it. Some models instead use learned discrete audio codes. Video is a sequence of images with temporal relationships, potentially accompanied by a separate soundtrack. Frame sampling, timestamps, and synchronization determine what the model actually receives. Feature vectors need not be words from a text vocabulary, and an image need not first become a caption.</p><h3>Learn representations, then connect modalities</h3><p>A text language model commonly learns by predicting the next token in a sequence, acquiring patterns of expression and context. A vision encoder may learn from image tasks or paired images and text. CLIP, for example, uses a contrastive objective to bring matching images and descriptions together and distinguish mismatched pairs; this alignment does not make CLIP itself a complete conversational generator. Speech training can use paired audio and transcripts for recognition, or self-supervised learning to extract representations from unlabelled audio. Video training may use frames, soundtracks, subtitles, and time annotations to connect actions, sounds, and order. Inaccurate, shifted, or missing captions weaken that supervision. Each modality brings its own sampling rates, annotation costs, noise, and privacy requirements.</p><h3>Connect the language model: alignment and instruction tuning</h3><p>One common architecture pretrains vision or audio encoders and a language model separately, then trains a projector or adapter to map encoder outputs into vectors the language model can use. LLaVA demonstrates one route connecting a vision encoder, projector, and language model. Multimodal instruction tuning then uses images or audio together with questions and answers to improve evidence-based task behavior. Some training stages freeze components before unfreezing them; other systems use end-to-end joint training, cross-attention, or different arrangements. An autoregressive answer loss typically applies only at selected target-output positions, with the exact mask depending on the training recipe. Alignment enables representations to work together, while instruction tuning improves behavior; neither guarantees accurate perception or reasoning.</p><h3>Follow each piece of evidence through mixed inference</h3><p>Suppose a user submits a device photograph and a video with sound, asking: &#39;What is said in the video when the red light shown in the photo comes on?&#39; The system first checks and decodes the media, preserving image order, sampled-frame timestamps, and audio time ranges. Text passes through a tokenizer; the photograph and video frames pass through a visual encoder, while the soundtrack is encoded as audio or transcribed separately. The system packages their representations with modality markers, positions, and available time information according to the model&#39;s protocol. Fusion may concatenate visual and audio vectors with the text sequence, use cross-attention, or connect separate stages. Not every system supports all four native inputs. The model processes context in prefill and generates text step by step in decode. The answer depends on the actual input, sampling, and model capability: correct localization of the light or recognition of speech is not guaranteed.</p><h3>Audio and video: time is part of the evidence</h3><p>Speech recognition conveniently turns sound into text, but can discard intonation, overlapping speakers, music, alarms, and other nonverbal evidence; it can also mishear or fabricate segments. Native audio input can preserve more acoustic information, but remains limited by its encoding and training. Sparse video sampling can miss brief changes, and incorrect frame order or shifted timestamps can reverse what &#39;before&#39; and &#39;after&#39; mean. Audio-video synchronization needs a shared time reference and transcript segments tied to time ranges. A streaming system must also handle chunk boundaries, buffering delay, and late frames: it cannot use information that has not arrived. An offline system, by contrast, may process the entire clip before answering. Compare both paths using examples with known timing.</p><h3>Outputs and resources: text, speech, and real-time interaction</h3><p>A text response is usually generated token by token and may reuse a KV cache. Speech output may first generate text and send it to a separate text-to-speech system, or a multimodal model may predict audio codes that a decoder reconstructs as a waveform. The intermediate text in the first route is easier to inspect, but acoustic detail may be lost. Available voices, latency, and control in the second route depend on the particular model. Real-time interaction requires continuous audio input, endpoint detection, chunked generation, interruption, and resource reclamation. Multiple high-resolution images, long audio, and many video frames increase encoding work and context usage, potentially raising time to first token, cache size, memory, and energy. Compression differs across models, so there is no universal fixed token count per image.</p><h3>Validate with counterexamples and traceable evidence</h3><p>Evaluation should cover small text, occlusion, low light, accents, noise, overlapping speakers, brief actions, and shifted audio-video timing. Test text alone, images or audio alone, and mixed input separately. Record the model version, preprocessing, sampling policy, modalities actually supplied, time to first token, and peak memory so that changes in quality and performance can be explained. Ask for verifiable frame times or original audio segments, but check the citations too: a model can guess nonexistent details from language priors. When evidence is absent, the system should explicitly express uncertainty. For device control, enforce deterministic authorization, value ranges, and safety interlocks; never treat a generated response as an execution command without those checks.</p>
+    </section>
+
+
+
+
+      <section class="visual-section" id="process">
+        <div class="section-heading"><span class="section-kicker">WATCH THE DATA MOVE</span><h2>Interactive process</h2></div>
+        <div class="process-visual" data-process-visual data-loop="true" role="region" aria-label="One mixed image, text, audio, and video question">
+          <div class="process-heading">
+            <div><h3>One mixed image, text, audio, and video question</h3><p>Track the source, time, and encoding of each input, then see how representations enter context and generate an answer; fusion varies by model.</p></div>
+            <button type="button" class="visual-toggle" data-process-toggle>Pause autoplay</button>
+          </div>
+          <ol class="process-track" style="--step-count:6">
+
+              <li class="process-step is-active" data-index="0">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%93%A5%22%2C%22label%22%3A%22Receive%20request%22%2C%22data%22%3A%22text%20%2B%20image%20%2B%20audio%20%2B%20video%22%2C%22action%22%3A%22Check%20supported%20inputs%2C%20files%2C%20and%20order%22%2C%22insight%22%3A%22A%20system%20may%20not%20support%20every%20native%20modality%22%7D" aria-current="step">
+                  <span class="process-icon" aria-hidden="true">📥</span><strong>Receive request</strong><span>text + image + audio + video</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="1">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%E2%8F%B1%EF%B8%8F%22%2C%22label%22%3A%22Arrange%20timing%22%2C%22data%22%3A%22frames%20%2B%20audio%20segments%20%2B%20timestamps%22%2C%22action%22%3A%22Decode%2C%20sample%20frames%2C%20and%20record%20audio-video%20time%20ranges%22%2C%22insight%22%3A%22Unsampled%20moments%20cannot%20be%20treated%20as%20observed%22%7D">
+                  <span class="process-icon" aria-hidden="true">⏱️</span><strong>Arrange timing</strong><span>frames + audio segments + timestamps</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="2">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%94%A4%22%2C%22label%22%3A%22Encode%20text%22%2C%22data%22%3A%22text%20%E2%86%92%20token%20ids%20%E2%86%92%20embeddings%22%2C%22action%22%3A%22Apply%20the%20tokenizer%20and%20conversation%20template%22%2C%22insight%22%3A%22Text%20tokens%20need%20not%20share%20a%20vocabulary%20with%20other%20modality%20representations%22%7D">
+                  <span class="process-icon" aria-hidden="true">🔤</span><strong>Encode text</strong><span>text → token ids → embeddings</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="3">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%91%81%EF%B8%8F%22%2C%22label%22%3A%22Encode%20sight%20and%20sound%22%2C%22data%22%3A%22pixels%20%2F%20waveforms%20%E2%86%92%20features%22%2C%22action%22%3A%22Extract%20visual%20and%20audio%20representations%20separately%22%2C%22insight%22%3A%22Transcription%20can%20lose%20environmental%20sounds%3B%20audio-video%20encoding%20can%20lose%20detail%20too%22%7D">
+                  <span class="process-icon" aria-hidden="true">👁️</span><strong>Encode sight and sound</strong><span>pixels / waveforms → features</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="4">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%A7%A9%22%2C%22label%22%3A%22Assemble%20and%20fuse%20context%22%2C%22data%22%3A%22ordered%20features%20%2B%20positions%22%2C%22action%22%3A%22Combine%20representations%20by%20model%20protocol%20and%20run%20prefill%22%2C%22insight%22%3A%22Projected%20concatenation%20and%20cross-attention%20are%20examples%20of%20different%20designs%22%7D">
+                  <span class="process-icon" aria-hidden="true">🧩</span><strong>Assemble and fuse context</strong><span>ordered features + positions</span>
+                </button>
+              </li>
+
+              <li class="process-step" data-index="5">
+                <button type="button" class="process-node" data-process-select data-payload="%7B%22icon%22%3A%22%F0%9F%92%AC%22%2C%22label%22%3A%22Generate%20and%20check%22%2C%22data%22%3A%22decode%20%E2%86%92%20text%20%2F%20audio%22%2C%22action%22%3A%22Emit%20output%20incrementally%20and%20verify%20citations%20and%20uncertainty%22%2C%22insight%22%3A%22Fluent%20answers%20do%20not%20guarantee%20correct%20perception%2C%20timing%2C%20or%20facts%22%7D">
+                  <span class="process-icon" aria-hidden="true">💬</span><strong>Generate and check</strong><span>decode → text / audio</span>
+                </button>
+              </li>
+
+          </ol>
+
+          <div class="process-detail">
+            <div class="process-detail-copy"><span data-process-counter>Step 1 / 6</span><h3 data-process-title>Receive request · text + image + audio + video</h3><p data-process-action>Check supported inputs, files, and order</p></div>
+            <div class="process-insight"><span>Watch for</span><p data-process-insight>A system may not support every native modality</p></div>
+          </div>
+          <p class="process-loop"><strong>Loop / return condition:</strong> Autoregressive text generation repeats the final stage until stopping; streaming systems also receive new chunks and handle interruptions, with caching and synchronization depending on the implementation.</p>
+          <div class="process-controls">
+            <button type="button" class="button secondary" data-process-prev>← Previous</button>
+            <div class="process-progress" aria-hidden="true"><span data-process-progress style="width:16.666666666666668%"></span></div>
+            <button type="button" class="button secondary" data-process-next>Next →</button>
+          </div>
+          <p class="sr-only" aria-live="polite" data-process-status></p>
+        </div>
+        <details class="static-diagram" open><summary>View the complete static diagram</summary><pre class="diagram">text → tokenizer → text vectors ──────────────┐
+image → patches / vision encoder → features ──┤
+audio → frames / audio encoder → features ────┼→ fusion + context → inference → text / speech
+video → sampled frames + soundtrack + times ─┘</pre></details>
+      </section>
+
+
+    <section id="code"><h2>Code or command example</h2><pre class="code"><code># Illustrative only: interfaces, fusion, and outputs vary by model
+parts = [encode_text(question), encode_image(photo),
+         encode_audio(audio), encode_video_frames(video, timestamps=True)]
+context = assemble_with_order_and_timestamps(parts)
+state = multimodal_model.prefill(context)
+while not finished:
+    token, state = multimodal_model.decode(state)
+    emit(token)  # Speech also needs a suitable audio generation/decoding path</code></pre></section>
+    <section id="lab">
+      <h2>Hands-on lab</h2><div class="callout">Choose a short video with visuals, dialogue, and environmental sounds, and ask: &#39;What happened before and after the alarm?&#39; First record a transcript, sampled frames, audio segments, and timestamps separately; then draw how each enters the model. Compare text only, text plus frames, and text plus frames and audio. Record answers, missing evidence, errors, and inference latency. Change the sampling interval and check whether a brief event disappears. Confirm that the model actually accepts native audio: a transcript is not evidence that it heard an alarm. Finally budget privacy permissions, resolution, audio duration, and peak memory.</div>
+      <details class="lab-notes" data-lab-notes data-lab-payload="%7B%22n%22%3A17%2C%22title%22%3A%22Multimodal%20Large%20Models%22%2C%22lab%22%3A%22Choose%20a%20short%20video%20with%20visuals%2C%20dialogue%2C%20and%20environmental%20sounds%2C%20and%20ask%3A%20&#39;What%20happened%20before%20and%20after%20the%20alarm%3F&#39;%20First%20record%20a%20transcript%2C%20sampled%20frames%2C%20audio%20segments%2C%20and%20timestamps%20separately%3B%20then%20draw%20how%20each%20enters%20the%20model.%20Compare%20text%20only%2C%20text%20plus%20frames%2C%20and%20text%20plus%20frames%20and%20audio.%20Record%20answers%2C%20missing%20evidence%2C%20errors%2C%20and%20inference%20latency.%20Change%20the%20sampling%20interval%20and%20check%20whether%20a%20brief%20event%20disappears.%20Confirm%20that%20the%20model%20actually%20accepts%20native%20audio%3A%20a%20transcript%20is%20not%20evidence%20that%20it%20heard%20an%20alarm.%20Finally%20budget%20privacy%20permissions%2C%20resolution%2C%20audio%20duration%2C%20and%20peak%20memory.%22%7D">
+        <summary>Lab notes and export</summary>
+        <label for="lab-notes-17">Record the environment, procedure, measurements, anomalies, and conclusion</label>
+        <textarea id="lab-notes-17" rows="8" placeholder="For example: device/version, full command, expectation, observation, anomaly, next step…" data-lab-notes-input></textarea>
+        <div class="lab-note-actions"><button type="button" class="button" data-save-notes>Save on this device</button><button type="button" class="button secondary" data-export-notes>Export Markdown</button></div>
+        <p role="status" aria-live="polite" data-notes-status></p>
+      </details>
+    </section>
+    <section id="pitfall"><h2>Engineering pitfall</h2><div class="pitfall"><strong>Avoid this mistake:</strong> Assuming all multimodal models first convert every image and sound to text, or that every video frame and sound was observed. Actual input support, sampling, and fusion depend on the model and system; verify time alignment and missing evidence.</div></section>
+
+    <section class="quiz" id="quiz" aria-labelledby="quiz-title-17">
+      <h2 id="quiz-title-17">Knowledge check</h2>
+      <p>Answer all three multiple-choice questions, then submit. Answers stay hidden until submission.</p>
+      <form class="quiz-form" data-quiz-payload="%5B%7B%22prompt%22%3A%22What%20is%20one%20common%20way%20to%20connect%20images%20to%20a%20language%20model%3F%22%2C%22options%22%3A%5B%22Treat%20every%20pixel%20as%20a%20word%20in%20the%20text%20vocabulary%22%2C%22Extract%20vision%20features%20and%20use%20a%20projector%20or%20adapter%20for%20the%20language%20model%22%2C%22Put%20only%20the%20image%20filename%20in%20the%20prompt%22%2C%22Always%20translate%20the%20entire%20image%20into%20one%20fixed%20sentence%20first%22%5D%2C%22answer%22%3A1%2C%22explanation%22%3A%22A%20common%20design%20extracts%20visual%20features%20and%20connects%20them%20to%20the%20language%20model%20through%20a%20projector%3B%20other%20fusion%20architectures%20also%20exist.%22%7D%2C%7B%22prompt%22%3A%22Why%20preserve%20sampled-frame%20timestamps%20and%20audio-video%20synchronization%20in%20video%20question%20answering%3F%22%2C%22options%22%3A%5B%22To%20turn%20every%20frame%20into%20the%20same%20image%22%2C%22Because%20audio%20is%20always%20already%20an%20accurate%20transcript%22%2C%22To%20associate%20event%20order%20with%20the%20corresponding%20sounds%20and%20recognize%20possible%20sampling%20gaps%22%2C%22Because%20timestamps%20guarantee%20a%20correct%20answer%22%5D%2C%22answer%22%3A2%2C%22explanation%22%3A%22Timing%20connects%20images%20and%20sounds%20in%20order%20and%20allows%20comparison%20across%20modalities%3B%20sampling%20gaps%20and%20recognition%20errors%20still%20need%20checking.%22%7D%2C%7B%22prompt%22%3A%22Which%20statement%20best%20describes%20multimodal%20training%20and%20inference%3F%22%2C%22options%22%3A%5B%22Every%20inference%20request%20updates%20model%20weights%22%2C%22Every%20system%20natively%20supports%20text%2C%20images%2C%20audio%2C%20and%20video%22%2C%22Multimodal%20alignment%20guarantees%20factual%20answers%22%2C%22Training%20can%20update%20parameters%20using%20paired%20data%20and%20instruction%20answers%3B%20inference%20encodes%2C%20fuses%2C%20and%20generates%20from%20supported%20inputs%22%5D%2C%22answer%22%3A3%2C%22explanation%22%3A%22Training%20updates%20parameters%20according%20to%20its%20objective%3B%20ordinary%20inference%20uses%20trained%20parameters%20to%20process%20supported%20inputs%20and%20generate%20an%20output%20that%20still%20needs%20verification.%22%7D%5D" novalidate>
+
+          <fieldset class="question-card" data-question="0">
+            <legend>1. What is one common way to connect images to a language model?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-0" value="0"> <span>Treat every pixel as a word in the text vocabulary</span></label><label class="quiz-option"><input type="radio" name="question-0" value="1"> <span>Extract vision features and use a projector or adapter for the language model</span></label><label class="quiz-option"><input type="radio" name="question-0" value="2"> <span>Put only the image filename in the prompt</span></label><label class="quiz-option"><input type="radio" name="question-0" value="3"> <span>Always translate the entire image into one fixed sentence first</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="1">
+            <legend>2. Why preserve sampled-frame timestamps and audio-video synchronization in video question answering?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-1" value="0"> <span>To turn every frame into the same image</span></label><label class="quiz-option"><input type="radio" name="question-1" value="1"> <span>Because audio is always already an accurate transcript</span></label><label class="quiz-option"><input type="radio" name="question-1" value="2"> <span>To associate event order with the corresponding sounds and recognize possible sampling gaps</span></label><label class="quiz-option"><input type="radio" name="question-1" value="3"> <span>Because timestamps guarantee a correct answer</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+          <fieldset class="question-card" data-question="2">
+            <legend>3. Which statement best describes multimodal training and inference?</legend>
+
+            <label class="quiz-option"><input type="radio" name="question-2" value="0"> <span>Every inference request updates model weights</span></label><label class="quiz-option"><input type="radio" name="question-2" value="1"> <span>Every system natively supports text, images, audio, and video</span></label><label class="quiz-option"><input type="radio" name="question-2" value="2"> <span>Multimodal alignment guarantees factual answers</span></label><label class="quiz-option"><input type="radio" name="question-2" value="3"> <span>Training can update parameters using paired data and instruction answers; inference encodes, fuses, and generates from supported inputs</span></label>
+            <div class="answer-explanation" hidden></div>
+          </fieldset>
+
+        <p class="quiz-feedback" role="status" aria-live="polite"></p>
+        <div class="chapter-reward" data-chapter-reward data-reward-payload="%5B%7B%22icon%22%3A%22%F0%9F%8E%9B%EF%B8%8F%22%2C%22title%22%3A%22Multimodal%20coordinator%22%2C%22message%22%3A%22Text%2C%20vision%2C%20sound%2C%20and%20timing%20now%20share%20an%20evidence%20map.%22%7D%2C%7B%22icon%22%3A%22%E2%8F%B1%EF%B8%8F%22%2C%22title%22%3A%22Timeline%20scout%22%2C%22message%22%3A%22You%20check%20sampled%20frames%2C%20audio-video%20synchronization%2C%20and%20missing%20moments.%22%7D%2C%7B%22icon%22%3A%22%F0%9F%94%8D%22%2C%22title%22%3A%22Cross-modal%20evidence%20officer%22%2C%22message%22%3A%22Each%20answer%20returns%20to%20the%20inputs%20actually%20supplied%20and%20evidence%20that%20can%20be%20checked.%22%7D%5D" role="status" aria-live="polite" tabindex="-1" hidden>
+          <span class="reward-burst" data-reward-icon aria-hidden="true"></span>
+          <div><span class="reward-kicker">Perfect chapter · Random reward unlocked</span><h3 data-reward-title></h3><p data-reward-message></p></div>
+        </div>
+        <button class="button" type="submit">Submit this quiz</button>
+        <button class="button secondary retry-quiz" type="button" hidden>Try again</button>
+      </form>
+    </section>
+
+    <section class="discussion-section" id="discussion" aria-labelledby="discussion-title-17">
+      <div class="section-heading"><span class="section-kicker">LEARN TOGETHER</span><h2 id="discussion-title-17">Discuss this chapter on GitHub</h2></div>
+      <p class="section-lead">Sign in with GitHub to ask a question, share measurements, or compare implementations. Comments are stored in this course&#39;s GitHub Discussions.</p>
+      <div class="giscus" aria-label="Discuss this chapter on GitHub"></div>
+      <script src="https://giscus.app/client.js"
+              data-repo="leeebo/learning_ai"
+              data-repo-id="R_kgDOLr2gDA"
+              data-category="Q&amp;A"
+              data-category-id="DIC_kwDOLr2gDM4DDH8J"
+              data-mapping="pathname"
+              data-strict="0"
+              data-reactions-enabled="1"
+              data-emit-metadata="0"
+              data-input-position="bottom"
+              data-theme="light"
+              data-lang="en"
+              data-loading="lazy"
+              crossorigin="anonymous"
+              async></script>
+      <p class="discussion-fallback">The embedded comments need JavaScript. You can also open the GitHub discussion area directly: <a href="https://github.com/leeebo/learning_ai/discussions" target="_blank" rel="noopener noreferrer">Open GitHub Discussions ↗</a></p>
+    </section>
+
+    <section id="references">
+      <h2>Further reading</h2>
+      <ul class="reference-list"><li><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener noreferrer">CLIP image–text contrastive learning paper (official or primary source)</a></li><li><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener noreferrer">LLaVA visual instruction tuning paper (official or primary source)</a></li><li><a href="https://arxiv.org/abs/2212.04356" target="_blank" rel="noopener noreferrer">Whisper speech recognition paper (official or primary source)</a></li></ul>
+    </section>
+
+    <section id="next">
+      <h2>Bridge to the next chapter</h2>
+      <p>After the course, choose a real scenario and define acceptance using traceable audio-video evidence, modality ablations, failure examples, and an edge resource budget.</p>
+
+    </section>
+
+    <nav class="nav" aria-label="COURSE NAVIGATION">
+      <a class="button secondary" href="/learning_ai/en/day16.html">← Day 16</a>
+      <a class="button" href="/learning_ai/en/">Back to course home</a>
+    </nav>
+  </article>
+</main>
+
+
+  <footer><div class="wrap">Offline-ready · For engineers familiar with ESP32, USB, and networking stacks</div></footer>
+  <script src="/learning_ai/app.js" defer></script>
+</body>
+</html>
