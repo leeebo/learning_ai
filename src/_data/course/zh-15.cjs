@@ -518,7 +518,7 @@ const course = [
     code: "proposal = edge_llm(request)\nvalidated = policy_and_schema_check(proposal)\nif validated:\n    mcu_execute(validated)\nelse:\n    enter_safe_degraded_state()\nrecord(version_set, latency, energy, thermal, failures)",
     lab: "为一个 ESP32 + Edge Host 项目写一页验收契约：明确模型只可提出哪些动作、MCU 如何验证；固定模型、tokenizer、模板、runtime、backend、固件和协议版本；计算权重、KV、workspace、I/O 与峰值 RSS；连续运行并记录 TTFT、ITL、能耗、热稳态和失败。最后演练主机离线、模型加载失败、超时、非法工具参数与 OTA 回滚。",
     questions: [old[14].questions[0], old[16].questions[0], old[16].questions[1]],
-    next: null,
+    next: "多模态大模型",
     lesson: [old[14].lesson[0], old[14].lesson[1], old[14].lesson[2], old[16].lesson[1], old[16].lesson[2], old[16].lesson[3], old[16].lesson[6]],
     pitfall: "让自然语言输出直接获得设备执行权，或只验证一次演示。可交付系统必须在确定性边界内校验动作，并以版本化、稳态、故障演练和可回滚证据完成验收。",
     references: [old[14].references[1], old[16].references[0], old[16].references[2]],
@@ -526,8 +526,10 @@ const course = [
     readingMinutes: 20,
     keywords: [old[14].keywords[0], old[16].keywords[0], old[16].keywords[1], old[16].keywords[3]],
     recap: "前十五天已从神经网络基础走到 LLM 结构、受限决策、运行时、量化、框架和跨尺度性能。本章把全部知识压回一个真实产品：谁有执行权、每个字节和每焦耳花在哪里、失败时如何保持安全、版本如何发布与回滚。",
-    nextPreview: "16 天路线已经完成。下一次项目从目标设备和真实工作负载开始：先写安全与验收边界，再选择模型与 runtime，并让每次优化都留下可复现证据。",
+    nextPreview: "下一章把输入从文字扩展到图片、声音与视频，追踪多模态训练、混合推理和时间对齐。",
   }),
 ];
+
+course.push(require("./zh-multimodal.cjs"));
 
 module.exports = course;

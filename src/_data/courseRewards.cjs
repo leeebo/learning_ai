@@ -54,7 +54,7 @@ const zh = [
   legacyZh[11],
   [["🛠️", "Runtime 调度员", "加载、Prefill、Decode、采样与取消已经进入同一执行循环。"], ["🧭", "Backend 路由专家", "CPU、GPU、NPU 与 fallback 的实际路径都有证据。"], ["🔧", "框架黑盒拆解员", "编译、分区、边界复制和资源回收现在都可观测。"]],
   legacyZh[15],
-  [["🚐", "端侧厨房主理人", "模型、backend、内存、能量和安全边界已经装进同一辆餐车。"], ["🛡️", "产品闭环守护者", "回退、故障演练、OTA 与回滚都进入了验收证据。"], ["🌍", "十五日航线完成", "从神经网络到端侧 LLM Infra，你已拥有一张完整工程地图。"]],
+  [["🚐", "端侧厨房主理人", "模型、backend、内存、能量和安全边界已经装进同一辆餐车。"], ["🛡️", "产品闭环守护者", "回退、故障演练、OTA 与回滚都进入了验收证据。"], ["🌍", "产品航线完成", "从神经网络到端侧 LLM Infra，你已拥有一张完整工程地图。"]],
 ];
 
 const en = [
@@ -73,8 +73,11 @@ const en = [
   legacyEn[11],
   [["🛠️", "Runtime dispatcher", "Loading, Prefill, Decode, sampling, and cancellation now share one loop."], ["🧭", "Backend routing expert", "CPU, GPU, NPU, and fallback paths now leave concrete evidence."], ["🔧", "Framework black box opened", "Compilation, partitioning, boundary copies, and reclamation are observable."]],
   legacyEn[15],
-  [["🚐", "Edge kitchen operator", "Models, backends, memory, energy, and safety boundaries now fit one food truck."], ["🛡️", "Product-loop guardian", "Fallback, failure drills, OTA, and rollback all entered the acceptance evidence."], ["🌍", "Fifteen-day route complete", "From neural networks to edge LLM infrastructure, you now hold the complete engineering map."]],
+  [["🚐", "Edge kitchen operator", "Models, backends, memory, energy, and safety boundaries now fit one food truck."], ["🛡️", "Product-loop guardian", "Fallback, failure drills, OTA, and rollback all entered the acceptance evidence."], ["🌍", "Product route complete", "From neural networks to edge LLM infrastructure, you now hold the complete engineering map."]],
 ];
+
+zh.push([["🎛️", "多模态协调员", "文字、视觉、声音和时间线已进入同一张证据地图。"], ["⏱️", "时间线侦察员", "你会检查抽帧、音画同步和缺失的瞬间。"], ["🔍", "跨模态证据官", "每个回答都要回到实际提供的模态和可核验的证据。"]]);
+en.push([["🎛️", "Multimodal coordinator", "Text, vision, sound, and timing now share an evidence map."], ["⏱️", "Timeline scout", "You check sampled frames, audio-video synchronization, and missing moments."], ["🔍", "Cross-modal evidence officer", "Each answer returns to the inputs actually supplied and evidence that can be checked."]]);
 
 const normalize = entries => entries.map(day => day.map(([icon, title, message]) => ({ icon, title, message })));
 

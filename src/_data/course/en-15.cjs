@@ -421,14 +421,16 @@ const course = [
     diagram: "sensor/actuator ↔ MCU deterministic gate ↔ Edge Host LLM\n                         │ validate tool proposal │\n                         └── explicit cloud fallback\nmodel package → runtime/backend → telemetry → staged OTA/rollback",
     code: "proposal = edge_llm(request)\nvalidated = policy_and_schema_check(proposal)\nif validated:\n    mcu_execute(validated)\nelse:\n    enter_safe_degraded_state()\nrecord(version_set, latency, energy, thermal, failures)",
     lab: "Write a one-page acceptance contract for an ESP32 + Edge Host project. Define which actions the model may propose and how the MCU validates them. Pin model, tokenizer, template, runtime, backend, firmware, and protocol versions. Budget weights, KV, workspace, I/O, and peak RSS; run sustained TTFT, ITL, energy, thermal, and failure tests. Drill host loss, load failure, timeout, invalid tool arguments, and OTA rollback.",
-    questions: [old[14].questions[0], old[16].questions[0], old[16].questions[1]], next: null,
+    questions: [old[14].questions[0], old[16].questions[0], old[16].questions[1]], next: "Multimodal Large Models",
     lesson: [old[14].lesson[0], old[14].lesson[1], old[14].lesson[2], old[16].lesson[1], old[16].lesson[2], old[16].lesson[3], old[16].lesson[6]],
     pitfall: "Giving natural-language output direct actuation authority or accepting one successful demo. A shippable system validates actions inside deterministic boundaries and closes acceptance with versioned steady-state evidence, failure drills, and rollback.",
     references: [old[14].references[1], old[16].references[0], old[16].references[2]], quiz: [old[14].quiz[0], old[16].quiz[0], old[16].quiz[1]], readingMinutes: 20,
     keywords: [old[14].keywords[0], old[16].keywords[0], old[16].keywords[1], old[16].keywords[3]],
     recap: "The first fifteen days progressed from neural foundations to LLM structure, bounded decisions, runtimes, quantization, frameworks, and cross-scale performance. This chapter compresses everything into a product: who has authority, where every byte and joule goes, how failure remains safe, and how versions ship and roll back.",
-    nextPreview: "The 16-day route is complete. Start the next project from its target device and real workload: write safety and acceptance boundaries first, then select model and runtime, and leave reproducible evidence for every optimization.",
+    nextPreview: "The next chapter extends input from text to images, audio, and video, tracing multimodal training, mixed inference, and temporal alignment.",
   }),
 ];
+
+course.push(require("./en-multimodal.cjs"));
 
 module.exports = course;

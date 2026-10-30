@@ -30,7 +30,7 @@
         <div class="learning-badge" data-badge-days="1-3"><span aria-hidden="true">🧩</span><strong>{{ copy.badgeFoundations }}</strong><small>{{ copy.days }} 1–3</small></div>
         <div class="learning-badge" data-badge-days="4-6"><span aria-hidden="true">🔧</span><strong>{{ copy.badgeDeployment }}</strong><small>{{ copy.days }} 4–6</small></div>
         <div class="learning-badge" data-badge-days="7-10"><span aria-hidden="true">🧠</span><strong>{{ copy.badgeIntegration }}</strong><small>{{ copy.days }} 7–10</small></div>
-        <div class="learning-badge" data-badge-days="11-15"><span aria-hidden="true">🌐</span><strong>{{ copy.badgeInfrastructure }}</strong><small>{{ copy.days }} 11–15</small></div>
+        <div class="learning-badge" data-badge-days="11-{{ courseMeta.totalDays }}"><span aria-hidden="true">🌐</span><strong>{{ copy.badgeInfrastructure }}</strong><small>{{ copy.days }} 11–{{ courseMeta.totalDays }}</small></div>
         <div class="learning-badge" data-badge-streak="3"><span aria-hidden="true">🔥</span><strong>{{ copy.badgeStreak }}</strong><small>3 {{ copy.streakDays }}</small></div>
       </div>
     </div>
